@@ -1,0 +1,800 @@
+@font-face {
+    font-family: 'Poppins-Bold';
+    src: url('../fonts/Poppins/Poppins-Bold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Poppins-Regular';
+    src: url('../fonts/Poppins/Poppins-Regular.ttf') format('truetype');
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.judul{
+    font-family: 'Poppins-Bold';
+    font-size: 30px;
+    display: block;
+    text-align: center;
+}
+
+body {
+    font-family: 'Poppins-Regular', sans-serif;
+    background-color: rgb(	215, 215, 215, 0.6);
+    margin: 0;
+    padding: 0;
+}
+
+h2, option {
+    font-family: 'Poppins-Regular';
+    font-size: 16px;
+    color: black;
+}
+
+/* Sidebar */
+.sidebar {
+    background: rgba(68 , 125, 155, 0.85);
+    color: #fff;
+    width: 230px;
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+@media screen and (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-around;
+        border-radius: 0;
+    }
+}
+
+.content {
+  flex: 1; /* isi utama */
+  padding: 20px;
+}
+
+/* Avatar */
+.avatar-placeholder {
+    width: 110px;
+    height: 130px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    transition: transform 0.3s ease;
+}
+.avatar-placeholder:hover {
+    transform: scale(1.2);
+}
+.avatar-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.teacher-info {
+    text-align: center;
+}
+
+.teacher-name {
+    font-family: 'Poppins-Bold';
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.teacher-id {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+
+
+/* Footer */
+.main-footer {
+  font-family: 'Poppins-Regular', sans-serif;
+  background-color: #1f2937;
+  color: #e5e7eb;
+  text-align: center;
+  padding: 16px 0;
+  font-size: 14px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+
+.sidebar-menu {
+    width: 100%;
+}
+
+
+.menu-item {
+    font-family: 'Poppins-Regular', sans-serif;
+    font-size: 14px;
+    display: block;
+    padding: 8px 30px;
+    margin: 10px 0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s;
+}
+
+.menu-item:hover {
+    font-family: 'Poppins-Regular', sans-serif;
+    background: #fff;
+    color: rgba(68 , 125, 155);
+    transform: scale(1.1);
+}   
+
+.menu-item.active {
+  background: #3b82f6; /* biru Tailwind */
+  color: white;
+}
+.menu-item.active:hover {
+  background: #3b82f6; /* biru Tailwind */
+  color: white;
+  transform: none;
+}
+
+ul, li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.menu-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f3f3f3;
+    border-radius: 10px;
+    padding: 60px;
+    width: 700px;
+    margin: 50px auto;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+}
+
+.sapaan {
+    font-family: 'Poppins-Bold', sans-serif;
+    font-size: 30px;
+    text-align: start;
+    margin-bottom: 30px;
+    
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    align-items: center;
+}
+
+.menu-btn {
+    font-family: 'Poppins-Regular', sans-serif;
+    width: 350px;
+    padding: 12px 0;
+    background: rgba(68 , 125, 155);
+    color: #f3f3f3;
+    font-weight: bold;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.menu-btn:hover {
+    background: #fff;
+    color: rgba(68, 125, 155);
+    outline: 3px solid rgba(68, 125, 155);
+    outline-offset: -2px; 
+}
+
+/* Container tabel */
+.table-container {
+    font-size: 12px;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-family: 'Poppins-Regular', sans-serif;
+}
+
+/* Header tabel */
+.table-container thead tr {
+    background-color: #273F4F; /* abu-abu gelap */
+    color: white;
+    text-align: center;
+}
+
+.table-container th {
+    padding: 14px 18px;
+    border-bottom: 1px solid #273F4F;
+}
+
+/* Body tabel */
+.table-container tbody {
+    background-color: #F9FAFB; /* abu-abu sangat terang */
+    text-align: center;
+}
+
+.table-container tbody tr {
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.table-container tbody tr:hover {
+    background-color: #E5E7EB; /* abu-abu muda */
+    transform: scale(1.01); /* efek zoom ringan */
+}
+
+.table-container td {
+    padding: 14px 18px;
+    border-bottom: 1px solid #D1D5DB;
+}
+
+/* kolom foto di tabel */
+.table-container td:nth-child(3),
+.table-container th:nth-child(3) {
+    text-align: center;      /* rata tengah isi */
+    vertical-align: middle;  /* sejajarkan vertikal */
+}
+
+/* supaya gambar selalu rapih */
+.table-container td img {
+    display: block;
+    margin: 0 auto;          /* otomatis ke tengah */
+}
+
+.overflow-x-auto {
+    max-height: 400px; /* tinggi maksimal sebelum scroll */
+    overflow-y: auto;
+}
+
+.table-btn {
+    font-family: 'Poppins-Regular', sans-serif;
+    width: 70px;
+    padding: 12px 0;
+    background: rgba(68 , 125, 155);
+    color: #f3f3f3;
+    font-weight: bold;
+    font-size: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.table-btn:hover {
+    background: #fff;
+    color: rgba(68, 125, 155);
+    outline: 3px solid rgba(68, 125, 155);
+    outline-offset: -2px; 
+}
+
+.table-btn i {
+    margin-left: 6px; /* memberi jarak antara teks dan ikon */
+}
+
+.table-btn-red {
+    font-family: 'Poppins-Regular', sans-serif;
+    width: 70px;
+    padding: 12px 0;
+    background: #E74C3C;
+    color: #f3f3f3;
+    font-weight: bold;
+    font-size: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+/*=======================================Search-Box/*=======================================*/
+
+.filter-container {
+    display: flex;         /* Aktifkan Flexbox */
+    align-items: center;   /* Sejajarkan item secara vertikal di tengah */
+    gap: 15px;             /* Beri jarak 15px antar item */
+}
+
+/* Wadah untuk search box agar ikon bisa diposisikan di dalamnya */
+.search-box-container {
+    position: relative;
+    display: inline-block; /* Agar lebarnya sesuai konten */
+    width: 430px; /* Atur lebar sesuai kebutuhan */
+    vertical-align: middle; /* Sejajarkan dengan dropdown kelas */
+}
+
+/* Ikon di dalam search box */
+.search-icon {
+    position: absolute;
+    left: 15px; /* Jarak ikon dari kiri */
+    top: 50%;
+    transform: translateY(-50%); /* Trik untuk centering vertikal sempurna */
+    color: #273F4F; /* Warna ikon */
+    font-size: 16px;
+    pointer-events: none; /* Agar ikon tidak bisa diklik */
+}
+
+/* Gaya untuk input field yang baru */
+.search-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 50px;
+    padding: 12px 20px 12px 45px;
+    border: 2px solid #273F4F; /* Baris ini sekarang akan berfungsi */
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: 'Poppins-Regular', sans-serif;
+    transition: all 0.3s ease;
+    outline: none;
+    background-color: white;
+}
+
+/* Efek saat input diklik/aktif */
+.search-input:focus {
+    border-color: white; /* Warna border saat aktif */
+    box-shadow: 0 0 8px rgba(68, 125, 155, 0.4); /* Efek glow */
+}
+
+/* Mengubah warna ikon saat input aktif */
+.search-input:focus + .search-icon {
+    color: #447d9b;
+}
+
+/*=======================================Search-Box/*=======================================*/
+
+.table-btn-red:hover {
+    background: #fff;
+    color: #E74C3C;
+    outline: 3px solid #E74C3C;
+    outline-offset: -2px; 
+}
+
+.table-btn-red i {
+    margin-left: 6px; /* memberi jarak antara teks dan ikon */
+}
+
+.dark-btn {
+    font-family: 'Poppins-Regular', sans-serif;
+    background: #273F4F;
+    color: #f3f3f3;
+    font-weight: bold;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.dark-btn:hover {
+    background: #fff;
+    color: #273F4F;
+    outline: 3px solid #273F4F;
+    outline-offset: -2px;
+    transform: scale(1.01); 
+}
+
+.dark-btn i {
+    margin-left: 6px; /* memberi jarak antara teks dan ikon */
+}
+
+.select-box, .dark-btn {
+    width: 200px;
+    height: 50px;
+    margin-right: 15px;
+    padding: 12px 16px; /* padding vertikal + horizontal sama */
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: 'Poppins-Regular', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+/* Select_________________________________________________________________ */
+/* Select box */
+.select-box {
+    border: 2px solid #273F4F;
+    background-color: white;
+    color: #1F2937;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' fill='none' stroke='%23343A40' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+}
+
+.select-box:hover, .select-box:focus {
+    border-color: #4299E1;
+    box-shadow: 0 0 6px rgba(66, 153, 225, 0.4);
+}
+
+/* Card container */
+.form-card {
+    background: #f8f8f8;
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    margin: 0px auto;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Title */
+.form-title {
+    text-align: center;
+    background: #e5e5f5;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Group */
+.form-group,.form-group2 {
+    margin-bottom: 15px;
+}
+
+
+/* Input & Select */
+.form-group input,
+.form-group select {
+    font-family: 'Poppins-Regular', sans-serif;
+    width: 320px;
+    padding: 12px;
+    border: none;
+    background: rgba(68, 125, 155, 0.4);
+    color: #111;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-group p{
+font-size: 12px;
+}
+
+.form-group2 select{
+    align-items: flex-end;
+    font-family: 'Poppins-Regular', sans-serif;
+    width: 220px;
+    padding: 12px;
+    border: none;
+    background: rgba(255, 255, 255, 0.4);
+    color: #111;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Container for form and photo input */
+.form-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+/* Row for photo input and submit button */
+.form-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: flex-end;
+}
+
+/* Style for file input */
+.form-group input[type="file"] {
+    background: rgba(68, 125, 155, 0.4);
+    padding: 10px;
+    border-radius: 6px;
+    width: 200px; /* Sesuaikan lebar sesuai kebutuhan */
+    color: #111;
+}
+
+/* Group untuk upload foto */
+.photo-group {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Preview foto */
+.preview-image {
+    display: none;
+    margin-top: 10px;
+    max-width: 100px;
+    max-height: 100px;
+    border-radius: 25%;         /* bulat */
+    object-fit: cover;          /* isi area dengan rapih */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Tombol tambah agar tidak berhimpitan */
+.form-action {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* jarak icon dengan teks */
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #447d9b, #2b5876);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.upload-btn i {
+    font-size: 18px;
+}
+
+.upload-btn:hover {
+    background: linear-gradient(135deg, #36657d, #1e3c56);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+.upload-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.alert {
+    font-size: 14px;
+    padding: 10px 15px;
+}
+
+.alert-success {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+/*notifikasi pop - up*/
+.popup-message {
+    position: fixed;
+    top: 20px;
+    left: -400px;   /* mulai dari kiri */
+    min-width: 300px;
+    max-width: 400px;
+    padding: 15px 20px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.6s ease;
+}
+
+.popup-message.show {
+    left: 20px;   /* geser masuk */
+    opacity: 1;
+}
+
+.popup-message.success {
+    background: linear-gradient(45deg, #28a745, #218838);
+}
+
+.popup-message.error {
+    background: linear-gradient(45deg, #dc3545, #a71d2a);
+}
+
+@keyframes slideInUp {
+    from { bottom: -60px; opacity: 0; }
+    to { bottom: 30px; opacity: 1; }
+}
+@keyframes fadeOut {
+    from { bottom: 30px; opacity: 1; }
+    to { bottom: -60px; opacity: 0; }
+}
+
+/*===========================notifikasi pop up*===========================/
+
+
+
+/* ===========================validasi delete guru=========================== */
+.delete-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.delete-modal-content {
+    background: #fff;
+    padding: 20px 25px;
+    border-radius: 10px;
+    width: 350px;
+    text-align: center;
+    animation: slideDown 0.3s ease;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.delete-modal-content h3 {
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    color: #dc2626;
+}
+
+.modal-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-cancel {
+    background: #e5e7eb;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #d1d5db;
+}
+@keyframes slideDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ===========================validasi delete guru=========================== */
+
+
+
+/* ===========================Mapel Modal=========================== */
+ .delete-modal2 {
+        display: none; /* Awalnya hidden */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5); /* Overlay gelap */
+        justify-content: center;
+        align-items: center;
+        z-index: 1000; /* Pastikan di atas elemen lain */
+    }
+    .delete-modal-content2 {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .form-container2 {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .form-group2 input, .form-group2 select, .form-group2 option{
+        font-size: 14px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 100%;
+    }
+
+    /* Select di dalam tabel mapel */
+    .guru-select2 {
+        font-size: 14px;   /* atur ukuran font */
+        padding: 12px 12px;  /* beri jarak biar rapi */
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        background-color: #fff;
+        color: #273F4F;
+        cursor: pointer;
+    }
+
+    /* Styling untuk option */
+    .guru-select2 option {
+        font-size: 14px;   /* ukuran font untuk setiap opsi */
+        padding: 8px;      /* jarak antar opsi */
+    }
+
+    /* Saat option dipilih */
+    .guru-select2 option:checked {
+        background: #273F4F;
+        color: #fff;
+    }
+
+    .modal-actions2 {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .btn-cancel2 {
+        padding: 10px 20px;
+        background-color: #ccc;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .dark-btn2 {
+        padding: 10px 20px;
+        background-color: #273F4F;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .dark-btn2.disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    .select-box2 {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .filter-section2 {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .mapel-container2 {
+        padding: 0 20px;
+    }
+    .table-container2 {
+        width: 100%;
+        border-collapse: collapse;
+         font-size: 14px;
+    }
+    .table-container2 th, .table-container2 td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    .editable2 {
+         font-size: 14px;
+        cursor: pointer;
+        padding: 5px;
+    }
+    .text-center2 {
+        text-align: center;
+    }
+/* ===========================Mapel Modal=========================== */

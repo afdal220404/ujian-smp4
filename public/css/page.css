@@ -1,0 +1,129 @@
+@font-face {
+    font-family: 'Poppins-Bold';
+    src: url('/font/Poppins/Poppins-Bold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Poppins-Regular';
+    src: url('/font/Poppins/Poppins-Regular.ttf') format('truetype');
+}
+
+body {
+    font-family: 'Poppins-Regular', sans-serif;
+    background-color: #f9fafb; /* abu muda lembut */
+    margin: 0;
+    padding: 0;
+}
+
+h2, option {
+    font-family: 'Poppins-Bold';
+    font-size: 16px;
+    color: black;
+}
+
+/* Sidebar */
+.sidebar {
+    background: rgba(68, 125, 155, 0.85);
+    color: #fff;
+    width: 250px;
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+@media screen and (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-around;
+        border-radius: 0;
+    }
+}
+
+/* Avatar */
+.avatar-placeholder {
+    width: 110px;
+    height: 130px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease;
+}
+.avatar-placeholder:hover {
+    transform: scale(1.05);
+}
+.avatar-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.teacher-info {
+    text-align: center;
+}
+
+.teacher-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.teacher-id {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+/* Link Sidebar */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 90%;
+    padding: 12px 16px;
+    margin: 8px 0;
+    color: #f3f4f6;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+.sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+    color: #fff;
+}
+
+/* Footer */
+.main-footer {
+    font-family: 'Poppins-Regular', sans-serif;
+    background-color: #1f2937;
+    color: #e5e7eb;
+    text-align: center;
+    padding: 16px 0;
+    font-size: 14px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    margin-top: auto;
+}
+
+.sidebar-menu {
+    margin-top: 20px;
+    width: 100%;
+}
+
+.menu-item {
+    display: block;
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.25);
+}   

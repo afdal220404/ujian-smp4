@@ -1,0 +1,167 @@
+body {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+html, body {
+    height: 100%;
+}
+
+
+.right, .left{
+    height: 50vh;
+    width: 100%;
+    font-family:'Poppins-Bold', sans-serif;
+    font-size: 45px;
+}
+
+
+@media screen and (min-width:768px){
+    .left,.right{
+        height: 100vh;
+    }
+}
+
+.left {
+    background-color: #F8F9FA;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.welcome-text {
+    margin-bottom: 20px;
+}
+
+.right{
+   background-image: 
+       linear-gradient(rgba(0, 0, 0, 0.3)), /* overlay hitam 50% */
+       url("/image/foto_sekolah.jpg");
+}
+
+.button {
+  background-color: #447d9b; 
+  border: none;
+  border-radius: 10px;
+  color: white;
+  padding: 16px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  transition-duration: 0.4s;
+  cursor: pointer;
+  margin-top: 60px;
+  padding: 10px 160px;
+  font-size: 18px;
+}
+
+.button1 {
+  background-color: #F8F9FA; 
+  color: black; 
+  border: 5px solid #447d9b;
+}
+
+.button1:hover {
+  background-color: #447d9b;
+  color: white;
+}
+
+.center-logo-group {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column; /* buat vertikal */
+    gap: 20px;
+    z-index: 10;
+}
+
+/* Bentuk logo bulat */
+.logo-placeholder {
+    border-radius: 50%;
+    background-color: white;
+    border: 3px solid #447d9b;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.logo-wrapper {
+    align-items: center;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #447d9b;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.logo-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+.main-footer {
+    background-color: #447d9b; /* abu gelap */
+    color: white;
+    text-align: center;
+    padding: 16px 0;
+    font-size: 14px;
+    position: relative;
+    z-index: 5;
+    margin-top: -25px;
+
+}
+
+/* landing page end */
+
+
+/* login page start */
+.left-login {
+    width: 50%;
+    background-image: 
+        linear-gradient(rgba(255, 165, 0, 0.6), rgba(255, 165, 0, 0.6)),
+        url('/image/foto_sekolah.jpg');
+    background-size: cover;
+    background-position: center;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-top-left-radius: 1rem;
+    border-bottom-left-radius: 1rem;
+}
+
+
+.text-welcome {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 1rem;
+    text-shadow: 1px 1px 2px black;
+}
+
+
+@font-face {
+    font-family: 'Poppins-Regular';
+    src: url('/font/Poppins/Poppins-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Poppins-Bold';
+    src: url('/font/Poppins/Poppins-Bold.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}

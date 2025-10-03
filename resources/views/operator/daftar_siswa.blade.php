@@ -1,0 +1,199 @@
+@extends('layouts.app')
+
+@section('title', 'Halaman Operator')
+
+@section('sidebar-menu')
+<a href="{{route('operator.daftar_siswa')}}" class="menu-item active">Daftar Siswa</a>
+<a href="{{route('daftar_guru2')}}" class="menu-item">Daftar Guru</a>
+@endsection
+
+@section('content')
+<div class="bg-white rounded-lg shadow-md p-6 w-full mb-5">
+    <a class="judul">Daftar Siswa</a>
+</div>
+
+@if (session('success'))
+<div id="popup-success" class="popup-message success">
+    {{ session('success') }}
+</div>
+@endif
+
+@if ($errors->any())
+<div id="popup-error" class="popup-message error">
+    ❌ Gagal menambahkan guru
+</div>
+
+@endif
+<button type="button" onclick="window.location='{{ route('landingpage3') }}'" class="dark-btn mb-5">
+    Beranda <i class="bi bi-house-door-fill"></i>
+</button>
+
+<button class="dark-btn mb-5 mr-5">Naik Kelas <i class="bi bi-arrow-up-circle-fill"></i></button>
+<button type="button" onclick="window.location='{{ route('tambah_siswa') }}'" class="dark-btn mb-5">
+    Tambah <i class="bi bi-plus-circle-fill"></i>
+</button>
+
+<br>
+
+<div class="filter-container mb-5">
+    <div class="search-box-container">
+        <i class="bi bi-search search-icon"></i>
+        <input type="search" id="searchInput" class="search-input" placeholder="Cari Nama atau NISN...">
+    </div>
+
+    <select id="kelasFilter" class="select-box">
+        <option value="">Semua</option>
+        <option value="VII">VII</option>
+        <option value="VIII">VIII</option>
+        <option value="IX">IX</option>
+    </select>
+</div>
+
+<div class="overflow-x-auto" style="max-height: 400px; overflow-y: auto;">
+    <table class="table-container">
+        <thead>
+            <tr>
+                <th>Nama Siswa</th>
+                <th>NISN</th>
+                <th>Kelas</th>
+                <th>Jenis Kelamin</th>
+                <th>Username</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="siswaTableBody">
+            
+        </tbody>
+    </table>
+    <div id="loadingSpinner" style="display: none; text-align: center; margin: 10px 0;">
+        <div class="spinner" style="
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #273F4F;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    "></div>
+    </div>
+</div>
+
+
+<!-- Modal Konfirmasi Hapus -->
+<div id="deleteModal" class="delete-modal">
+    <div class="delete-modal-content">
+        <h3>Konfirmasi Hapus</h3>
+        <p id="deleteMessage">Apakah Anda yakin ingin menghapus data ini? </p>
+        <div class="modal-actions">
+            <button type="button" id="confirmDeleteBtn" class="table-btn-red">Ya, Hapus</button>
+            <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Batal</button>
+        </div>
+    </div>
+</div>
+
+{{-- File: daftar_siswa.blade.php --}}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Perubahan: Ambil elemen input pencarian
+        const filterSelect = document.getElementById("kelasFilter");
+        const searchInput = document.getElementById("searchInput"); // <-- BARU
+        const tableBody = document.getElementById("siswaTableBody");
+        const loadingSpinner = document.getElementById("loadingSpinner");
+        let deleteId = null;
+
+        // Perubahan: Fungsi loadData sekarang menerima parameter 'search'
+        function loadData(kelas = "", search = "") {
+            loadingSpinner.style.display = "block";
+            tableBody.innerHTML = "";
+
+            // Perubahan: Tambahkan parameter 'search' ke URL fetch
+            const url = `{{ route('operator.filter_siswa') }}?kelas=${kelas}&search=${search}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // ... (sisa logika .then() sama seperti sebelumnya) ...
+                    tableBody.innerHTML = "";
+                    if (data.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center">Data siswa tidak ditemukan</td></tr>`;
+                    } else {
+                        data.forEach(item => {
+                            tableBody.innerHTML += `
+                            <tr>
+                                <td>${item.nama_lengkap}</td>
+                                <td>${item.nisn}</td>
+                                <td>${item.kelas}</td>
+                                <td>${item.jenis_kelamin}</td>
+                                <td>${item.akun.username}</td>
+                                <td>
+                                    <button type="button" onclick="window.location='{{ url('/operator/siswa') }}/${item.id}/edit'" class="table-btn">
+                                        Edit <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <form id="deleteForm-${item.id}" action="{{ url('/operator/siswa') }}/${item.id}" method="POST" style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button" class="table-btn-red" onclick="openDeleteModal(${item.id}, '${item.nama.replace(/'/g, "\\'")}')">
+                                            Delete <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        `;
+                        });
+                    }
+                })
+                .catch(error => {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">Terjadi error saat memuat data!</td></tr>`;
+                    console.error(error);
+                })
+                .finally(() => {
+                    loadingSpinner.style.display = "none";
+                });
+        }
+
+        // ... (fungsi modal tetap sama) ...
+        window.openDeleteModal = function(id, nama) {
+            deleteId = id;
+            document.getElementById("deleteMessage").innerText = `Apakah Anda yakin ingin menghapus siswa "${nama}"?`;
+            document.getElementById("deleteModal").style.display = "flex";
+        }
+        window.closeDeleteModal = function() {
+            document.getElementById("deleteModal").style.display = "none";
+            deleteId = null;
+        }
+        document.getElementById("confirmDeleteBtn").addEventListener("click", function() {
+            if (deleteId) {
+                document.getElementById(`deleteForm-${deleteId}`).submit();
+            }
+        });
+
+        // Load semua data saat halaman pertama kali dibuka
+        loadData();
+
+        // Perubahan: Trigger saat select diubah, sertakan nilai pencarian
+        filterSelect.addEventListener("change", function() {
+            loadData(this.value, searchInput.value);
+        });
+
+        // Perubahan: Tambahkan event listener untuk input pencarian
+        searchInput.addEventListener("keyup", function() { // <-- BARU
+            loadData(filterSelect.value, this.value);
+        });
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const popup = document.querySelector('.popup-message');
+        if (popup) {
+            // Tampilkan
+            setTimeout(() => popup.classList.add('show'), 100);
+
+            // Sembunyikan setelah 4 detik
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 4000);
+        }
+    });
+</script>
+@endsection
