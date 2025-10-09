@@ -42,10 +42,12 @@
     </div>
 
     <select id="kelasFilter" class="select-box">
-        <option value="">Semua</option>
-        <option value="VII">VII</option>
-        <option value="VIII">VIII</option>
-        <option value="IX">IX</option>
+        <option value="">Semua Kelas</option>
+        {{-- Loop data kelas dari controller --}}
+        @foreach ($kelasList as $kelas)
+        {{-- Value-nya adalah ID, teksnya adalah nama kelas --}}
+        <option value="{{ $kelas->id }}">{{ $kelas->kelas }}</option>
+        @endforeach
     </select>
 </div>
 
@@ -56,13 +58,12 @@
                 <th>Nama Siswa</th>
                 <th>NISN</th>
                 <th>Kelas</th>
-                <th>Jenis Kelamin</th>
                 <th>Username</th>
                 <th>Aksi</th>
             </tr>
         </thead>
         <tbody id="siswaTableBody">
-            
+
         </tbody>
     </table>
     <div id="loadingSpinner" style="display: none; text-align: center; margin: 10px 0;">
@@ -90,42 +91,46 @@
         </div>
     </div>
 </div>
-
-{{-- File: daftar_siswa.blade.php --}}
-
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Perubahan: Ambil elemen input pencarian
+        // --- DEKLARASI ELEMEN ---
         const filterSelect = document.getElementById("kelasFilter");
-        const searchInput = document.getElementById("searchInput"); // <-- BARU
+        const searchInput = document.getElementById("searchInput");
         const tableBody = document.getElementById("siswaTableBody");
         const loadingSpinner = document.getElementById("loadingSpinner");
+        const popup = document.querySelector('.popup-message');
         let deleteId = null;
 
-        // Perubahan: Fungsi loadData sekarang menerima parameter 'search'
+        // --- FUNGSI UNTUK MEMUAT DATA ---
         function loadData(kelas = "", search = "") {
             loadingSpinner.style.display = "block";
             tableBody.innerHTML = "";
-
-            // Perubahan: Tambahkan parameter 'search' ke URL fetch
             const url = `{{ route('operator.filter_siswa') }}?kelas=${kelas}&search=${search}`;
 
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    // ... (sisa logika .then() sama seperti sebelumnya) ...
-                    tableBody.innerHTML = "";
                     if (data.length === 0) {
                         tableBody.innerHTML = `<tr><td colspan="6" class="text-center">Data siswa tidak ditemukan</td></tr>`;
                     } else {
+                        let rows = '';
                         data.forEach(item => {
-                            tableBody.innerHTML += `
+                            // Cek untuk memastikan data relasi ada sebelum ditampilkan
+                            const namaKelas = item.kelas ? item.kelas.kelas : 'N/A';
+                            const username = item.akun ? item.akun.username : 'N/A';
+
+                            rows += `
                             <tr>
                                 <td>${item.nama_lengkap}</td>
                                 <td>${item.nisn}</td>
-                                <td>${item.kelas}</td>
-                                <td>${item.jenis_kelamin}</td>
-                                <td>${item.akun.username}</td>
+                                <td>${namaKelas}</td>  {{-- ✅ PERBAIKAN 1 --}}
+                                <td>${item.jenis_kelamin || 'N/A'}</td>
+                                <td>${username}</td>
                                 <td>
                                     <button type="button" onclick="window.location='{{ url('/operator/siswa') }}/${item.id}/edit'" class="table-btn">
                                         Edit <i class="bi bi-pencil-fill"></i>
@@ -133,26 +138,28 @@
                                     <form id="deleteForm-${item.id}" action="{{ url('/operator/siswa') }}/${item.id}" method="POST" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="button" class="table-btn-red" onclick="openDeleteModal(${item.id}, '${item.nama.replace(/'/g, "\\'")}')">
+                                        {{-- ✅ PERBAIKAN 2: Penyebab Utama Error --}}
+                                        <button type="button" class="table-btn-red" onclick="openDeleteModal(${item.id}, '${item.nama_lengkap.replace(/'/g, "\\'")}')">
                                             Delete <i class="bi bi-trash3-fill"></i>
                                         </button>
                                     </form>
                                 </td>
                             </tr>
-                        `;
+                            `;
                         });
+                        tableBody.innerHTML = rows;
                     }
                 })
                 .catch(error => {
-                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">Terjadi error saat memuat data!</td></tr>`;
-                    console.error(error);
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">Terjadi error saat memuat data! Periksa console untuk detail.</td></tr>`;
+                    console.error('Error saat memuat data siswa:', error);
                 })
                 .finally(() => {
                     loadingSpinner.style.display = "none";
                 });
         }
 
-        // ... (fungsi modal tetap sama) ...
+        // --- FUNGSI MODAL & NOTIFIKASI ---
         window.openDeleteModal = function(id, nama) {
             deleteId = id;
             document.getElementById("deleteMessage").innerText = `Apakah Anda yakin ingin menghapus siswa "${nama}"?`;
@@ -168,32 +175,15 @@
             }
         });
 
-        // Load semua data saat halaman pertama kali dibuka
-        loadData();
-
-        // Perubahan: Trigger saat select diubah, sertakan nilai pencarian
-        filterSelect.addEventListener("change", function() {
-            loadData(this.value, searchInput.value);
-        });
-
-        // Perubahan: Tambahkan event listener untuk input pencarian
-        searchInput.addEventListener("keyup", function() { // <-- BARU
-            loadData(filterSelect.value, this.value);
-        });
-    });
-</script>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const popup = document.querySelector('.popup-message');
         if (popup) {
-            // Tampilkan
             setTimeout(() => popup.classList.add('show'), 100);
-
-            // Sembunyikan setelah 4 detik
-            setTimeout(() => {
-                popup.classList.remove('show');
-            }, 4000);
+            setTimeout(() => popup.classList.remove('show'), 4000);
         }
+
+        // --- EVENT LISTENERS ---
+        loadData();
+        filterSelect.addEventListener("change", () => loadData(filterSelect.value, searchInput.value));
+        searchInput.addEventListener("keyup", () => loadData(filterSelect.value, searchInput.value));
     });
 </script>
 @endsection

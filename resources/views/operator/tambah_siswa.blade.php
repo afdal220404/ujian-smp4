@@ -43,20 +43,24 @@
         <form class="form-container" action="@if(isset($siswa)) {{ route('siswa.update', $siswa->id) }} @else {{ route('siswa.store') }} @endif" method="POST" enctype="multipart/form-data">
             @csrf
             @if(isset($siswa))
-                @method('PUT')
+            @method('PUT')
             @endif
             <div class="form-group">
-                <input type="text" name="nama" placeholder="Nama" value="{{ old('nama', $siswa->nama ?? '') }}" required>
+                <input type="text" name="nama_lengkap" placeholder="Nama Lengkap " value="{{ old('nama', $siswa->nama_lengkap ?? '') }}" required>
             </div>
             <div class="form-group">
                 <input type="text" name="nisn" placeholder="NISN" value="{{ old('nisn', $siswa->nisn ?? '') }}" required>
             </div>
             <div class="form-group">
-                <select name="kelas" required>
-                    <option disabled {{ !isset($siswa) ? 'selected' : '' }}>Kelas</option>
-                    <option value="VII" {{ (old('kelas', $siswa->kelas ?? '') == 'VII') ? 'selected' : '' }}>VII</option>
-                    <option value="VIII" {{ (old('kelas', $siswa->kelas ?? '') == 'VIII') ? 'selected' : '' }}>VIII</option>
-                    <option value="IX" {{ (old('kelas', $siswa->kelas ?? '') == 'IX') ? 'selected' : '' }}>IX</option>
+                <select name="kelas_id" required>
+                    <option value="" disabled selected>Pilih Kelas</option>
+                    @foreach ($kelasList as $kelas)
+                    <option value="{{ $kelas->id }}"
+                        {{-- Logika ini untuk memilih kelas saat edit atau jika ada error validasi --}}
+                        {{ (old('kelas_id', $siswa->kelas_id ?? '') == $kelas->id) ? 'selected' : '' }}>
+                        {{ $kelas->kelas }}
+                    </option>
+                    @endforeach
                 </select>
             </div>
             <div class="form-group">
@@ -64,7 +68,7 @@
             </div>
             <div class="form-group">
                 <input type="password" name="password" placeholder=" ">
-                 <p>@if(isset($siswa))*Kosongkan jika tidak ingin mengubah password @else Password Default @endif</p>
+                <p>@if(isset($siswa))*Kosongkan jika tidak ingin mengubah password @else Password Default @endif</p>
             </div>
             <div class="form-row">
                 <div class="form-action">

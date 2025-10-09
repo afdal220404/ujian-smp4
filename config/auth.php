@@ -15,7 +15,7 @@ return [
 
     'defaults' => [
         'guard' => 'web',
-        'passwords' => 'akuns',  // Update to match your new provider
+        'passwords' => 'users',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -37,7 +37,7 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
-            'provider' => 'akuns',
+            'provider' => 'users',
         ],
     ],
 
@@ -59,15 +59,19 @@ return [
     */
 
     'providers' => [
-        'akuns' => [  // Tambahkan provider baru untuk model Guru
+        // Provider ini sekarang akan mencoba login di beberapa tabel
+        'users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Akun::class,
+            'model' => App\Models\Guru::class, 
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'gurus' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Guru::class,
+        ],
+        'siswas' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Siswa::class,
+        ],
     ],
 
     /*

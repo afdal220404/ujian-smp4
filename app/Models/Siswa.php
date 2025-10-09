@@ -3,17 +3,29 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable; // Ubah ini
+use Illuminate\Notifications\Notifiable;
 
-
-class Siswa extends Model
+class Siswa extends Authenticatable // Ubah ini
 {
-    // ...
-    protected $primaryKey = 'id';
-    protected $fillable = ['akun_id', 'nisn', 'nama_lengkap'];
+    use HasFactory, Notifiable;
 
-    public function akun()
+    protected $fillable = [
+        'nama_lengkap',
+        'nisn',
+        'jenis_kelamin',
+        'kelas_id',
+        'username', 
+        'password', 
+    ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    // Tambahkan relasi ke kelas jika belum ada
+    public function kelas()
     {
-        return $this->belongsTo(Akun::class, 'akun_id', 'akun_id');
+        return $this->belongsTo(Kelas::class, 'kelas_id');
     }
 }

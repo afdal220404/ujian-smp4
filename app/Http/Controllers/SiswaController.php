@@ -15,7 +15,11 @@ class SiswaController extends Controller
     // ... metode index, filterByKelas, create, dan edit tidak berubah ...
     public function index()
     {
-        return view('operator.daftar_siswa');
+        // Ambil semua data kelas dari database
+        $kelasList = Kelas::orderBy('kelas')->get();
+
+        // Kirim data kelas ke view
+        return view('operator.daftar_siswa', compact('kelasList'));
     }
 
     public function filterByKelas(Request $request)
@@ -37,13 +41,13 @@ class SiswaController extends Controller
         $siswa = $query->orderBy('nama_lengkap', 'asc')->get();
         return response()->json($siswa);
     }
-    
+
     public function create()
     {
         $kelasList = Kelas::all();
         return view('operator.tambah_siswa', compact('kelasList'));
     }
-    
+
     public function edit($id)
     {
         $siswa = Siswa::with('akun')->findOrFail($id);
@@ -84,7 +88,7 @@ class SiswaController extends Controller
                 $akun = Akun::create([
                     'username' => $validatedData['username'],
                     'password' => Hash::make($validatedData['password']),
-                    'role' => 'Siswa', 
+                    'role' => 'Siswa',
                 ]);
 
                 // Buat data Siswa
@@ -97,7 +101,6 @@ class SiswaController extends Controller
             });
 
             return redirect()->route('operator.daftar_siswa')->with('success', 'Data Siswa Berhasil Ditambahkan ✅');
-
         } catch (\Exception $e) {
             Log::error('Gagal saat menyimpan siswa baru: ' . $e->getMessage());
             return redirect()->back()->withInput()->with('error', 'Gagal menambahkan data siswa. Terjadi kesalahan.');
@@ -133,7 +136,7 @@ class SiswaController extends Controller
 
         // Jalankan validasi
         $validatedData = $request->validate($rules, $messages);
-        
+
         try {
             DB::transaction(function () use ($validatedData, $request, $siswa, $akun) {
                 // Update data profil
@@ -153,7 +156,6 @@ class SiswaController extends Controller
             });
 
             return redirect()->route('operator.daftar_siswa')->with('success', 'Data siswa berhasil diupdate ✅');
-
         } catch (\Exception $e) {
             Log::error('Gagal saat update siswa: ' . $e->getMessage());
             return redirect()->back()->withInput()->with('error', 'Gagal mengupdate data siswa. Terjadi kesalahan.');
@@ -167,7 +169,6 @@ class SiswaController extends Controller
             // Hapus akun, data siswa akan ikut terhapus karena cascade
             $siswa->akun->delete();
             return redirect()->route('operator.daftar_siswa')->with('success', 'Data siswa berhasil dihapus!');
-
         } catch (\Exception $e) {
             Log::error('Gagal saat menghapus siswa: ' . $e->getMessage());
             return redirect()->route('operator.daftar_siswa')->with('error', 'Gagal menghapus data siswa. Terjadi kesalahan.');

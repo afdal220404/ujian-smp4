@@ -2,21 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable; // Ubah ini
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Model;
-class Guru extends Model
+
+class Guru extends Authenticatable 
 {
-    use Notifiable;
+    use HasFactory, Notifiable;
+
     protected $fillable = [
-        'akun_id',
         'nama_lengkap',
         'nip',
         'foto',
+        'username', // Tambahkan
+        'password', // Tambahkan
+        'role',     // Tambahkan
     ];
 
-    // Relasi balik ke Akun
-    public function akun()
-    {
-        return $this->belongsTo(Akun::class, 'akun_id', 'akun_id');
-    }
+    protected $hidden = [
+        'password',
+    ];
 }
