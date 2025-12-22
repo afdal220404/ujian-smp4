@@ -5,7 +5,6 @@
 @section('sidebar-menu')
 <a href="{{route('operator.daftar_siswa')}}" class="menu-item">Daftar Siswa</a>
 <a href="{{route('daftar_guru2')}}" class="menu-item">Daftar Guru</a>
-<a href="{{route('mapel')}}" class="menu-item active">Mata Pelajaran</a>
 @endsection
 
 @if (session('success'))
@@ -70,7 +69,7 @@
                 <select id="guruId" name="guru_id" required>
                     <option value="" selected disabled>Pilih Guru Pengampu</option>
                     @foreach ($gurus as $guru)
-                    <option value="{{ $guru->id }}">{{ $guru->nama }}</option>
+                    <option value="{{ $guru->id }}">{{ $guru->nama_lengkap}}</option>
                     @endforeach
                 </select>
             </div>
@@ -135,7 +134,7 @@
                 } else {
                     data.forEach(mapel => {
                         const guruOptions = gurus.map(guru =>
-                            `<option value="${guru.id}" ${mapel.guru_id == guru.id ? 'selected' : ''}>${guru.nama}</option>`
+                            `<option value="${guru.id}" ${mapel.guru_id == guru.id ? 'selected' : ''}>${guru.nama_lengkap}</option>`
                         ).join('');
                         const guruOptionsFull = `<option value="" disabled>Pilih Guru</option>` + guruOptions;
 
@@ -143,7 +142,7 @@
                             <tr>
                                 <td class="editable2" data-id="${mapel.id}" data-field="nama_mapel" ondblclick="enableEdit(this)">${mapel.nama_mapel}</td>
                                 <td class="editable2" data-id="${mapel.id}" data-field="guru_id" ondblclick="enableEdit(this)">
-                                    <span>${mapel.guru ? mapel.guru.nama : 'Tidak ada guru'}</span>
+                                    <span>${mapel.guru ? mapel.guru.nama_lengkap : 'Tidak ada guru'}</span>
                                     <select class="guru-select2" style="display:none;">${guruOptionsFull}</select>
                                 </td>
                                 <td>

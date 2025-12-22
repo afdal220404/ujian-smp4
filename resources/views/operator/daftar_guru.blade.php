@@ -8,6 +8,7 @@
 @endsection
 
 @section('content')
+{{-- ... (Isi HTML Anda tetap sama) ... --}}
 <div class="bg-white rounded-lg shadow-md p-6 w-full mb-5">
     <a class="judul">Daftar Guru</a>
 </div>
@@ -33,108 +34,91 @@
         Tambah <i class="bi bi-plus-circle-fill"></i>
     </button>
     {{-- Form Pencarian Live --}}
-    <div class="search-box-container" style="width: 300px; margin-left: auto;">
+    <div class="search-box-container">
         <i class="bi bi-search search-icon"></i>
         <input type="search" id="searchInput" class="search-input" placeholder="Cari Nama atau NIP...">
     </div>
 </div>
 
-{{-- Tabel untuk Menampilkan Data --}}
 <div class="overflow-x-auto">
     <table class="table-container">
         <thead>
             <tr>
+                <th>Foto</th>
                 <th>Nama Guru</th>
                 <th>NIP</th>
-                <th>Foto</th>
                 <th>Username</th>
                 <th>Aksi</th>
             </tr>
         </thead>
         <tbody id="guruTableBody">
-            {{-- Data guru akan dimuat lewat AJAX --}}
+            {{-- Data akan dimuat di sini oleh JavaScript --}}
         </tbody>
     </table>
-    {{-- Indikator Loading --}}
-    <div id="loadingSpinner" style="display: none; text-align: center; padding: 20px;">
-        <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #273F4F; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: auto;"></div>
+    <div id="loadingSpinner" style="display: none; text-align: center; margin: 20px 0;">
+        <div class="spinner"></div>
     </div>
 </div>
-@endsection
 
-@section('scripts')
-{{-- Modal Konfirmasi Hapus --}}
 <div id="deleteModal" class="delete-modal">
     <div class="delete-modal-content">
         <h3>Konfirmasi Hapus</h3>
         <p id="deleteMessage">Apakah Anda yakin ingin menghapus data ini?</p>
         <div class="modal-actions">
-            <form id="deleteForm" method="POST" style="display:inline;">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="table-btn-red">Ya, Hapus</button>
-            </form>
+            <button type="button" id="confirmDeleteBtn" class="table-btn-red">Ya, Hapus</button>
             <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Batal</button>
         </div>
     </div>
 </div>
-
+@endsection
 <script>
-    // Fungsi untuk modal hapus
-    function openDeleteModal(id, nama) {
-        const modal = document.getElementById("deleteModal");
-        const message = document.getElementById("deleteMessage");
-        const form = document.getElementById("deleteForm");
-
-        message.innerText = `Apakah Anda yakin ingin menghapus guru "${nama}"?`;
-        form.action = `/guru/${id}`;
-        modal.style.display = "flex";
-    }
-
-    function closeDeleteModal() {
-        document.getElementById("deleteModal").style.display = "none";
-    }
-
-    // Event listener utama untuk semua fungsionalitas halaman
     document.addEventListener("DOMContentLoaded", function() {
+        // ... (Elemen dan fungsi modal tetap sama) ...
         const searchInput = document.getElementById("searchInput");
         const tableBody = document.getElementById("guruTableBody");
         const loadingSpinner = document.getElementById("loadingSpinner");
         const popup = document.querySelector('.popup-message');
+        let deleteId = null;
+        
+        window.openDeleteModal = function(id, nama) {
+            deleteId = id;
+            document.getElementById("deleteMessage").innerText = `Apakah Anda yakin ingin menghapus data "${nama}"?`;
+            document.getElementById("deleteModal").style.display = "flex";
+        }
 
-        // Fungsi utama untuk memuat data
+        window.closeDeleteModal = function() {
+            document.getElementById("deleteModal").style.display = "none";
+        }
+        
+        document.getElementById("confirmDeleteBtn").addEventListener("click", function() {
+            if (deleteId) {
+                document.getElementById(`deleteForm-${deleteId}`).submit();
+            }
+        });
+
         function loadData(search = "") {
             loadingSpinner.style.display = "block";
-
-            // =================================================================
-            // KUNCI PERBAIKAN: Baris ini membersihkan tabel sebelum data baru dimasukkan.
-            // Ini adalah baris yang paling penting untuk mengatasi bug Anda.
             tableBody.innerHTML = "";
-            // =================================================================
-
-            const url = `{{ route('guru.filter') }}?search=${search}`;
-
-            fetch(url)
+            fetch(`{{ route('guru.filter') }}?search=${search}`)
                 .then(response => response.json())
                 .then(data => {
+                    let rows = "";
                     if (data.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="5" class="text-center">Data guru tidak ditemukan.</td></tr>`;
+                        rows = `<tr><td colspan="5" class="text-center">Data guru tidak ditemukan</td></tr>`;
                     } else {
-                        // Variabel untuk menampung semua baris HTML baru
-                        let rows = '';
                         data.forEach(guru => {
-                            let fotoUrl = guru.foto ? `{{ asset('storage') }}/${guru.foto}` : `{{ asset('images/default.png') }}`;
-
-                            // Tambahkan baris baru ke variabel 'rows'
+                            const fotoUrl = guru.foto ? `{{ asset('storage') }}/${guru.foto}` : `{{ asset('image/dummy.jpg') }}`;
                             rows += `
                                 <tr>
+                                    <td><img src="${fotoUrl}" alt="Foto Guru" class="w-30 h-30 rounded"></td>
                                     <td>${guru.nama_lengkap}</td>
                                     <td>${guru.nip}</td>
+                                    <td>${guru.username}</td> {{-- ✅ PERBAIKAN: Langsung panggil guru.username --}}
                                     <td>
-                                        <img src="${fotoUrl}" alt="Foto ${fotoUrl}" width="80" height="80" style="border-radius: 8px; object-fit: cover;">
-                                    </td>
-                                    <td>${guru.akun.username}</td>
-                                    <td>
+                                        <form id="deleteForm-${guru.id}" action="{{ url('/guru') }}/${guru.id}" method="POST" style="display:inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                        </form>
                                         <button type="button" onclick="window.location='{{ url('/guru') }}/${guru.id}/edit'" class="table-btn">
                                             Edit <i class="bi bi-pencil-fill"></i>
                                         </button>
@@ -145,9 +129,8 @@
                                 </tr>
                             `;
                         });
-                        // Masukkan semua baris baru ke tabel sekaligus (lebih efisien)
-                        tableBody.innerHTML = rows;
                     }
+                    tableBody.innerHTML = rows;
                 })
                 .catch(error => {
                     console.error('Error memuat data:', error);
@@ -158,19 +141,11 @@
                 });
         }
 
-        // Event listener untuk input pencarian
-        searchInput.addEventListener("keyup", function() {
-            loadData(this.value);
-        });
-
-        // Logika untuk notifikasi pop-up
+        searchInput.addEventListener("keyup", function() { loadData(this.value); });
         if (popup) {
             setTimeout(() => popup.classList.add('show'), 100);
             setTimeout(() => popup.classList.remove('show'), 4000);
         }
-
-        // Muat data pertama kali saat halaman dibuka
         loadData();
     });
 </script>
-@endsection

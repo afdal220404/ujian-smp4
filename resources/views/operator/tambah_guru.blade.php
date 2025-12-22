@@ -60,7 +60,7 @@
                 <input type="text" name="nip" placeholder="NIP" value="{{ old('nip', $guru->nip ?? '') }}" required>
             </div>
             <div class="form-group">
-                <input type="text" name="username" placeholder="Username" value="{{old('username', isset($guru) ? $guru->akun->username : '') }}" required>
+                <input type="text" name="username" placeholder="Username" value="{{old('username', isset($guru) ? $guru->username : '') }}" required>
             </div>
             <div class="form-group">
                 <input type="password" name="password" placeholder="password">

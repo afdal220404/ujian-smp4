@@ -11,9 +11,10 @@ class GuruSeeder extends Seeder
     public function run()
     {
         Guru::create([
-            'nama' => 'bayu, S.T',
+            'nama_lengkap' => 'bayu, S.T',
             'username' => 'operator',
-            'password' => Hash::make('123'),
+            'password' => Hash::make('123456'),
+            'role' => 'Operator',
             'nip' => '020517',
             'foto' => 'images/dummy.jpg', // path foto di public/
         ]);

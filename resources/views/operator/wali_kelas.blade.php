@@ -1,110 +1,94 @@
 @extends('layouts.app')
 
-@section('title', 'Halaman Operator')
+@section('title', 'Halaman Wali Kelas')
 
 @section('sidebar-menu')
-    <a href="{{route('daftar_siswa')}}" class="menu-item ">Daftar Siswa</a>
-    <a href="{{route('daftar_guru2')}}" class="menu-item active">Daftar Guru</a>
+{{-- Sesuaikan dengan menu aktif Anda --}}
+<a href="{{route('operator.daftar_siswa')}}" class="menu-item">Daftar Siswa</a>
+<a href="{{route('daftar_guru2')}}" class="menu-item">Daftar Guru</a>
+{{-- ... menu lain ... --}}
 @endsection
 
 @section('content')
- <div class="bg-white rounded-lg shadow-md p-6 w-full mb-5">
-    <a class="judul">Wali Kelas</a>
+<div class="bg-white rounded-lg shadow-md p-6 w-full mb-5">
+    <a class="judul">Set Wali Kelas</a>
 </div>
 
-<button type="button" onclick="window.location='{{ route('landingpage3') }}'" class="dark-btn mb-5">
-    Beranda <i class="bi bi-house-door-fill"></i>
-</button>
+{{-- Tampilkan notifikasi --}}
+@if (session('success'))
+<div class="alert alert-success mb-3">{{ session('success') }}</div>
+@endif
+@if (session('error'))
+<div class="alert alert-danger mb-3">{{ session('error') }}</div>
+@endif
 
-<button type="button" onclick="window.location='{{ route('landingpage3') }}'" class="dark-btn mb-5">
-    Simpan <i class="bi bi-check-square-fill"></i>
-</button>
+<form action="{{ route('walikelas.store') }}" method="POST">
+    @csrf
 
-<div class="overflow-x-auto">
-    <div class="form-card">
-        <table class="table-container">
+    <div class="filter-container mb-5">
+        <button type="button" onclick="window.location='{{ route('landingpage3') }}'" class="dark-btn">
+            Beranda <i class="bi bi-house-door-fill"></i>
+        </button>
+        <button type="submit" class="dark-btn">
+            Simpan <i class="bi bi-check-square-fill"></i>
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <div class="form-card">
+            <table class="table-container">
                 <thead>
                     <tr>
                         <th>Kelas</th>
                         <th>Guru Wali</th>
-                        <th>Set Username</th>
-                        <th>Set Password</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
+                    @forelse($kelasList as $kelas)
                     <tr>
-                        <td>VII</td>
+                        <td>{{ $kelas->kelas }}</td>
                         <td>
                             <div class="form-group">
-                                <select>
-                                    <option selected disabled>Pilih Guru</option>
-                                    <option>Budi</option>
-                                    <option>Bayu</option>
+                                {{-- Nama input menggunakan array agar mudah diproses --}}
+                                <select name="wali_kelas[{{ $kelas->id }}]" class="select2-guru"> {{-- <-- TAMBAHKAN KELAS INI --}}
+                                    <option value="">-- Pilih Guru --</option>
+                                    @foreach($gurus as $guru)
+                                    <option value="{{ $guru->id }}"
+                                        {{ ($waliKelasData[$kelas->id] ?? null) == $guru->id ? 'selected' : '' }}>
+                                        {{ $guru->nama_lengkap }}
+                                    </option>
+                                    @endforeach
                                 </select>
                             </div>
                         </td>
-                        <td>
-                        <div class="form-group">
-                            <input type="text" placeholder="Username">
-                         </div>
-                        </td>
-                        <td>
-                            <div class="form-group">
-                            <input type="text" placeholder="Password">
-                         </div>
-                        </td>
-                        </td>
                     </tr>
+                    @empty
                     <tr>
-                        <td>VIII</td>
-                        <td>
-                            <div class="form-group">
-                                <select>
-                                    <option selected disabled>Pilih Guru</option>
-                                    <option>Budi</option>
-                                    <option>Bayu</option>
-                                </select>
-                            </div>
-                        </td>
-                        <td>
-                        <div class="form-group">
-                            <input type="text" placeholder="Username">
-                         </div>
-                        </td>
-                        <td>
-                            <div class="form-group">
-                            <input type="text" placeholder="Password">
-                         </div>
-                        </td>
-                        </td>
+                        <td colspan="2" class="text-center">Data kelas tidak ditemukan.</td>
                     </tr>
-                    <tr>
-                        <td>IX</td>
-                        <td>
-                            <div class="form-group">
-                                <select>
-                                    <option selected disabled>Pilih Guru</option>
-                                    <option>Budi</option>
-                                    <option>Bayu</option>
-                                </select>
-                            </div>
-                        </td>
-                        <td>
-                        <div class="form-group">
-                            <input type="text" placeholder="Username">
-                         </div>
-                        </td>
-                        <td>
-                            <div class="form-group">
-                            <input type="text" placeholder="Password">
-                         </div>
-                        </td>
-                        </td>
-                    </tr>
+                    @endforelse
                 </tbody>
             </table>
+        </div>
     </div>
-</div>
-
+</form>
 @endsection
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Inisialisasi Select2 pada semua elemen dengan kelas 'select2-guru'
+        // Kode ini menggunakan jQuery ($)
+        $('.select2-guru').select2({
+            placeholder: "Cari dan pilih guru...",
+            allowClear: true
+        });
+
+        // ... (Kode notifikasi Anda yang sudah ada) ...
+        const popup = document.querySelector('.popup-message');
+        if (popup) {
+            setTimeout(() => popup.classList.add('show'), 100);
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 4000);
+        }
+    });
+</script>

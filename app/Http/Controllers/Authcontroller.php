@@ -21,24 +21,22 @@ class Authcontroller extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            $akun = Auth::user();
-            $role = $akun->role;
+            $user = Auth::user(); // Ini akan menjadi objek Guru
+            $role = $user->role;
 
-            // Logika redirect yang lebih lengkap
+            // Logika redirect berdasarkan role
             if ($role === 'Operator') {
                 return redirect()->intended(route('operator.landingpage'));
             } elseif ($role === 'Guru') {
-                return redirect()->intended(route('landingpage2')); // Ganti dengan route dashboard guru jika ada
+                return redirect()->intended(route('landingpage2'));
             } elseif ($role === 'Kepala Sekolah') {
-                return redirect()->intended(route('landingpage')); // Ganti dengan route dashboard kepsek jika ada
+                return redirect()->intended(route('landingpage'));
             }
 
-            // Redirect default jika role tidak terdaftar di atas
             return redirect('/');
         }
 
         return back()->withErrors([
-            // Key error disamakan dengan di view
             'username' => 'Username atau password yang Anda masukkan salah.',
         ])->onlyInput('username');
     }
