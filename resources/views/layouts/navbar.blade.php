@@ -1,22 +1,34 @@
 <div class="sidebar">
-   <div class="avatar-placeholder">
-    <img src="{{ asset('storage/' . Auth::user()->foto) }}" alt="User Avatar"> 
-         alt="foto {{ auth()->user()->nama }}" 
-         class="rounded-full w-20 h-20 mx-auto">
-</div>
-     <!-- Info Guru -->
-   <div class="teacher-info mb-8">
-        {{-- Panggil properti 'name' dan 'nip' dari user yang login --}}
-        <h2 class="teacher-name">{{ Auth::user()->nama_lengkap}}</h2>
-        <p class="teacher-id">{{ Auth::user()->nip }}</p>
+    {{-- Avatar Section --}}
+    <div class="avatar-container">
+        <div class="avatar-placeholder">
+            {{-- Menggunakan operator ternary untuk cek foto, jika null pakai dummy --}}
+            <img src="{{ Auth::user()->foto ? asset('storage/' . Auth::user()->foto) : asset('image/dummy.jpg') }}" 
+                 alt="Foto {{ Auth::user()->nama_lengkap }}">
+        </div>
     </div>
-    <nav class="flex flex-col space-y-4">
+
+    {{-- Info Guru --}}
+    <div class="teacher-info">
+        <h2 class="teacher-name">{{ Auth::user()->nama_lengkap }}</h2>
+        <p class="teacher-id">
+            <i class="bi bi-person-badge"></i> {{ Auth::user()->nip ?? 'NIP Tidak Ada' }}
+        </p>
+    </div>
+
+    {{-- Separator Line --}}
+    <div class="sidebar-divider"></div>
+
+    {{-- Menu Navigasi --}}
+    <nav class="sidebar-menu">
         {{-- Menu akan diisi dari halaman yang extend --}}
         @yield('sidebar-menu')
     </nav>
 
-    <nav class="flex-grow flex flex-col justify-end">
-    <a href="{{route('logout')}}" class="menu-item-red">Logout</a>
-    </nav> 
-    
+    {{-- Logout Section (Di bawah) --}}
+    <div class="logout-container">
+        <a href="{{ route('logout') }}" class="menu-item-red">
+            <i class="bi bi-box-arrow-left"></i> Logout
+        </a>
+    </div>
 </div>
