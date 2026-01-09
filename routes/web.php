@@ -10,7 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GuruIndexController;
 use App\Http\Controllers\GuruWaliKelasController;
 use App\Http\Controllers\GuruMapelController;
-
+use App\Http\Controllers\KepsekController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -110,7 +110,17 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     Route::delete('/bank-soal/{bankSoal}', [GuruMapelController::class, 'destroyBankSoal'])->name('mapel.bank_soal.destroy');
 });
     
-
+// ---------------------------------------------------------------------
+    // 3. ROLE: KEPALA SEKOLAH (KEPSEK) - BARU
+    // ---------------------------------------------------------------------
+    Route::prefix('kepsek')->name('kepsek.')->group(function () {
+        Route::get('/dashboard', [KepsekController::class, 'index'])->name('index');
+        
+        // Fitur Monitoring (Placeholder untuk pengembangan selanjutnya)
+        Route::get('/monitor-guru', [KepsekController::class, 'monitorGuru'])->name('guru');
+        Route::get('/monitor-siswa', [KepsekController::class, 'monitorSiswa'])->name('siswa');
+        Route::get('/laporan-nilai', [KepsekController::class, 'laporanNilai'])->name('nilai');
+    });
 
 
 Route::get('/landingpage2', [GuruIndexController::class, 'index'])->name('landingpage2');
@@ -122,10 +132,6 @@ Route::get('/landingpage3', function () {
 Route::get('/landingpage4', function () {
     return view('wali_kelas/landingpage');
 })->name('landingpage4');
-
-Route::get('/landingpage', function () {
-    return view('kepsek/landingpage');
-})->name('landingpage');
 
 Route::get('/daftar_nilai', function () {
     return view('kepsek/daftar_nilai');
