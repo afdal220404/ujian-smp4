@@ -11,33 +11,50 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // 1. Ambil data untuk widget statistik
+        // 1. Statistik Utama
         $jumlahSiswa = Siswa::count();
         $jumlahGuru = Guru::count();
+        $jumlahKelas = Kelas::count(); 
         
-        // Menghitung pengguna yang aktif dalam 15 menit terakhir
         $jumlahPenggunaAktif = DB::table('sessions')
-                                ->where('last_activity', '>', now()->subMinutes(15)->getTimestamp())
-                                ->count();
+            ->where('last_activity', '>', now()->subMinutes(15)->getTimestamp())
+            ->count();
 
-        // 2. Ambil data untuk bar chart perbandingan siswa per kelas
+        // 2. Grafik Kiri: Distribusi Siswa (Bar Chart)
         $siswaPerKelas = Siswa::select('kelas.kelas', DB::raw('count(siswas.id) as jumlah'))
             ->join('kelas', 'siswas.kelas_id', '=', 'kelas.id')
             ->groupBy('kelas.kelas')
             ->orderBy('kelas.kelas')
             ->get();
 
-        // Siapkan data untuk dikirim ke view
-        $chartLabels = $siswaPerKelas->pluck('kelas');
-        $chartData = $siswaPerKelas->pluck('jumlah');
+        $chartSiswaLabels = $siswaPerKelas->pluck('kelas');
+        $chartSiswaData = $siswaPerKelas->pluck('jumlah');
 
-        // 3. Kirim semua data ke view
+        // 3. (BARU) Grafik Kanan: Komposisi Pegawai (Doughnut Chart)
+        // Kita hitung jumlah user berdasarkan role di tabel gurus
+        $komposisiRole = Guru::select('role', DB::raw('count(*) as total'))
+            ->groupBy('role')
+            ->get();
+
+        $chartRoleLabels = $komposisiRole->pluck('role');
+        $chartRoleData = $komposisiRole->pluck('total');
+
+        $siswaTanpaNISN = Siswa::whereNull('nisn')->orWhere('nisn', '')->count();
+        $guruTanpaNIP = Guru::whereNull('nip')->orWhere('nip', '')->count();
+        $kelasTanpaWali = Kelas::doesntHave('waliKelas')->count();
+
         return view('operator.landingpage', compact(
             'jumlahSiswa',
             'jumlahGuru',
+            'jumlahKelas',
             'jumlahPenggunaAktif',
-            'chartLabels',
-            'chartData'
+            'chartSiswaLabels',
+            'chartSiswaData',
+            'chartRoleLabels', // Data Baru
+            'chartRoleData' ,   // Data Baru
+            'siswaTanpaNISN',
+            'guruTanpaNIP',
+            'kelasTanpaWali'
         ));
     }
 }

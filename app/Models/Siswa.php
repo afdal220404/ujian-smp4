@@ -27,4 +27,9 @@ class Siswa extends Authenticatable // Ubah ini
     {
         return $this->belongsTo(Kelas::class, 'kelas_id');
     }
+
+    public function hasilUjians()
+    {
+        return $this->hasMany(HasilUjian::class);
+    }
 }

@@ -3,126 +3,315 @@
 @section('title', 'Dashboard Operator')
 
 @section('sidebar-menu')
-<a href="{{route('operator.daftar_siswa')}}" class="menu-item">
-    <i class="bi bi-card-checklist"></i> Daftar Siswa
-</a>
+    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Utama</div>
+    <a href="{{ route('operator.landingpage') }}" class="nav-link active">
+        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+    </a>
 
-<a href="{{route('daftar_guru2')}}" class="menu-item">
-    <i class="bi bi-card-checklist"></i> Daftar Guru
-</a>
+    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Manajemen Data</div>
+    <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
+        <i class="bi bi-people"></i> <span>Data Siswa</span>
+    </a>
+    <a href="{{ route('daftar_guru2') }}" class="nav-link">
+        <i class="bi bi-person-video3"></i> <span>Data Staff</span>
+    </a>
 
-
+    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Akademik</div>
+    <a href="{{ route('walikelas.index') }}" class="nav-link">
+        <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
+    </a>
+    <a href="{{ route('mapel') }}" class="nav-link">
+        <i class="bi bi-book"></i> <span>Mata Pelajaran</span>
+    </a>
 @endsection
-
-
 
 @section('content')
-{{-- Kalimat Sapaan --}}
-<h2 class="sapaan" style="font-size: 24px; font-weight: 600; margin-bottom: 5px;">Selamat Datang Kembali, Operator!</h2>
-<p style="margin-bottom: 30px; color: #4B5563;">Siap untuk mengelola data sekolah hari ini?</p>
-
-{{-- Widget Statistik --}}
-<div class="stats-container">
-    <div class="stat-card">
-        <div class="stat-icon siswa"><i class="bi bi-people-fill"></i></div>
-        <div class="stat-info">
-            <div class="stat-number">{{ $jumlahSiswa }}</div>
-            <div class="stat-label">Total Siswa</div>
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-gray-400 text-xs mb-0.5">
+                <a href="{{ route('operator.landingpage') }}" class="hover:text-blue-600 transition-colors"><i class="bi bi-house-door"></i></a>
+                <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+                <span class="text-blue-600 font-bold">Utama</span>
+                <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+                <span class="text-darkblue font-bold">Dashboard</span>
+            </div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon guru"><i class="bi bi-person-video3"></i></div>
-        <div class="stat-info">
-            <div class="stat-number">{{ $jumlahGuru }}</div>
-            <div class="stat-label">Total Guru</div>
+    {{-- HEADER --}}
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-[Poppins-Bold] text-darkblue">Dashboard Operator</h1>
+            <p class="text-gray-500 text-sm mt-1">
+                Overview data sekolah dan aktivitas terbaru sistem.
+            </p>
+        </div>
+        <div class="text-right hidden md:block">
+            <div class="text-sm font-bold text-darkblue">{{ now()->translatedFormat('l, d F Y') }}</div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon aktif"><i class="bi bi-person-check-fill"></i></div>
-        <div class="stat-info">
-            <div class="stat-number">{{ $jumlahPenggunaAktif }}</div>
-            <div class="stat-label">Pengguna Aktif</div>
+
+    {{-- 1. STATISTIK CARDS --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {{-- Card Siswa --}}
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:-translate-y-1 transition-transform">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-[Poppins-Bold] text-darkblue">{{ $jumlahSiswa }}</div>
+                <div class="text-xs text-gray-400 font-bold uppercase">Total Siswa</div>
+            </div>
+        </div>
+
+        {{-- Card Guru --}}
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:-translate-y-1 transition-transform">
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl">
+                <i class="bi bi-person-video3"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-[Poppins-Bold] text-darkblue">{{ $jumlahGuru }}</div>
+                <div class="text-xs text-gray-400 font-bold uppercase">Total Staff</div>
+            </div>
+        </div>
+
+        {{-- Card Kelas --}}
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:-translate-y-1 transition-transform">
+            <div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-2xl">
+                <i class="bi bi-building"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-[Poppins-Bold] text-darkblue">{{ $jumlahKelas }}</div>
+                <div class="text-xs text-gray-400 font-bold uppercase">Total Kelas</div>
+            </div>
+        </div>
+
+        {{-- Card User Aktif --}}
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:-translate-y-1 transition-transform">
+            <div class="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center text-2xl">
+                <i class="bi bi-broadcast"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-[Poppins-Bold] text-darkblue">{{ $jumlahPenggunaAktif }}</div>
+                <div class="text-xs text-gray-400 font-bold uppercase">User Online</div>
+            </div>
         </div>
     </div>
-</div>
 
-{{-- Menu Navigasi Baru (Model Card) --}}
-<div class="menu-grid">
-    <div class="menu-card">
-        <a href="{{ route('tambah_siswa') }}">
-            <div class="menu-icon"><i class="bi bi-person-plus-fill"></i></div>
-            <div class="menu-title">Tambah Siswa Baru</div>
-        </a>
-    </div>
-    <div class="menu-card">
-        <a href="{{ route('guru.create') }}">
-            <div class="menu-icon"><i class="bi bi-person-video"></i></div>
-            <div class="menu-title">Tambah Guru Baru</div>
-        </a>
-    </div>
-    <div class="menu-card">
-        <a href="{{ route('walikelas.index') }}">
-            <div class="menu-icon"><i class="bi bi-award-fill"></i></div>
-            <div class="menu-title">Set Wali Kelas</div>
-        </a>
-    </div>
-    <div class="menu-card">
-        <a href="{{ route('mapel') }}">
-            <div class="menu-icon"><i class="bi bi-book-half"></i></div>
-            <div class="menu-title">Mata Pelajaran</div>
-        </a>
-    </div>
-</div>
+    {{-- QUICK ACTIONS (Desain Baru: Tinted Buttons) --}}
+    <div class="mb-10">
+        <div class="flex items-center gap-2 mb-4">
+            <div class="w-1 h-6 bg-darkblue rounded-full"></div>
+            <h3 class="font-[Poppins-Bold] text-darkblue text-lg">Akses Cepat</h3>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            
+            {{-- Tombol Tambah Siswa (Biru) --}}
+            <a href="{{ route('tambah_siswa') }}" class="group relative overflow-hidden bg-blue-50 hover:bg-blue-600 border border-blue-100 rounded-2xl p-4 transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-xl bg-white text-blue-600 flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-colors">
+                        <i class="bi bi-person-plus-fill text-lg"></i>
+                    </div>
+                    <span class="text-sm font-bold text-blue-900 group-hover:text-white">Tambah Siswa</span>
+                </div>
+                <i class="bi bi-arrow-right text-blue-300 group-hover:text-white group-hover:translate-x-1 transition-all relative z-10"></i>
+            </a>
 
-{{-- Bar Chart Perbandingan Siswa --}}
-<div class="chart-container">
-    <div class="chart-title">Distribusi Siswa per Kelas</div>
-    <canvas id="siswaPerKelasChart"></canvas>
-</div>
+            {{-- Tombol Tambah Guru (Ungu) --}}
+            <a href="{{ route('guru.create') }}" class="group relative overflow-hidden bg-purple-50 hover:bg-purple-600 border border-purple-100 rounded-2xl p-4 transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-xl bg-white text-purple-600 flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-colors">
+                        <i class="bi bi-person-video text-lg"></i>
+                    </div>
+                    <span class="text-sm font-bold text-purple-900 group-hover:text-white">Tambah Staff</span>
+                </div>
+                <i class="bi bi-arrow-right text-purple-300 group-hover:text-white group-hover:translate-x-1 transition-all relative z-10"></i>
+            </a>
+
+            {{-- Tombol Set Wali Kelas (Orange) --}}
+            <a href="{{ route('walikelas.index') }}" class="group relative overflow-hidden bg-orange-50 hover:bg-orange-500 border border-orange-100 rounded-2xl p-4 transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-xl bg-white text-orange-600 flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-colors">
+                        <i class="bi bi-award-fill text-lg"></i>
+                    </div>
+                    <span class="text-sm font-bold text-orange-900 group-hover:text-white">Wali Kelas</span>
+                </div>
+                <i class="bi bi-arrow-right text-orange-300 group-hover:text-white group-hover:translate-x-1 transition-all relative z-10"></i>
+            </a>
+
+            {{-- Tombol Mapel (Hijau) --}}
+            <a href="{{ route('mapel') }}" class="group relative overflow-hidden bg-green-50 hover:bg-green-600 border border-green-100 rounded-2xl p-4 transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-xl bg-white text-green-600 flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-colors">
+                        <i class="bi bi-book-half text-lg"></i>
+                    </div>
+                    <span class="text-sm font-bold text-green-900 group-hover:text-white">Mata Pelajaran</span>
+                </div>
+                <i class="bi bi-arrow-right text-green-300 group-hover:text-white group-hover:translate-x-1 transition-all relative z-10"></i>
+            </a>
+
+        </div>
+    </div>
+
+    {{-- 3. PERINGATAN DATA (Hanya muncul jika ada masalah) --}}
+    @if($siswaTanpaNISN > 0 || $guruTanpaNIP > 0 || $kelasTanpaWali > 0)
+    <div class="mt-8">
+        <h3 class="font-[Poppins-Bold] text-darkblue text-lg mb-4">Perlu Perhatian (Validasi Data)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            @if($siswaTanpaNISN > 0)
+            <div class="bg-red-50 border border-red-100 p-4 rounded-xl flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="bi bi-exclamation-circle-fill text-red-500 text-xl"></i>
+                    <div>
+                        <div class="text-red-700 font-bold text-sm">Siswa Tanpa NISN</div>
+                        <div class="text-red-500 text-xs">Lengkapi data segera</div>
+                    </div>
+                </div>
+                <span class="bg-white text-red-600 px-3 py-1 rounded-lg font-bold shadow-sm text-sm">{{ $siswaTanpaNISN }}</span>
+            </div>
+            @endif
+
+            @if($guruTanpaNIP > 0)
+            <div class="bg-yellow-50 border border-yellow-100 p-4 rounded-xl flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="bi bi-exclamation-triangle-fill text-yellow-500 text-xl"></i>
+                    <div>
+                        <div class="text-yellow-700 font-bold text-sm">Guru Tanpa NIP</div>
+                        <div class="text-yellow-600 text-xs">Cek data kepegawaian</div>
+                    </div>
+                </div>
+                <span class="bg-white text-yellow-600 px-3 py-1 rounded-lg font-bold shadow-sm text-sm">{{ $guruTanpaNIP }}</span>
+            </div>
+            @endif
+
+            @if($kelasTanpaWali > 0)
+            <div class="bg-orange-50 border border-orange-100 p-4 rounded-xl flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="bi bi-person-x-fill text-orange-500 text-xl"></i>
+                    <div>
+                        <div class="text-orange-700 font-bold text-sm">Kelas Tanpa Wali</div>
+                        <div class="text-orange-600 text-xs">Segera tentukan wali</div>
+                    </div>
+                </div>
+                <span class="bg-white text-orange-600 px-3 py-1 rounded-lg font-bold shadow-sm text-sm">{{ $kelasTanpaWali }}</span>
+            </div>
+            @endif
+
+        </div>
+    </div>
+    @endif
+
+    {{-- 2. DUA GRAFIK BERDAMPINGAN --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {{-- BAGIAN KIRI: GRAFIK SISWA (Lebar 2 Kolom) --}}
+        <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-[Poppins-Bold] text-darkblue text-lg">Distribusi Siswa per Kelas</h3>
+                <button class="text-gray-400 hover:text-blue-600"><i class="bi bi-bar-chart-fill"></i></button>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="siswaPerKelasChart"></canvas>
+            </div>
+        </div>
+
+        {{-- BAGIAN KANAN: GRAFIK ROLE PEGAWAI (Lebar 1 Kolom) --}}
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-[Poppins-Bold] text-darkblue text-lg">Komposisi Pegawai</h3>
+                <button class="text-gray-400 hover:text-purple-600"><i class="bi bi-pie-chart-fill"></i></button>
+            </div>
+            <p class="text-xs text-gray-400 mb-6">Perbandingan peran pengguna guru & staff.</p>
+
+            <div class="relative h-64 w-full flex items-center justify-center">
+                <canvas id="userRoleChart"></canvas>
+            </div>
+            
+            {{-- Legend Custom (Opsional, agar lebih rapi di bawah chart) --}}
+            <div class="mt-4 flex flex-wrap justify-center gap-3 text-xs text-gray-600">
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Operator</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Kepala Sekolah</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Guru</div>
+            </div>
+        </div>
+
+    </div>
+
 @endsection
 
+@section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const ctx = document.getElementById('siswaPerKelasChart').getContext('2d');
+        
+        // --- 1. CHART SISWA (BAR) ---
+        const ctxSiswa = document.getElementById('siswaPerKelasChart').getContext('2d');
+        // Gradient Biru
+        let gradBlue = ctxSiswa.createLinearGradient(0, 0, 0, 400);
+        gradBlue.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+        gradBlue.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
 
-        // Data dari controller
-        const labels = @json($chartLabels);
-        const data = @json($chartData);
-
-        new Chart(ctx, {
+        new Chart(ctxSiswa, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: @json($chartSiswaLabels),
                 datasets: [{
                     label: 'Jumlah Siswa',
-                    data: data,
-                    backgroundColor: [
-                        'rgba(59, 130, 246, 0.6)', // Biru
-                        'rgba(16, 185, 129, 0.6)', // Hijau
-                        'rgba(245, 158, 11, 0.6)' // Oranye
-                    ],
-                    borderColor: [
-                        'rgba(59, 130, 246, 1)',
-                        'rgba(16, 185, 129, 1)',
-                        'rgba(245, 158, 11, 1)'
-                    ],
-                    borderWidth: 1
+                    data: @json($chartSiswaData),
+                    backgroundColor: gradBlue,
+                    borderRadius: 6,
+                    barThickness: 30,
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
+                    y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // --- 2. CHART ROLE PEGAWAI (DOUGHNUT) ---
+        const ctxRole = document.getElementById('userRoleChart').getContext('2d');
+        
+        new Chart(ctxRole, {
+            type: 'doughnut',
+            data: {
+                labels: @json($chartRoleLabels),
+                datasets: [{
+                    data: @json($chartRoleData),
+                    backgroundColor: [
+                        '#8b5cf6', // Ungu (Guru)
+                        '#3b82f6', // Biru (Operator)
+                        '#f97316', // Orange (Kepsek)
+                        '#10b981'  // Hijau (Lainnya jika ada)
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%', // Membuat lubang tengah lebih besar (Donat tipis)
                 plugins: {
-                    legend: {
-                        display: false // Menyembunyikan label 'Jumlah Siswa' di atas
+                    legend: { display: false }, // Kita pakai legend custom di HTML
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let value = context.raw || 0;
+                                return label + ': ' + value + ' Orang';
+                            }
+                        }
                     }
                 }
             }
         });
     });
 </script>
+@endsection

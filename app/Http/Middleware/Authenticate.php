@@ -15,13 +15,17 @@ class Authenticate
      * @param  \Closure  $next
      * @return mixed
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next, ...$guards)
     {
-        // UBAH LOGIKA IF DI BAWAH INI
-        if (!Auth::check()) {
-            return redirect()->route('login');
+        $guards = empty($guards) ? [null] : $guards;
+
+        foreach ($guards as $guard) {
+            if (Auth::guard($guard)->check()) {
+                Auth::shouldUse($guard);
+                return $next($request);
+            }
         }
-        
-        return $next($request);
+
+        return redirect()->route('login');
     }
 }

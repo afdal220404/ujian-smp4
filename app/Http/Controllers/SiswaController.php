@@ -7,7 +7,10 @@ use App\Models\Kelas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-
+Use App\Exports\TemplateSiswaExport;
+use App\Imports\SiswaImport;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException as ExcelValidationException;
 class SiswaController extends Controller
 {
     public function index()
@@ -146,5 +149,116 @@ class SiswaController extends Controller
 
         $siswa = $query->orderBy('nama_lengkap', 'asc')->get();
         return response()->json($siswa);
+    }
+
+    public function indexKenaikan()
+    {
+        $kelasList = Kelas::orderBy('kelas')->get();
+        return view('operator.kenaikan_kelas', compact('kelasList'));
+    }
+
+    // Proses Kenaikan Kelas Massal
+    public function storeKenaikan(Request $request)
+    {
+        $request->validate([
+            'kelas_asal_id' => 'required|exists:kelas,id',
+            'kelas_tujuan_id' => 'required', // Bisa ID kelas atau string "LULUS"
+            'siswa_ids' => 'required|array', // Array ID siswa yang DIPILIH untuk naik
+            'siswa_ids.*' => 'exists:siswas,id',
+        ]);
+
+        $ids = $request->siswa_ids;
+        $tujuan = $request->kelas_tujuan_id;
+
+        try {
+            if ($tujuan === 'LULUS') {
+                // Update status siswa menjadi Lulus (non-aktif) & hapus kelasnya
+                // Pastikan Anda punya kolom 'status' di tabel siswas, atau pindahkan ke tabel alumni
+                Siswa::whereIn('id', $ids)->update([
+                    'kelas_id' => null, 
+                    // 'status' => 'Lulus' // Jika ada kolom status
+                ]);
+                $pesan = count($ids) . " Siswa berhasil diluluskan!";
+            } else {
+                // Update kelas_id ke kelas baru
+                Siswa::whereIn('id', $ids)->update([
+                    'kelas_id' => $tujuan
+                ]);
+                
+                $kelasBaru = Kelas::find($tujuan);
+                $pesan = count($ids) . " Siswa berhasil naik ke kelas " . $kelasBaru->kelas;
+            }
+
+            return response()->json(['success' => true, 'message' => $pesan]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function import(Request $request) 
+    {
+        // 1. Validasi File Upload
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls'
+        ]);
+
+        try {
+            // 2. Coba Proses Import
+            Excel::import(new SiswaImport, $request->file('file'));
+            
+            // Jika berhasil (tidak ada error), lari ke sini
+            return redirect()->back()->with('success', 'Data siswa berhasil diimport! ✅');
+
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            
+            // --- BAGIAN INI MENANGKAP ERROR VALIDASI EXCEL ---
+            
+            $failures = $e->failures();
+            $errorMessages = [];
+            
+            foreach ($failures as $failure) {
+                $baris = $failure->row();
+                $kolom = $failure->attribute();
+                // Ambil pesan error pertama dari array error
+                $pesan = $failure->errors()[0]; 
+                
+                // Masukkan ke daftar error
+                $errorMessages[] = "Baris {$baris} (Kolom: {$kolom}): {$pesan}";
+            }
+
+            // Kembalikan ke halaman sebelumnya dengan membawa daftar error
+            return redirect()->back()
+                ->with('import_errors', $errorMessages);
+
+        } catch (\Exception $e) {
+            
+            return redirect()->back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
+        }
+    }
+    
+    // Fitur Download Template (Opsional tapi sangat membantu)
+    public function downloadTemplate()
+    {
+        // Anda bisa membuat file excel kosong manual lalu taruh di folder public
+        // Atau return response stream csv sederhana
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="template_siswa.csv"',
+        ];
+
+        $columns = ['nama_lengkap', 'nisn', 'kelas', 'username', 'password'];
+
+        $callback = function() use ($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            
+            // Contoh Data Dummy
+            fputcsv($file, ['Budi Santoso', '0012345678', '7A', 'budi.santoso', '123456']);
+            
+            fclose($file);
+        };
+
+        return Excel::download(new TemplateSiswaExport, 'template_siswa.xlsx');
     }
 }

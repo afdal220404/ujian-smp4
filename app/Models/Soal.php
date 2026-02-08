@@ -7,8 +7,13 @@ class Soal extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'ujian_id', 'pertanyaan', 'gambar', 
-        'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d', 'opsi_e', 'kunci_jawaban'
+        'ujian_id', 'tipe', 'pertanyaan', 'gambar', 
+        'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d',
+        'kunci_jawaban', 'data_soal'
+    ];
+
+    protected $casts = [
+        'data_soal' => 'array',
     ];
 
     public function ujian() { return $this->belongsTo(Ujian::class); }

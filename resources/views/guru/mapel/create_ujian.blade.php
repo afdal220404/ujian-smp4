@@ -3,101 +3,184 @@
 @section('title', 'Buat Ujian Baru')
 
 @section('sidebar-menu')
-    {{-- Ini adalah menu konteks Guru Mapel --}}
-    <a href="{{ route('guru.index') }}" class="menu-item">
-        <i class="bi bi-arrow-left"></i> Kembali ke Pilihan
+{{-- Tombol Kembali --}}
+<div class="mb-4 px-3">
+    <a href="{{ route('guru.index') }}"
+        class="flex items-center gap-2 text-cyan-100/70 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider">
+        <i class="bi bi-arrow-left"></i> Kembali ke Menu Utama
     </a>
-    <hr class="sidebar-divider">
-    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="menu-item">
-        <i class="bi bi-pie-chart-fill"></i> Dasbor Mapel
-    </a>
-    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="menu-item">
-        <i class="bi bi-card-checklist"></i> Daftar Nilai Siswa
-    </a>
+</div>
+
+<div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Menu Mapel</div>
+
+<a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link active">
+    <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+</a>
+<a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link">
+    <i class="bi bi-journal-check"></i> <span>Daftar Nilai Siswa</span>
+</a>
+<a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link">
+    <i class="bi bi-collection"></i> <span>Bank Soal</span>
+</a>
 @endsection
 
 @section('content')
-<div class="bg-white rounded-lg shadow-md p-6 w-full mb-5">
-    <a class="judul">Detail Ujian</a>
-    <p class="sub-judul" style="text-align: center; margin-top: 10px;">
-        Mata Pelajaran: <strong>{{ $mapel->nama_mapel }} ({{ $mapel->kelas->kelas }})</strong>
-    </p>
+
+{{-- 1. STEPPER (Indikator Langkah) --}}
+<div class="max-w-3xl mx-auto mb-8">
+    <div class="flex items-center justify-center">
+        {{-- Step 1 (Aktif) --}}
+        <div class="flex flex-col items-center">
+            <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold shadow-lg ring-4 ring-blue-100 z-10">
+                1
+            </div>
+            <span class="mt-2 text-xs font-bold text-blue-600 uppercase tracking-wider">Info Ujian</span>
+        </div>
+        
+        {{-- Garis Penghubung --}}
+        <div class="w-24 h-1 bg-gray-200 -mt-6 mx-2"></div>
+        
+        {{-- Step 2 (Non-Aktif) --}}
+        <div class="flex flex-col items-center opacity-40">
+            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center font-bold z-10">
+                2
+            </div>
+            <span class="mt-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Input Soal</span>
+        </div>
+    </div>
 </div>
 
-{{-- Tampilkan error/sukses --}}
-@if ($errors->any())
-    <div class="alert alert-danger mb-4">
-        <ul>@foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach</ul>
+{{-- 2. HEADER --}}
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-2xl font-[Poppins-Bold] text-darkblue tracking-tight">
+            {{ isset($ujian) ? 'Edit Konfigurasi Ujian' : 'Buat Ujian Baru' }}
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+            Mapel: <span class="font-bold text-blue-600">{{ $mapel->nama_mapel }}</span> • 
+            Kelas: <span class="font-bold text-gray-700">{{ $mapel->kelas->kelas }}</span>
+        </p>
     </div>
-@endif
-@if (session('success'))
-    <div class="alert alert-success mb-4">{{ session('success') }}</div>
-@endif
-@if (session('error'))
-    <div class="alert alert-danger mb-4">{{ session('error') }}</div>
+</div>
+
+{{-- Alert Error --}}
+@if ($errors->any())
+<div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm">
+    <p class="font-bold text-sm mb-1">Terjadi Kesalahan:</p>
+    <ul class="list-disc list-inside text-xs">
+        @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+    </ul>
+</div>
 @endif
 
-{{-- Form ini sekarang memiliki DUA tombol submit --}}
-<div class="ujian-form-container">
-    <form action="{{ isset($ujian) ? route('guru.mapel.ujian.update', ['mapel' => $mapel->id, 'ujian' => $ujian->id]) : route('guru.mapel.ujian.store', $mapel->id) }}" method="POST">
+{{-- 3. FORM CARD --}}
+<div class="bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 overflow-hidden">
+    <div class="h-1 w-full bg-gradient-to-r from-blue-500 to-cyan-400"></div>
+
+    <form action="{{ isset($ujian) ? route('guru.mapel.ujian.update', ['mapel' => $mapel->id, 'ujian' => $ujian->id]) : route('guru.mapel.ujian.store', $mapel->id) }}" method="POST" class="p-6 md:p-8">
         @csrf
         
-        {{-- Input data ujian (sama seperti sebelumnya, sudah diisi oleh $ujianDetails) --}}
-        <div class="ujian-form-group">
-            <label class="ujian-form-label" for="nama_ujian">Nama Ujian</label>
-            <input type="text" id="nama_ujian" name="nama_ujian" class="ujian-form-input" value="{{ old('nama_ujian', $ujianDetails['nama_ujian'] ?? '') }}" required>
-        </div>
-        
-        <div class="ujian-form-row">
-            <div class="ujian-form-group" style="flex: 1;">
-                <label class="ujian-form-label" for="jenis_ujian">Jenis Ujian</label>
-                <select id="jenis_ujian" name="jenis_ujian" class="ujian-form-select" required>
-                    <option value="" disabled {{ !isset($ujianDetails['jenis_ujian']) ? 'selected' : '' }}>Pilih Jenis Ujian</option>
-                    <option value="Kuis" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'Kuis') ? 'selected' : '' }}>Kuis</option>
-                    <option value="UTS" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'UTS') ? 'selected' : '' }}>UTS</option>
-                    <option value="UAS" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'UAS') ? 'selected' : '' }}>UAS</option>
-                </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            
+            {{-- Nama Ujian --}}
+            <div class="col-span-1 md:col-span-2 group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nama Ujian / Judul</label>
+                <input type="text" name="nama_ujian" 
+                       value="{{ old('nama_ujian', $ujianDetails['nama_ujian'] ?? '') }}" 
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-bold text-gray-700 placeholder-gray-400"
+                       placeholder="Contoh: Kuis Bab 1..." required>
             </div>
-            <div class="ujian-form-group" style="flex: 1;">
-                <label class="ujian-form-label" for="tanggal_ujian">Hari dan Tanggal</label>
-                <input type="date" id="tanggal_ujian" name="tanggal_ujian" class="ujian-form-input" value="{{ old('tanggal_ujian', $ujianDetails['tanggal_ujian'] ?? '') }}" required>
+
+            {{-- Jenis Ujian --}}
+            <div class="group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Jenis Evaluasi</label>
+                <div class="relative">
+                    <select name="jenis_ujian" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none font-medium text-gray-700 cursor-pointer" required>
+                        <option value="" disabled {{ !isset($ujianDetails['jenis_ujian']) ? 'selected' : '' }}>-- Pilih Jenis --</option>
+                        <option value="Kuis" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'Kuis') ? 'selected' : '' }}>Kuis (Latihan)</option>
+                        <option value="UTS" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'UTS') ? 'selected' : '' }}>UTS (Tengah Semester)</option>
+                        <option value="UAS" {{ (old('jenis_ujian', $ujianDetails['jenis_ujian'] ?? '') == 'UAS') ? 'selected' : '' }}>UAS (Akhir Semester)</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tanggal --}}
+            <div class="group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tanggal Pelaksanaan</label>
+                <input type="date" name="tanggal_ujian" 
+                       value="{{ old('tanggal_ujian', $ujianDetails['tanggal_ujian'] ?? '') }}" 
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium text-gray-700" required>
+            </div>
+
+            {{-- Waktu Mulai --}}
+            <div class="group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Waktu Mulai</label>
+                <input type="time" id="waktu_mulai" name="waktu_mulai" 
+                       value="{{ old('waktu_mulai', $ujianDetails['waktu_mulai'] ?? '') }}" 
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-mono font-medium text-gray-700" required>
+            </div>
+
+            {{-- Waktu Selesai --}}
+            <div class="group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Waktu Selesai</label>
+                <input type="time" id="waktu_selesai" name="waktu_selesai" 
+                       value="{{ old('waktu_selesai', $ujianDetails['waktu_selesai'] ?? '') }}" 
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-mono font-medium text-gray-700" required>
+            </div>
+
+            {{-- Durasi Otomatis --}}
+            <div class="col-span-1 md:col-span-2 bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <i class="bi bi-stopwatch-fill text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-blue-600 font-bold uppercase">Estimasi Durasi</p>
+                        <p class="text-xs text-blue-400">Dihitung otomatis dari waktu mulai & selesai</p>
+                    </div>
+                </div>
+                <input type="text" id="durasi" class="bg-transparent border-none text-right font-bold text-xl text-blue-700 focus:ring-0 w-40" 
+                       value="{{ $ujianDetails['durasi_menit'] ?? '0' }} Menit" readonly>
+            </div>
+            
+        </div>
+
+        {{-- Divider --}}
+        <div class="border-t border-gray-100 my-6"></div>
+
+        {{-- Info Soal --}}
+        <div class="flex justify-between items-center mb-6">
+            <div class="text-sm text-gray-500">
+                Jumlah soal saat ini: <span class="font-bold text-gray-800">{{ $jumlahSoal }} Butir</span>
             </div>
         </div>
 
-        <div class="ujian-form-row">
-            <div class="ujian-form-group" style="flex: 1;">
-                <label class="ujian-form-label" for="waktu_mulai">Waktu Mulai</label>
-                <input type="time" id="waktu_mulai" name="waktu_mulai" class="ujian-form-input" value="{{ old('waktu_mulai', $ujianDetails['waktu_mulai'] ?? '') }}" required>
-            </div>
-            <div class="ujian-form-group" style="flex: 1;">
-                <label class="ujian-form-label" for="waktu_selesai">Waktu Selesai</label>
-                <input type="time" id="waktu_selesai" name="waktu_selesai" class="ujian-form-input" value="{{ old('waktu_selesai', $ujianDetails['waktu_selesai'] ?? '') }}" required>
-            </div>
-            <div class="ujian-form-group" style="flex: 1;">
-                <label class="ujian-form-label" for="durasi">Durasi (Menit)</label>
-                <input type="text" id="durasi" name="durasi" class="ujian-form-input" value="{{ $ujianDetails['durasi_menit'] ?? '' }} Menit" placeholder="Akan terisi otomatis" disabled>
-            </div>
-        </div>
-        
-        <div class="ujian-form-group">
-            <label class="ujian-form-label">Jumlah Soal Ditambahkan</label>
-            <input type="text" class="ujian-form-input" value="{{ $jumlahSoal }} Soal" disabled>
+        {{-- Action Buttons --}}
+        <div class="flex flex-col-reverse md:flex-row justify-between gap-4">
+            
+            {{-- Tombol Simpan Draft/Final --}}
+            <button type="submit" name="action" value="simpan_ujian" 
+                    class="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 transition-all text-sm flex items-center justify-center gap-2">
+                <i class="bi bi-save"></i> 
+                {{ isset($ujian) ? 'Simpan Perubahan' : 'Simpan Sebagai Draft' }}
+            </button>
+
+            {{-- Tombol Lanjut (Primary) --}}
+            <button type="submit" name="action" value="tambah_soal" 
+                    class="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all text-sm flex items-center justify-center gap-2 shadow-blue-200 shadow-md">
+                <span>Lanjut Kelola Soal</span>
+                <i class="bi bi-arrow-right"></i>
+            </button>
         </div>
 
-        {{-- Dua Tombol Aksi --}}
-        <div class="ujian-form-action" style="justify-content: space-between;">
-            <button type="submit" name="action" value="simpan_ujian" class="dark-btn" style="background-color: #10B981; border: none;">
-                <i class="bi bi-check-circle-fill"></i> {{ isset($ujian) ? 'Update Ujian' : 'Simpan Ujian' }}
-            </button>
-            <button type="submit" name="action" value="tambah_soal" class="dark-btn">
-                Kelola Soal <i class="bi bi-arrow-right-circle-fill"></i>
-            </button>
-        </div>
-    </div>
-</form>
+    </form>
+</div>
 @endsection
 
-
+@section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const waktuMulaiEl = document.getElementById('waktu_mulai');
@@ -109,17 +192,18 @@
             const waktuSelesai = waktuSelesaiEl.value;
 
             if (waktuMulai && waktuSelesai) {
-                // Buat objek Date palsu untuk menghitung selisih
                 const tgl = '1970-01-01T';
                 const mulai = new Date(tgl + waktuMulai + ':00');
                 const selesai = new Date(tgl + waktuSelesai + ':00');
 
                 if (selesai < mulai) {
-                    durasiEl.value = 'Waktu selesai harus setelah waktu mulai';
+                    durasiEl.value = 'Waktu Salah!';
+                    durasiEl.classList.add('text-red-500');
                     return;
+                } else {
+                    durasiEl.classList.remove('text-red-500');
                 }
 
-                // Hitung selisih dalam milidetik, lalu ubah ke menit
                 const selisihMs = selesai.getTime() - mulai.getTime();
                 const selisihMenit = selisihMs / 60000;
 
@@ -127,11 +211,9 @@
             }
         }
 
-        // Panggil fungsi saat input berubah
         waktuMulaiEl.addEventListener('change', hitungDurasi);
         waktuSelesaiEl.addEventListener('change', hitungDurasi);
-
-        // Panggil sekali saat memuat jika ada old value
         hitungDurasi();
     });
 </script>
+@endsection

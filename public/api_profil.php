@@ -9,7 +9,7 @@ ob_clean();
 $action = $_GET['action'] ?? '';
 
 if ($action == 'get_profil') {
-    // --- AMBIL DATA PROFIL & STATISTIK ---
+
     $siswa_id = $_GET['siswa_id'] ?? 0;
 
     // 1. Ambil Data Siswa & Kelas

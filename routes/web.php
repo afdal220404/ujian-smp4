@@ -10,7 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GuruIndexController;
 use App\Http\Controllers\GuruWaliKelasController;
 use App\Http\Controllers\GuruMapelController;
-
+use App\Http\Controllers\KepsekController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -23,6 +23,7 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     Route::get('/operator/landingpage', [DashboardController::class, 'index'])->name('operator.landingpage');
+
     Route::get('/operator/daftar_siswa', [SiswaController::class, 'index'])->name('operator.daftar_siswa');
     Route::get('/tambah_siswa', [SiswaController::class, 'create'])->name('tambah_siswa');
     Route::post('/tambah_siswa', [SiswaController::class, 'store'])->name('siswa.store');
@@ -30,8 +31,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/operator/filter-siswa', [SiswaController::class, 'filterByKelas'])->name('operator.filter_siswa');
     Route::get('/operator/siswa/{id}/edit', [SiswaController::class, 'edit'])->name('siswa.edit');
     Route::put('/operator/siswa/{id}', [SiswaController::class, 'update'])->name('siswa.update');
-    Route::post('/guru/store', [GuruController::class, 'store'])->name('guru.store');
+    // Halaman Kenaikan Kelas
+    Route::get('/operator/kenaikan-kelas', [SiswaController::class, 'indexKenaikan'])->name('operator.kenaikan_kelas');
+    // Proses Kenaikan (AJAX/Post)
+    Route::post('/operator/kenaikan-kelas/proses', [SiswaController::class, 'storeKenaikan'])->name('operator.proses_kenaikan');
+    Route::post('/operator/siswa/import', [SiswaController::class, 'import'])->name('siswa.import');
+    Route::get('/operator/siswa/template', [SiswaController::class, 'downloadTemplate'])->name('siswa.template');
 
+    Route::post('/guru/store', [GuruController::class, 'store'])->name('guru.store');
     // Halaman daftar guru
     Route::get('/daftar-guru', [GuruController::class, 'index'])->name('daftar_guru2');
     // Form tambah guru
@@ -61,11 +68,31 @@ Route::middleware('auth')->group(function () {
     Route::delete('/mapel/{id}', [MapelController::class, 'destroy'])->name('mapel.destroy');
 });
 
+// ROUTE KHUSUS SISWA
+Route::middleware(['auth:siswa'])->prefix('siswa')->name('siswa.')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\SiswaDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/nilai', [App\Http\Controllers\SiswaDashboardController::class, 'indexNilai'])->name('nilai');
+    Route::get('/bank-soal', [App\Http\Controllers\SiswaDashboardController::class, 'indexBankSoal'])->name('bank_soal');
+    Route::get('/ujian/{id}', [App\Http\Controllers\SiswaDashboardController::class, 'showUjian'])->name('ujian.detail');
+    
+    // EXAM FLOW ROUTES
+    Route::get('/ujian/{id}/konfirmasi', [App\Http\Controllers\SiswaDashboardController::class, 'konfirmasiUjian'])->name('ujian.konfirmasi');
+    Route::post('/ujian/{id}/mulai', [App\Http\Controllers\SiswaDashboardController::class, 'mulaiUjian'])->name('ujian.mulai');
+    Route::get('/ujian/{id}/kerjakan', [App\Http\Controllers\SiswaDashboardController::class, 'kerjakanUjian'])->name('ujian.kerjakan');
+    Route::post('/ujian/simpan-jawaban', [App\Http\Controllers\SiswaDashboardController::class, 'simpanJawaban'])->name('ujian.simpan_jawaban');
+    Route::post('/ujian/{id}/selesai', [App\Http\Controllers\SiswaDashboardController::class, 'selesaiUjian'])->name('ujian.selesai');
+    Route::get('/ujian/{id}/hasil', [App\Http\Controllers\SiswaDashboardController::class, 'hasilUjian'])->name('ujian.hasil');
+});
+
+
 Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/index', [GuruIndexController::class, 'index'])->name('index');
     Route::get('/walikelas/{kelas}', [GuruWaliKelasController::class, 'show'])->name('walikelas.dashboard');
     Route::get('/walikelas/{kelas}/siswa', [GuruWaliKelasController::class, 'showSiswa'])->name('walikelas.siswa');
     Route::get('/walikelas/siswa/{siswa}', [GuruWaliKelasController::class, 'showSiswaDetail'])->name('walikelas.siswa.detail');
+    Route::get('/walikelas/{kelas}/rekap-nilai', [GuruWaliKelasController::class, 'indexRekapNilai'])->name('walikelas.rekap_nilai');
+    Route::get('/walikelas/{kelas}/rekap-nilai/export', [GuruWaliKelasController::class, 'exportRekapNilai'])->name('walikelas.rekap_nilai.export');
+
     Route::get('/mapel/{mapel}', [GuruMapelController::class, 'show'])->name('mapel.dashboard');
     Route::get('/mapel/{mapel}/siswa', [GuruMapelController::class, 'showSiswa'])->name('mapel.siswa');
 
@@ -78,9 +105,11 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     // Halaman 1: Handler untuk tombol "Update Ujian" & "Kelola Soal"
     Route::post('/mapel/{mapel}/ujian/{ujian}/update', [GuruMapelController::class, 'updateUjian'])->name('mapel.ujian.update');
     
-    // ▼▼▼ TAMBAHKAN RUTE BARU INI ▼▼▼
     // Halaman 1 (Review): Untuk KEMBALI ke form (MEMBACA SESI)
     Route::get('/mapel/{mapel}/ujian/review', [GuruMapelController::class, 'showCreateUjianPage'])->name('mapel.ujian.review');
+    
+    // Update Waktu Ujian (Modal)
+    Route::post('/ujian/{ujian}/update-waktu', [GuruMapelController::class, 'updateWaktu'])->name('mapel.ujian.update_waktu');
     // ▲▲▲ AKHIR RUTE BARU ▲▲▲
 
     // Halaman 2: Tampilkan Form Tambah Soal (GET)
@@ -110,8 +139,21 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     Route::delete('/bank-soal/{bankSoal}', [GuruMapelController::class, 'destroyBankSoal'])->name('mapel.bank_soal.destroy');
 });
     
-
-
+// ---------------------------------------------------------------------
+    // 3. ROLE: KEPALA SEKOLAH (KEPSEK) - BARU
+    // ---------------------------------------------------------------------
+    Route::middleware(['auth'])->prefix('kepsek')->name('kepsek.')->group(function () {
+    
+    Route::get('/dashboard', [KepsekController::class, 'index'])->name('index'); 
+    
+    Route::get('/monitor-guru', [KepsekController::class, 'monitorGuru'])->name('guru');
+    Route::get('/monitor-siswa', [KepsekController::class, 'monitorSiswa'])->name('siswa');
+    Route::get('/laporan-nilai', [KepsekController::class, 'laporanNilai'])->name('nilai');
+    Route::get('/nilai/{id}', [KepsekController::class, 'detailNilai'])->name('nilai.detail');
+});
+Route::get('/landingpage', [KepsekController::class, 'index'])
+    ->middleware('auth')
+    ->name('landingpage');
 
 Route::get('/landingpage2', [GuruIndexController::class, 'index'])->name('landingpage2');
 
@@ -123,22 +165,6 @@ Route::get('/landingpage4', function () {
     return view('wali_kelas/landingpage');
 })->name('landingpage4');
 
-Route::get('/landingpage', function () {
-    return view('kepsek/landingpage');
-})->name('landingpage');
-
-Route::get('/daftar_nilai', function () {
-    return view('kepsek/daftar_nilai');
-})->name('daftar_nilai');
-
-Route::get('/daftar_siswa', function () {
-    return view('kepsek/daftar_siswa');
-})->name('daftar_siswa');
-
-Route::get('/daftar_guru', function () {
-    return view('kepsek/daftar_guru');
-})->name('daftar_guru');
-
 Route::get('/daftar_siswa3', function () {
     return view('wali_kelas/daftar_siswa');
 })->name('daftar_siswa3');
@@ -148,6 +174,21 @@ Route::get('/tambah_guru', function () {
     return view('operator/tambah_guru');
 })->name('tambah_guru');
 
-Route::get('/detail', function () {
-    return view('kepsek/detail_nilai');
-})->name('detail');
+Route::get('/debug-grading', function() {
+    $h = \App\Models\HasilUjian::latest()->first();
+    if(!$h) return 'No Result';
+    
+    return \App\Models\JawabanSiswa::where('hasil_ujian_id', $h->id)
+        ->with('soal')
+        ->get()
+        ->map(function($j){
+            return [
+                'soal_id' => $j->soal_id,
+                'tipe' => $j->soal->tipe,
+                'kunci_raw' => $j->soal->kunci_jawaban,
+                'jawab_raw' => $j->jawaban_dipilih,
+                'is_correct_db' => $j->is_correct,
+                'data_soal' => $j->soal->data_soal,
+            ];
+        });
+});

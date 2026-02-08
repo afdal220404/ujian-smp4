@@ -18,22 +18,26 @@ class Authcontroller extends Controller
     {
         $credentials = $request->only('username', 'password');
 
-        if (Auth::attempt($credentials)) {
+        // 1. Coba Login sebagai Guru / Staff (Guard: web)
+        if (Auth::guard('web')->attempt($credentials)) {
             $request->session()->regenerate();
-
-            $user = Auth::user(); // Ini akan menjadi objek Guru
+            $user = Auth::guard('web')->user();
             $role = $user->role;
 
-            // Logika redirect berdasarkan role
             if ($role === 'Operator') {
                 return redirect()->intended(route('operator.landingpage'));
             } elseif ($role === 'Guru') {
                 return redirect()->intended(route('landingpage2'));
             } elseif ($role === 'Kepala Sekolah') {
-                return redirect()->intended(route('landingpage'));
+                return redirect()->intended(route('kepsek.index'));
             }
-
             return redirect('/');
+        }
+
+        // 2. Coba Login sebagai Siswa (Guard: siswa)
+        if (Auth::guard('siswa')->attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->intended(route('siswa.dashboard'));
         }
 
         return back()->withErrors([
@@ -41,11 +45,15 @@ class Authcontroller extends Controller
         ])->onlyInput('username');
     }
 
-    public function logout(Request $request) // Tambahkan Request $request
+    public function logout(Request $request) 
     {
-        Auth::logout();
+        if(Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
+        if(Auth::guard('siswa')->check()) {
+            Auth::guard('siswa')->logout();
+        }
 
-        // PERBAIKAN 3: Praktik terbaik untuk keamanan
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

@@ -27,8 +27,10 @@ $daftar_soal = [];
 while ($row = $result->fetch_assoc()) {
     // Normalisasi URL gambar jika ada
     if (!empty($row['gambar'])) {
-    $row['gambar'] = "http://10.0.2.2:8000/proyek_ujian_php/storage/soal/" . basename($row['gambar']);
-}
+        // MENGGUNAKAN IP LAPTOP ANDA (192.168.100.206)
+        // Pastikan port 8000 dan nama folder 'UJIAN-SMP4' sudah benar
+        $row['gambar'] = "https://ujian.smpn4tilkam.cloud/storage/soal/" . basename($row['gambar']);
+    }
     $daftar_soal[] = $row;
 }
 

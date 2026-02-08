@@ -17,4 +17,9 @@ class Mapel extends Model
     {
         return $this->belongsTo(Kelas::class, 'kelas_id');
     }
+
+    public function ujians()
+    {
+        return $this->hasMany(Ujian::class);
+    }
 }

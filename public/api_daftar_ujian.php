@@ -2,33 +2,32 @@
 // api_daftar_ujian.php
 require 'db_config.php';
 
-// Asumsi: Aplikasi Android akan mengirimkan kelas_id via GET parameter
 $kelas_id = $_GET['kelas_id'] ?? 0;
 
-if (empty($kelas_id) || !is_numeric($kelas_id)) {
-    sendResponse(["status" => "error", "message" => "ID Kelas tidak valid."], 400);
+$siswa_id = $_GET['siswa_id'] ?? 0; 
+
+if (empty($kelas_id) || empty($siswa_id)) {
+    sendResponse(["status" => "error", "message" => "ID Kelas atau Siswa tidak valid."], 400);
 }
 
-// Waktu saat ini untuk memfilter ujian yang sedang aktif
-$current_time = date('Y-m-d H:i:s');
-
-// Query untuk mengambil ujian yang:
-// 1. Sesuai dengan kelas siswa (melalui mapel_id)
-// 2. Waktu mulai <= sekarang DAN Waktu selesai >= sekarang (Ujian aktif)
-$stmt = $conn->prepare("
+$sql = "
     SELECT 
         u.id AS ujian_id, u.nama_ujian, u.jenis_ujian, u.durasi_menit,
         m.nama_mapel, k.kelas,
-        u.waktu_mulai, u.waktu_selesai 
+        u.waktu_mulai, u.waktu_selesai,
+        (SELECT COUNT(*) FROM hasil_ujians h WHERE h.ujian_id = u.id AND h.siswa_id = ?) as status_pengerjaan
     FROM ujians u
     JOIN mapels m ON u.mapel_id = m.id
     JOIN kelas k ON m.kelas_id = k.id
     WHERE 
         m.kelas_id = ? 
     ORDER BY u.waktu_mulai DESC 
-");
+";
 
-$stmt->bind_param("i", $kelas_id);
+$stmt = $conn->prepare($sql);
+// Bind parameter: siswa_id (untuk subquery), kelas_id (untuk where utama)
+$stmt->bind_param("ii", $siswa_id, $kelas_id); 
+
 $stmt->execute();
 $result = $stmt->get_result();
 

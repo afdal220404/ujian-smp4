@@ -13,545 +13,216 @@ use App\Models\Ujian;
 use App\Models\Soal;
 use Illuminate\Support\Facades\DB;
 use App\Models\BankSoal;
-
+use App\Models\HasilUjian;
+use App\Models\JawabanSiswa; // Pastikan model ini ada
+use Carbon\Carbon;
 
 class GuruMapelController extends Controller
 {
     /**
      * Menampilkan dasbor spesifik untuk Guru Mata Pelajaran.
+     * UPDATE: Menghitung statistik real dari database.
      */
     public function show(Mapel $mapel)
     {
-        // 1. Dapatkan data guru & kelas
         $guru = Auth::user();
-        $kelas = $mapel->kelas; // Asumsi relasi 'kelas' ada di model Mapel
+        $kelas = $mapel->kelas; 
 
-        // 2. Verifikasi Keamanan:
-        // Pastikan guru yang login adalah guru yang mengajar mapel ini
+        // 1. Validasi Akses
         if ($mapel->guru_id != $guru->id) {
             return redirect()->route('guru.index')->with('error', 'Anda tidak memiliki akses ke mata pelajaran ini.');
         }
 
-        // 3. Ambil data untuk widget
+        // 2. Data Siswa
         $jumlahSiswa = Siswa::where('kelas_id', $mapel->kelas_id)->count();
 
-        $avgKuis = 82.5; // Placeholder
-        $avgUTS = 78.9;  // Placeholder
-        $avgUAS = 81.0;  // Placeholder
+        // 3. LOGIKA STATISTIK REAL (Berdasarkan Jenis Ujian)
+        // Ambil semua ID ujian milik mapel ini
+        $ujianIds = Ujian::where('mapel_id', $mapel->id)->pluck('id');
 
-        $daftarUjian = Ujian::where('mapel_id', $mapel->id)
-            ->where('waktu_mulai', '>', now()) // Hanya yang akan datang
-            ->orderBy('waktu_mulai', 'asc') // Urutkan dari yang terdekat
+        // Ambil semua hasil ujian yang terkait dengan ujian-ujian tersebut
+        $allHasil = HasilUjian::whereIn('ujian_id', $ujianIds)->with('ujian')->get();
+
+        // Hitung rata-rata berdasarkan jenis_ujian (Kuis, UTS, UAS)
+        $avgKuis = $allHasil->filter(fn($h) => $h->ujian->jenis_ujian == 'Kuis')->avg('nilai') ?? 0;
+        $avgUTS  = $allHasil->filter(fn($h) => $h->ujian->jenis_ujian == 'UTS')->avg('nilai') ?? 0;
+        $avgUAS  = $allHasil->filter(fn($h) => $h->ujian->jenis_ujian == 'UAS')->avg('nilai') ?? 0;
+
+        // 4. Kategori Waktu Ujian
+        $now = Carbon::now('Asia/Jakarta');
+
+        // A. SEDANG BERLANGSUNG
+        $ongoingUjian = Ujian::where('mapel_id', $mapel->id)
+            ->where('waktu_mulai', '<=', $now)
+            ->where('waktu_selesai', '>=', $now)
+            ->orderBy('waktu_selesai', 'asc')
             ->get();
 
+        // B. AKAN DATANG
+        $upcomingUjian = Ujian::where('mapel_id', $mapel->id)
+            ->where('waktu_mulai', '>', $now)
+            ->orderBy('waktu_mulai', 'asc')
+            ->get();
+
+        // C. RIWAYAT
         $historyUjian = Ujian::where('mapel_id', $mapel->id)
-            ->where('waktu_mulai', '<', now()) // Hanya yang sudah berlalu
-            ->orderBy('waktu_mulai', 'desc') // Tampilkan yang terbaru dulu
+            ->where('waktu_selesai', '<', $now)
+            ->orderBy('waktu_mulai', 'desc')
             ->get();
 
-        // 5. Kirim semua data ke view
         return view('guru.mapel.dashboard', compact(
-            'guru',
-            'mapel',
-            'kelas',
-            'jumlahSiswa',
-            'daftarUjian',
-            'historyUjian',
-            'avgKuis',
-            'avgUTS',
-            'avgUAS'
+            'guru', 'mapel', 'kelas', 'jumlahSiswa',
+            'ongoingUjian', 'upcomingUjian', 'historyUjian',
+            'avgKuis', 'avgUTS', 'avgUAS'
         ));
     }
 
+    /**
+     * Menampilkan daftar siswa dan nilai rekap per mapel.
+     * Sudah menggunakan data real di iterasi sebelumnya.
+     */
     public function showSiswa(Mapel $mapel)
     {
-        // 1. Ambil data guru, mapel, dan kelas
-        $guru = Auth::user();
-        $kelas = $mapel->kelas;
+        $user = Auth::user();
 
-        // 2. Verifikasi Keamanan (opsional, tapi bagus)
-        if ($mapel->guru_id != $guru->id) {
-            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
+        // 1. Validasi Akses
+        $guruId = $user->guru ? $user->guru->id : $user->id;
+        if ($mapel->guru_id != $guruId) {
+             abort(403, 'Anda tidak memiliki akses ke mata pelajaran ini.');
         }
 
-        // 3. Ambil semua siswa di kelas ini
-        $siswas = Siswa::where('kelas_id', $mapel->kelas_id)
-            ->orderBy('nama_lengkap')
-            ->get();
+        // 2. Ambil Daftar Kuis (Master)
+        $daftarKuisMaster = Ujian::where('mapel_id', $mapel->id)
+                            ->where('jenis_ujian', 'Kuis') 
+                            ->orderBy('created_at', 'asc')
+                            ->get();
 
-        // 4. Kirim data ke view
-        return view('guru.mapel.daftar_siswa', [
-            'guru' => $guru,
-            'mapel' => $mapel,
-            'kelas' => $kelas,
-            'siswas' => $siswas,
-        ]);
-    }
+        $maxKuis = $daftarKuisMaster->count();
 
-    public function createUjian(Mapel $mapel)
-    {
-        if ($mapel->guru_id != Auth::id()) {
-            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
-        }
+        // 3. Ambil Siswa
+        $siswasRaw = Siswa::where('kelas_id', $mapel->kelas_id)
+                        ->orderBy('nama_lengkap')
+                        ->get();
 
-        session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
-        $ujianDetails = null;
-        $jumlahSoal = 0;
-
-        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal'));
-    }
-
-    public function showCreateUjianPage(Mapel $mapel)
-    {
-        // 1. Get data dari session
-        $ujianDetails = session('ujian_temp_details');
-        $tempSoals = session('ujian_temp_soals', []);
-
-        // 2. Jika sesi kosong (misal, user refresh), paksa kembali ke awal
-        if (empty($ujianDetails)) {
-            return redirect()->route('guru.mapel.ujian.create', $mapel->id)
-                ->with('error', 'Sesi pembuatan ujian tidak ditemukan. Harap mulai dari awal.');
-        }
-
-        // 3. Siapkan data untuk view
-        $jumlahSoal = count($tempSoals);
-        $ujian = null; // Penting: $ujian = null menandakan mode CREATE
-
-        // 4. Tampilkan view
-        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian'));
-    }
-
-    /**
-     * Halaman 1: Handler untuk tombol "Kelola Soal" dan "Simpan Ujian"
-     */
-    public function storeUjian(Request $request, Mapel $mapel)
-    {
-        $validated = $request->validate([
-            'nama_ujian' => 'required|string|max:255',
-            'jenis_ujian' => 'required|in:Kuis,UTS,UAS',
-            'tanggal_ujian' => 'required|date',
-            'waktu_mulai' => 'required|date_format:H:i',
-            'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
-        ]);
-
-        // Hitung durasi
-        $start = new \DateTime($validated['waktu_mulai']);
-        $end = new \DateTime($validated['waktu_selesai']);
-        $diff = $start->diff($end);
-        $durasi_menit = ($diff->h * 60) + $diff->i;
-
-        $waktu_mulai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_mulai'] . ':00';
-        $waktu_selesai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_selesai'] . ':00';
-
-        // Simpan data ujian ke Sesi
-        $ujianData = $validated + [
-            'durasi_menit' => $durasi_menit,
-            'mapel_id' => $mapel->id,
-            'guru_id' => Auth::id(),
-        ];
-        session(['ujian_temp_details' => $ujianData]);
-
-        // Cek tombol mana yang diklik
-        if ($request->input('action') == 'tambah_soal') {
-
-            // Jika klik "Soal", arahkan ke halaman tambah soal
-            return redirect()->route('guru.mapel.soal.create');
-        } elseif ($request->input('action') == 'simpan_ujian') {
-            // Jika klik "Simpan Ujian", simpan semuanya ke database
-            $tempSoals = session('ujian_temp_soals', []);
-
-            if (empty($tempSoals)) {
-                return back()->withInput()->with('error', 'Gagal menyimpan. Anda belum menambahkan soal apapun.');
-            }
-
-            try {
-                DB::beginTransaction();
-
-                $ujianDataDB = [
-                    'mapel_id' => $mapel->id,
-                    'guru_id' => Auth::id(),
-                    'nama_ujian' => $validated['nama_ujian'],
-                    'jenis_ujian' => $validated['jenis_ujian'],
-                    'tanggal_ujian' => $validated['tanggal_ujian'], // <-- ✅ PERBAIKAN: TAMBAHKAN BARIS INI
-                    'waktu_mulai' => $waktu_mulai_full,
-                    'waktu_selesai' => $waktu_selesai_full,
-                    'durasi_menit' => $durasi_menit,
-                ];
-                // 1. Buat Ujian di DB
-                $ujian = Ujian::create($ujianDataDB);
-
-                // 2. Loop dan simpan soal-soal
-                foreach ($tempSoals as $dataSoal) {
-                    $gambarPathBaru = null;
-                    // Pindahkan gambar dari 'temp' ke 'public'
-                    if (isset($dataSoal['gambar_path']) && Storage::disk('public')->exists($dataSoal['gambar_path'])) {
-                        $tempPath = $dataSoal['gambar_path'];
-                        $gambarPathBaru = str_replace('temp_soal/', 'soal/', $tempPath);
-                        Storage::disk('public')->move($tempPath, $gambarPathBaru);
-                    }
-
-                    Soal::create([
-                        'ujian_id' => $ujian->id,
-                        'pertanyaan' => $dataSoal['pertanyaan'],
-                        'gambar' => $gambarPathBaru,
-                        'opsi_a' => $dataSoal['opsi_a'],
-                        'opsi_b' => $dataSoal['opsi_b'],
-                        'opsi_c' => $dataSoal['opsi_c'],
-                        'opsi_d' => $dataSoal['opsi_d'],
-                        'opsi_e' => $dataSoal['opsi_e'],
-                        'kunci_jawaban' => $dataSoal['kunci_jawaban'],
-                    ]);
-                }
-                DB::commit();
-
-                // Hapus data dari Sesi
-                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
-
-                return redirect()->route('guru.mapel.dashboard', $mapel->id)
-                    ->with('success', 'Ujian dan ' . count($tempSoals) . ' soal berhasil disimpan!');
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Error Simpan Ujian: ' . $e->getMessage()); // Log error
-                // Hapus file temp yang mungkin sudah ter-upload
-                foreach (session('ujian_temp_soals', []) as $dataSoal) {
-                    if (isset($dataSoal['gambar_path'])) {
-                        Storage::delete($dataSoal['gambar_path']);
-                    }
-                }
-                return back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan ke database.');
-            }
-        }
-    }
-
-    /**
-     * Halaman 2: Menampilkan form untuk menambah soal
-     */
-    public function createSoal()
-    {
-        // Cek apakah data ujian ada di sesi
-        if (!session('ujian_temp_details')) {
-            return redirect()->route('guru.index')->with('error', 'Sesi ujian tidak ditemukan. Harap mulai dari awal.');
-        }
-
-        // Ambil data soal yang sudah ada di Sesi untuk ditampilkan (jika Anda ingin review)
-        $tempSoals = session('ujian_temp_soals', []);
-        $ujian = null;
-
-
-        return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian'));
-    }
-
-    /**
-     * Halaman 2: Menyimpan SEMUA soal dari form dinamis ke Sesi
-     */
-    public function storeSoalToSession(Request $request, Ujian $ujian = null)
-    {
-        // 1. Ambil data ujian dari Sesi
-        $ujianDetails = session('ujian_temp_details');
-        if (!$ujianDetails) {
-            return redirect()->route('guru.index')->with('error', 'Sesi ujian telah berakhir.');
-        }
-
-        // 2. Validasi data yang masuk sebagai array
-        $validated = $request->validate([
-            'soal'                 => 'required|array',
-            'soal.*.pertanyaan'    => 'required|string',
-            'soal.*.gambar'        => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
-            'soal.*.opsi_a'        => 'required|string|max:255',
-            'soal.*.opsi_b'        => 'required|string|max:255',
-            'soal.*.opsi_c'        => 'required|string|max:255',
-            'soal.*.opsi_d'        => 'required|string|max:255',
-            'soal.*.opsi_e'        => 'required|string|max:255',
-            'soal.*.kunci_jawaban' => 'required|in:A,B,C,D,E',
-        ]);
-
-        // 3. Hapus file gambar lama dari 'temp/'
-        $soalsLama = session('ujian_temp_soals', []);
-        foreach ($soalsLama as $soal) {
-            if (isset($soal['gambar_path']) && str_starts_with($soal['gambar_path'], 'temp/')) {
-                Storage::delete($soal['gambar_path']);
-            }
-        }
-
-        // 4. Proses dan simpan soal baru ke Sesi
-        $soalsBaru = [];
-        foreach ($validated['soal'] as $index => $dataSoal) {
-            $gambarPath = null;
-            if ($request->hasFile("soal.{$index}.gambar")) {
-                $gambarPath = $request->file("soal.{$index}.gambar")->store('temp_soal', 'public');
-            } else {
-                // Pertahankan gambar lama jika ada (dari mode edit)
-                $gambarPath = $soalsLama[$index]['gambar_path'] ?? null;
-            }
-
-            unset($dataSoal['gambar']);
-            $dataSoal['gambar_path'] = $gambarPath;
-            $soalsBaru[] = $dataSoal;
-        }
-
-        // 5. Simpan array soal yang baru ke Sesi
-        session(['ujian_temp_soals' => $soalsBaru]);
-
-        // 6. Tentukan ke mana harus kembali
-        if ($request->has('ujian') && $request->input('ujian') != null) {
-
-            // Mode Edit: Kembali ke Halaman 1 (Edit)
-            // Kita gunakan ID dari $request
-            return redirect()->route('guru.mapel.ujian.edit', $request->input('ujian'))
-                ->with('success', count($soalsBaru) . ' soal berhasil disimpan sementara.');
-        } else {
-            // Mode Create: Kembali ke Halaman 1 (Create) via route "review"
-            // agar sesi tidak terhapus
-            return redirect()->route('guru.mapel.ujian.review', $ujianDetails['mapel_id']) // <-- INI PERBAIKANNYA
-                ->with('success', count($soalsBaru) . ' soal berhasil disimpan sementara.');
-        }
-    }
-
-    public function editUjian(Ujian $ujian)
-    {
-        if ($ujian->guru_id != Auth::id()) {
-            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
-        }
-
-        $ujianDetails = session('ujian_temp_details');
-        $tempSoals = session('ujian_temp_soals');
-
-        if (empty($ujianDetails)) {
-            $ujianDetails = [
-                'nama_ujian' => $ujian->nama_ujian,
-                'jenis_ujian' => $ujian->jenis_ujian,
-                'tanggal_ujian' => $ujian->tanggal_ujian,
-                'waktu_mulai' => \Carbon\Carbon::parse($ujian->waktu_mulai)->format('H:i'),
-                'waktu_selesai' => \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i'),
-                'durasi_menit' => $ujian->durasi_menit,
-            ];
-            // Simpan ke Sesi untuk pertama kali
-            session(['ujian_temp_details' => $ujianDetails + ['mapel_id' => $ujian->mapel_id]]);
-        }
-
-        // 3. Jika Soal TIDAK ADA di Sesi, baru ambil dari DB
-        if (empty($tempSoals)) {
-            $tempSoals = $ujian->soals->map(function ($soal) {
-                return [
-                    'pertanyaan' => $soal->pertanyaan,
-                    'gambar_path' => $soal->gambar, // Path sudah di 'public/'
-                    'opsi_a' => $soal->opsi_a,
-                    'opsi_b' => $soal->opsi_b,
-                    'opsi_c' => $soal->opsi_c,
-                    'opsi_d' => $soal->opsi_d,
-                    'opsi_e' => $soal->opsi_e,
-                    'kunci_jawaban' => $soal->kunci_jawaban,
-                ];
-            })->toArray();
-            // Simpan ke Sesi untuk pertama kali
-            session(['ujian_temp_soals' => $tempSoals]);
-        } // ▼▼▼ AKHIR PERBAIKAN ▼▼▼
-
-        $jumlahSoal = count($tempSoals); // Hitung dari $tempSoals yang dari sesi
-        $mapel = $ujian->mapel;
-
-        // Gunakan view yang sama, kirim $ujianDetails yang sudah pasti dari Sesi
-        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian'));
-    }
-
-    public function updateUjian(Request $request, Mapel $mapel, ?Ujian $ujian = null)
-    {
-        $validated = $request->validate([
-            'nama_ujian' => 'required|string|max:255',
-            'jenis_ujian' => 'required|in:Kuis,UTS,UAS',
-            'tanggal_ujian' => 'required|date',
-            'waktu_mulai' => 'required|date_format:H:i',
-            'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
-        ]);
-
-        $start = new \DateTime($validated['waktu_mulai']);
-        $end = new \DateTime($validated['waktu_selesai']);
-        $diff = $start->diff($end);
-        $durasi_menit = ($diff->h * 60) + $diff->i;
-
-        $waktu_mulai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_mulai'] . ':00';
-        $waktu_selesai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_selesai'] . ':00';
-
-        $ujianDataSesi = $validated + [
-            'durasi_menit' => $durasi_menit,
-            'mapel_id' => $mapel->id,
-            'guru_id' => Auth::id(),
-        ];
-        session(['ujian_temp_details' => $ujianDataSesi]);
-
-        // Tentukan Ujian (jika sedang mode edit)
-        // Jika $ujian tidak null, berarti kita sedang dalam mode UPDATE
-        $ujianTarget = $ujian;
-
-        if ($request->input('action') == 'tambah_soal') {
-            // Jika klik "Soal", arahkan ke halaman tambah soal
-            // Jika mode edit, kirim ID ujian. Jika mode create, ID belum ada
-            $routeParams = $ujianTarget ? ['ujian' => $ujianTarget->id] : [];
-            return redirect()->route('guru.mapel.soal.show', $routeParams);
-        } elseif ($request->input('action') == 'simpan_ujian') {
-            // Jika klik "Simpan Ujian", simpan semuanya ke database
-            $tempSoals = session('ujian_temp_soals', []);
-
-            if (empty($tempSoals)) {
-                return back()->withInput()->with('error', 'Gagal menyimpan. Anda belum menambahkan soal apapun.');
-            }
-
-            try {
-                DB::beginTransaction();
-
-                $ujianDataDB = [
-                    'mapel_id' => $mapel->id,
-                    'guru_id' => Auth::id(),
-                    'nama_ujian' => $validated['nama_ujian'],
-                    'jenis_ujian' => $validated['jenis_ujian'],
-                    'tanggal_ujian' => $validated['tanggal_ujian'],
-                    'waktu_mulai' => $waktu_mulai_full,
-                    'waktu_selesai' => $waktu_selesai_full,
-                    'durasi_menit' => $durasi_menit,
-                ];
-
-                // Jika $ujianTarget ada (mode edit), update. Jika tidak, create.
-                if ($ujianTarget) {
-                    $ujianTarget->update($ujianDataDB);
-                    $ujian = $ujianTarget; // Gunakan ujian yang sudah ada
-                    $ujian->soals()->delete(); // Hapus soal lama untuk diganti baru
-                } else {
-                    $ujian = Ujian::create($ujianDataDB); // Buat ujian baru
-                }
-
-                // Loop dan simpan soal-soal
-                foreach ($tempSoals as $dataSoal) {
-                    $gambarPathBaru = $dataSoal['gambar_path'] ?? null;
-
-                    // Jika gambar ada di 'temp/', pindahkan ke 'public/'
-                    if ($gambarPathBaru && str_starts_with($gambarPathBaru, 'temp/')) {
-                        $tempPath = $gambarPathBaru;
-                        $gambarPathBaru = str_replace('temp_soal/', 'soal/', $tempPath);
-                        
-                        // Gunakan Storage::disk('public') agar konsisten
-                        if (Storage::disk('public')->exists($tempPath)) {
-                            Storage::disk('public')->move($tempPath, $gambarPathBaru);
-                        }
-                    }
-
-                    Soal::create([
-                        'ujian_id' => $ujian->id,
-                        'pertanyaan' => $dataSoal['pertanyaan'],
-                        'gambar' => $gambarPathBaru,
-                        'opsi_a' => $dataSoal['opsi_a'],
-                        'opsi_b' => $dataSoal['opsi_b'],
-                        'opsi_c' => $dataSoal['opsi_c'],
-                        'opsi_d' => $dataSoal['opsi_d'],
-                        'opsi_e' => $dataSoal['opsi_e'],
-                        'kunci_jawaban' => $dataSoal['kunci_jawaban'],
-                    ]);
-                }
-
-                DB::commit();
-                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
-                return redirect()->route('guru.mapel.dashboard', $mapel->id)
-                    ->with('success', 'Ujian dan ' . count($tempSoals) . ' soal berhasil disimpan!');
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Gagal Simpan Ujian: ' . $e->getMessage());
-                return back()->withInput()->with('error', 'Terjadi kesalahan. Silakan periksa log server.');
-            }
-        }
-    }
-
-    public function showSoalForm(Ujian $ujian = null)
-    {
-        // Jika $ujian ada (mode edit), data sudah dimuat ke Sesi oleh editUjian()
-        // Jika $ujian null (mode create), data dimuat dari Sesi oleh storeUjian()
-
-        if (!session('ujian_temp_details')) {
-            return redirect()->route('guru.index')->with('error', 'Sesi ujian tidak ditemukan. Harap mulai dari awal.');
-        }
-
-        $tempSoals = session('ujian_temp_soals', []);
-        $mapel = $ujian->mapel;
-        // Kirim $ujian (bisa null) untuk menentukan URL form action
-        return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian'));
-    }
-
-    public function destroyUjian(Ujian $ujian)
-    {
-        // 1. Verifikasi Keamanan: Pastikan guru yang login adalah pemilik ujian
-        if ($ujian->guru_id != Auth::id()) {
-            return redirect()->route('guru.mapel.dashboard', $ujian->mapel_id)
-                             ->with('error', 'Akses ditolak. Anda bukan pemilik ujian ini.');
-        }
-
-        // Simpan info untuk redirect & pesan sukses
-        $mapelId = $ujian->mapel_id;
-        $namaUjian = $ujian->nama_ujian;
-
-        try {
-            DB::beginTransaction();
+        // 4. Olah Data Siswa
+        $siswas = $siswasRaw->map(function($siswa) use ($mapel, $daftarKuisMaster) {
             
-            // 1. Hapus soal-soal terkait (seperti di fungsi updateUjian)
-            // Ini mengasumsikan model Ujian Anda memiliki relasi 'soals()'
-            $ujian->soals()->delete(); 
+            $listKuis = [];
             
-            // 2. Hapus ujiannya
-            $ujian->delete();
-            
-            DB::commit();
+            foreach($daftarKuisMaster as $kuisMaster) {
+                $nilai = HasilUjian::where('siswa_id', $siswa->id)
+                                   ->where('ujian_id', $kuisMaster->id)
+                                   ->value('nilai');
+                $listKuis[] = $nilai !== null ? $nilai : '-';
+            }
 
-            return redirect()->route('guru.mapel.dashboard', $mapelId)
-                             ->with('success', 'Ujian "' . $namaUjian . '" dan soal-soalnya telah berhasil dihapus.');
+            $nilaiKuisValid = array_filter($listKuis, fn($v) => is_numeric($v));
+            $rataKuis = count($nilaiKuisValid) > 0 ? array_sum($nilaiKuisValid) / count($nilaiKuisValid) : 0;
 
-        } catch (\Exception $e) {
-            DB::rollBack(); 
-            Log::error('Gagal Hapus Ujian: ' . $e->getMessage());
-            return redirect()->route('guru.mapel.dashboard', $mapelId)
-                             ->with('error', 'Terjadi kesalahan saat menghapus ujian. Silakan cek log.');
-        }
-    }
+            // Ambil UTS & UAS
+            $uts = HasilUjian::where('siswa_id', $siswa->id)
+                    ->whereHas('ujian', fn($q) => $q->where('mapel_id', $mapel->id)->where('jenis_ujian', 'UTS'))
+                    ->value('nilai') ?? 0;
 
-    public function showUjianDetail(Ujian $ujian)
-    {
-        // 1. Verifikasi Keamanan
-        if ($ujian->guru_id != Auth::id()) {
-            return redirect()->route('guru.mapel.dashboard', $ujian->mapel_id)
-                             ->with('error', 'Akses ditolak.');
-        }
+            $uas = HasilUjian::where('siswa_id', $siswa->id)
+                    ->whereHas('ujian', fn($q) => $q->where('mapel_id', $mapel->id)->where('jenis_ujian', 'UAS'))
+                    ->value('nilai') ?? 0;
 
-        // 2. Ambil data terkait untuk sidebar dan judul
-        $mapel = $ujian->mapel;
-        $kelas = $mapel->kelas;
+            // Hitung Akhir
+            $akhir = ($rataKuis * 0.4) + ($uts * 0.3) + ($uas * 0.3);
 
-        // 3. Ambil daftar siswa dari kelas yang terkait dengan ujian ini
-        $siswasDiKelas = Siswa::where('kelas_id', $mapel->kelas_id)
-                             ->orderBy('nama_lengkap', 'asc')
-                             ->get();
-
-        // 4. === MEMBUAT DATA NILAI DUMMY ===
-        //    Nanti, Anda akan mengganti ini dengan query ke tabel 'nilais'
-        //    Contoh: $hasilUjian = Nilai::where('ujian_id', $ujian->id)->with('siswa')->get();
-        
-        $hasilUjian = $siswasDiKelas->map(function ($siswa) {
-            // Beri nilai acak antara 65 dan 98
-            $nilaiDummy = rand(65, 98); 
-            
-            // Tiru struktur data yang mungkin akan Anda gunakan nanti
             return (object) [
-                'siswa_id' => $siswa->id,
-                'nama_siswa' => $siswa->nama_lengkap,
-                'nisn_siswa' => $siswa->nisn, 
-                'nilai' => $nilaiDummy
+                'id' => $siswa->id,
+                'nama_lengkap' => $siswa->nama_lengkap, 
+                'nisn' => $siswa->nisn,
+                'list_kuis' => $listKuis,
+                'rata_kuis' => number_format($rataKuis, 1),
+                
+                // --- PERBAIKAN DI SINI (Ganti 'rata_uts' jadi 'uts') ---
+                'uts' => $uts == 0 ? '-' : number_format($uts, 1),
+                'uas' => $uas == 0 ? '-' : number_format($uas, 1),
+                // -------------------------------------------------------
+
+                'nilai_akhir' => number_format($akhir, 1),
+                'grade_raw' => $akhir
             ];
         });
 
-        // 5. Kirim data ke view baru
+        if ($maxKuis == 0) $maxKuis = 1;
+
+        return view('guru.mapel.daftar_siswa', compact('mapel', 'siswas', 'maxKuis'));
+    }
+
+    /**
+     * Menampilkan detail hasil ujian satu kelas.
+     * UPDATE: Menghapus data dummy total. Hanya menampilkan data real.
+     */
+    public function showUjianDetail(Ujian $ujian)
+    {
+        $user = Auth::user();
+        $mapel = $ujian->mapel;
+        $kelas = $mapel->kelas;
+        
+        // 1. Validasi Akses
+        $guruId = $user->guru ? $user->guru->id : $user->id;
+        if ($mapel->guru_id != $guruId) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        // 2. Data Master Siswa
+        $semuaSiswa = Siswa::where('kelas_id', $mapel->kelas_id)
+                        ->orderBy('nama_lengkap', 'asc')
+                        ->get();
+        
+        // Hitung Total Soal untuk referensi statistik
+        $totalSoalUjian = $ujian->soals()->count();
+        if ($totalSoalUjian == 0) $totalSoalUjian = 1; 
+
+        // 3. Ambil Hasil Ujian Real
+        $hasilUjianReal = HasilUjian::where('ujian_id', $ujian->id)
+                        ->with('siswa')
+                        ->get();
+
+        // 4. Map Data Real (Tanpa Dummy Fallback)
+        $hasilUjian = $hasilUjianReal->map(function($hasil) use ($totalSoalUjian) {
+            
+            // Cek apakah kolom jumlah_benar di DB terisi (sesuai SQL dump)
+            if (!is_null($hasil->jumlah_benar)) {
+                $benar = $hasil->jumlah_benar;
+                $salah = $totalSoalUjian - $benar;
+            } else {
+                // Kalkulasi manual jika kolom DB masih kosong (backward compatibility)
+                $benar = round(($hasil->nilai / 100) * $totalSoalUjian);
+                $salah = $totalSoalUjian - $benar;
+            }
+            
+            // Inject atribut untuk view
+            $hasil->jumlah_benar = $benar;
+            $hasil->jumlah_salah = $salah;
+            $hasil->total_soal = $totalSoalUjian;
+            
+            return $hasil;
+        });
+        
+        // 5. Pisahkan siswa yang belum mengerjakan
+        $idSiswaSudah = $hasilUjian->pluck('siswa_id')->toArray();
+        $siswaBelum = $semuaSiswa->filter(fn($s) => !in_array($s->id, $idSiswaSudah));
+        
+        $sudahMengerjakan = $hasilUjian->count();
+        $belumMengerjakan = $siswaBelum->count();
+        $totalSiswa = $semuaSiswa->count();
+
         return view('guru.mapel.detail_ujian', compact(
-            'ujian',
-            'mapel',
-            'kelas',
-            'hasilUjian'
+            'ujian', 'mapel', 'kelas',
+            'hasilUjian', 'siswaBelum', 
+            'totalSiswa', 'sudahMengerjakan', 'belumMengerjakan'
         ));
     }
 
+    /**
+     * Menampilkan detail jawaban spesifik per siswa.
+     * UPDATE: Menggunakan relasi tabel hasil_ujians -> jawaban_siswas.
+     */
     public function showSiswaUjianDetail(Ujian $ujian, Siswa $siswa)
     {
         // 1. Verifikasi Keamanan
@@ -563,156 +234,498 @@ class GuruMapelController extends Controller
             return redirect()->route('guru.index')->with('error', 'Siswa tidak ditemukan di kelas ini.');
         }
 
-        // 2. Ambil semua soal dari ujian ini
-        $semuaSoal = $ujian->soals()->get(); // Mengambil relasi soals()
+        // 2. Ambil soal
+        $semuaSoal = $ujian->soals()->get();
         $jumlahTotalSoal = $semuaSoal->count();
 
-        // 3. === GENERASI DATA DUMMY ===
-        //    Di sinilah nanti Anda akan query ke tabel 'jawaban_siswa'
+        // 3. AMBIL DATA HASIL & JAWABAN (SESUAI STRUKTUR DB)
         
-        $detailJawaban = [];
+        // A. Cari HasilUjian dulu untuk mendapatkan ID-nya
+        $hasilUjian = HasilUjian::where('ujian_id', $ujian->id)
+                        ->where('siswa_id', $siswa->id)
+                        ->first();
+
+        // B. Ambil Jawaban berdasarkan hasil_ujian_id
+        $listJawabanSiswa = collect(); 
+        
+        if ($hasilUjian) {
+            // Ambil dari tabel jawaban_siswas menggunakan hasil_ujian_id
+            $listJawabanSiswa = JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)
+                                    ->get()
+                                    ->keyBy('soal_id');
+        }
+
+        // 4. Proses Data untuk View
+        $daftarSoal = []; 
         $jumlahBenar = 0;
-        $kunciOpsi = ['A', 'B', 'C', 'D', 'E'];
 
         foreach ($semuaSoal as $soal) {
-            // 3a. Buat jawaban dummy (acak 'A' s/d 'E')
-            $jawabanSiswaDummy = $kunciOpsi[array_rand($kunciOpsi)];
+            // Cari jawaban untuk soal ini
+            $jawabanDb = $listJawabanSiswa->get($soal->id);
+            
+            // Nama kolom di tabel jawaban_siswas adalah 'jawaban_dipilih' (sesuai SQL)
+            $jawabanSiswa = $jawabanDb ? $jawabanDb->jawaban_dipilih : null; 
 
-            // 3b. Cek apakah jawaban dummy ini benar
-            $isBenar = ($jawabanSiswaDummy == $soal->kunci_jawaban);
-            if ($isBenar) {
-                $jumlahBenar++;
+            // Cek kebenaran (Case insensitive)
+            $isBenar = false;
+            if ($jawabanSiswa) {
+                $isBenar = (strtoupper($jawabanSiswa) == strtoupper($soal->kunci_jawaban));
             }
 
-            // 3c. Simpan ke array hasil
-            $detailJawaban[] = (object) [
-                'soal' => $soal, // Ini adalah model Soal lengkap
-                'jawaban_siswa' => $jawabanSiswaDummy,
-                'is_benar' => $isBenar
+            if ($isBenar) $jumlahBenar++;
+
+            // Inject data ke object soal
+            $soal->jawaban_siswa = $jawabanSiswa; 
+            $soal->status_jawaban = $isBenar;     
+
+            $daftarSoal[] = $soal;
+        }
+
+        // 5. Ambil Nilai Akhir (Konsisten dengan DB)
+        $nilai = $hasilUjian ? $hasilUjian->nilai : 0;
+
+        return view('guru.mapel.detail_jawaban_siswa', compact(
+            'ujian', 'siswa', 'mapel',
+            'daftarSoal', 'jumlahBenar', 'nilai', 'jumlahTotalSoal','hasilUjian'
+        ));
+    }
+
+    // --- FUNGSI CRUD UJIAN & BANK SOAL (TIDAK PERLU DUMMY, SUDAH REAL) ---
+
+    public function createUjian(Mapel $mapel)
+    {
+        if ($mapel->guru_id != Auth::id()) {
+            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
+        }
+        session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+        return view('guru.mapel.create_ujian', ['mapel' => $mapel, 'ujianDetails' => null, 'jumlahSoal' => 0]);
+    }
+
+    public function showCreateUjianPage(Mapel $mapel)
+    {
+        $ujianDetails = session('ujian_temp_details');
+        $tempSoals = session('ujian_temp_soals', []);
+
+        if (empty($ujianDetails)) {
+            return redirect()->route('guru.mapel.ujian.create', $mapel->id)
+                ->with('error', 'Sesi pembuatan ujian tidak ditemukan.');
+        }
+
+        $jumlahSoal = count($tempSoals);
+        $ujian = null; 
+
+        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian'));
+    }
+
+    public function storeUjian(Request $request, Mapel $mapel)
+    {
+        $validated = $request->validate([
+            'nama_ujian' => 'required|string|max:255',
+            'jenis_ujian' => 'required|in:Kuis,UTS,UAS',
+            'tanggal_ujian' => 'required|date',
+            'waktu_mulai' => 'required|date_format:H:i',
+            'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
+        ]);
+
+        $start = new \DateTime($validated['waktu_mulai']);
+        $end = new \DateTime($validated['waktu_selesai']);
+        $diff = $start->diff($end);
+        $durasi_menit = ($diff->h * 60) + $diff->i;
+
+        $waktu_mulai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_mulai'] . ':00';
+        $waktu_selesai_full = $validated['tanggal_ujian'] . ' ' . $validated['waktu_selesai'] . ':00';
+
+        $ujianData = $validated + [
+            'durasi_menit' => $durasi_menit,
+            'mapel_id' => $mapel->id,
+            'guru_id' => Auth::id(),
+        ];
+        session(['ujian_temp_details' => $ujianData]);
+
+        if ($request->input('action') == 'tambah_soal') {
+            return redirect()->route('guru.mapel.soal.create');
+        } elseif ($request->input('action') == 'simpan_ujian') {
+            $tempSoals = session('ujian_temp_soals', []);
+
+            if (empty($tempSoals)) {
+                return back()->withInput()->with('error', 'Gagal menyimpan. Soal masih kosong.');
+            }
+
+            try {
+                DB::beginTransaction();
+
+                $ujian = Ujian::create([
+                    'mapel_id' => $mapel->id,
+                    'guru_id' => Auth::id(),
+                    'nama_ujian' => $validated['nama_ujian'],
+                    'jenis_ujian' => $validated['jenis_ujian'],
+                    'tanggal_ujian' => $validated['tanggal_ujian'],
+                    'waktu_mulai' => $waktu_mulai_full,
+                    'waktu_selesai' => $waktu_selesai_full,
+                    'durasi_menit' => $durasi_menit,
+                ]);
+
+                foreach ($tempSoals as $dataSoal) {
+                    $gambarPathBaru = null;
+                    if (isset($dataSoal['gambar_path']) && Storage::disk('public')->exists($dataSoal['gambar_path'])) {
+                        $tempPath = $dataSoal['gambar_path'];
+                        $gambarPathBaru = str_replace('temp_soal/', 'soal/', $tempPath);
+                        Storage::disk('public')->move($tempPath, $gambarPathBaru);
+                    }
+
+                    Soal::create([
+                        'ujian_id' => $ujian->id,
+                        'tipe' => $dataSoal['tipe'] ?? 'pilihan_ganda',
+                        'pertanyaan' => $dataSoal['pertanyaan'],
+                        'gambar' => $gambarPathBaru,
+                        'opsi_a' => $dataSoal['opsi_a'],
+                        'opsi_b' => $dataSoal['opsi_b'],
+                        'opsi_c' => $dataSoal['opsi_c'],
+                        'opsi_d' => $dataSoal['opsi_d'],
+                        'kunci_jawaban' => $dataSoal['kunci_jawaban'],
+                        'data_soal' => $dataSoal['data_soal'] ?? null,
+                    ]);
+                }
+                DB::commit();
+                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+
+                return redirect()->route('guru.mapel.dashboard', $mapel->id)->with('success', 'Ujian berhasil disimpan!');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error Simpan Ujian: ' . $e->getMessage());
+                return back()->withInput()->with('error', 'Terjadi kesalahan sistem.');
+            }
+        }
+    }
+
+    public function createSoal()
+{
+    $ujianDetails = session('ujian_temp_details');
+    if (!$ujianDetails) {
+        return redirect()->route('guru.index')->with('error', 'Sesi ujian berakhir.');
+    }
+
+    // AMBIL DATA MAPEL BERDASARKAN ID DI SESSION
+    $mapel = Mapel::findOrFail($ujianDetails['mapel_id']);
+    
+    $tempSoals = session('ujian_temp_soals', []);
+    $ujian = null;
+
+    // Kirim $mapel ke view
+    return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian', 'mapel'));
+}
+
+    public function storeSoalToSession(Request $request, Ujian $ujian = null)
+    {
+        $ujianDetails = session('ujian_temp_details');
+        if (!$ujianDetails) return redirect()->route('guru.index');
+
+        $validated = $request->validate([
+            'soal' => 'required|array',
+            'soal.*.tipe' => 'required|in:pilihan_ganda,benar_salah,jawaban_ganda,menjodohkan',
+            'soal.*.pertanyaan' => 'required',
+            'soal.*.gambar' => 'nullable|image|max:2048',
+        ]);
+
+        $soalsLama = session('ujian_temp_soals', []);
+        $soalsBaru = [];
+        $inputs = $request->input('soal');
+
+        foreach ($inputs as $index => $dataSoal) {
+            $tipe = $dataSoal['tipe'];
+            
+            // 1. Handle Gambar
+            $gambarPath = null;
+            if ($request->hasFile("soal.{$index}.gambar")) {
+                $gambarPath = $request->file("soal.{$index}.gambar")->store('temp_soal', 'public');
+            } else {
+                // Pertahankan gambar lama jika ada (dari session)
+                // Note: Index form mungkin beda dengan index session kalau ada delete. 
+                // Tapi asumsi index urut dari 0..N krn reindex di JS. 
+                // Better approach: use hidden input for old path or assume index match.
+                // Disini kita asumsi index match atau replace all.
+                $gambarPath = $soalsLama[$index]['gambar_path'] ?? null;
+            }
+            $dataSoal['gambar_path'] = $gambarPath;
+
+            // 2. Format Data Berdasarkan Tipe
+            $formatted = [
+                'tipe' => $tipe,
+                'pertanyaan' => $dataSoal['pertanyaan'],
+                'gambar_path' => $gambarPath,
+                'opsi_a' => null, 'opsi_b' => null, 'opsi_c' => null, 'opsi_d' => null,
+                'kunci_jawaban' => null,
+                'data_soal' => null
+            ];
+
+            if ($tipe == 'pilihan_ganda') {
+                $formatted['opsi_a'] = $dataSoal['opsi_a'] ?? '-';
+                $formatted['opsi_b'] = $dataSoal['opsi_b'] ?? '-';
+                $formatted['opsi_c'] = $dataSoal['opsi_c'] ?? '-';
+                $formatted['opsi_d'] = $dataSoal['opsi_d'] ?? '-';
+                $formatted['kunci_jawaban'] = $dataSoal['kunci_jawaban'] ?? '';
+            } 
+            elseif ($tipe == 'benar_salah') {
+                $formatted['opsi_a'] = 'Benar';
+                $formatted['opsi_b'] = 'Salah';
+                $formatted['kunci_jawaban'] = $dataSoal['kunci_jawaban_bs'] ?? 'TRUE';
+            }
+            elseif ($tipe == 'jawaban_ganda') {
+                $formatted['opsi_a'] = $dataSoal['opsi_a_jg'] ?? '-';
+                $formatted['opsi_b'] = $dataSoal['opsi_b_jg'] ?? '-';
+                $formatted['opsi_c'] = $dataSoal['opsi_c_jg'] ?? '-';
+                $formatted['opsi_d'] = $dataSoal['opsi_d_jg'] ?? '-';
+                // Kunci Jawaban Array -> String
+                $kunci = $dataSoal['kunci_jawaban_jg'] ?? [];
+                $formatted['kunci_jawaban'] = implode(',', $kunci);
+            }
+            elseif ($tipe == 'menjodohkan') {
+                // Simpan pasangan di data_soal JSON
+                $matches = $dataSoal['matches'] ?? [];
+                // Bersihkan array keys
+                $matches = array_values($matches);
+                $formatted['data_soal'] = ['matches' => $matches];
+                $formatted['kunci_jawaban'] = 'MATCHING'; // Placeholder
+            }
+
+            $soalsBaru[] = $formatted;
+        }
+
+        session(['ujian_temp_soals' => $soalsBaru]);
+
+        if ($request->has('ujian') && $request->input('ujian') != null) {
+            return redirect()->route('guru.mapel.ujian.edit', $request->input('ujian'))->with('success', 'Soal tersimpan sementara.');
+        } else {
+            return redirect()->route('guru.mapel.ujian.review', $ujianDetails['mapel_id'])->with('success', 'Soal tersimpan sementara.');
+        }
+    }
+
+    public function editUjian(Ujian $ujian)
+    {
+        if ($ujian->guru_id != Auth::id()) return redirect()->back();
+
+        $now = Carbon::now('Asia/Jakarta');
+        $isOngoing = ($ujian->waktu_mulai <= $now && $ujian->waktu_selesai >= $now);
+        $isFinished = ($ujian->waktu_selesai < $now);
+
+        if (!session('ujian_temp_details')) {
+            $ujianDetails = [
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'tanggal_ujian' => $ujian->tanggal_ujian,
+                'waktu_mulai' => Carbon::parse($ujian->waktu_mulai)->format('H:i'),
+                'waktu_selesai' => Carbon::parse($ujian->waktu_selesai)->format('H:i'),
+                'durasi_menit' => $ujian->durasi_menit,
+                'mapel_id' => $ujian->mapel_id
+            ];
+            session(['ujian_temp_details' => $ujianDetails]);
+        }
+        
+        if (!session('ujian_temp_soals')) {
+             $tempSoals = $ujian->soals->map(function ($soal) {
+                return [
+                    'tipe' => $soal->tipe,
+                    'pertanyaan' => $soal->pertanyaan,
+                    'gambar_path' => $soal->gambar,
+                    'opsi_a' => $soal->opsi_a, 
+                    'opsi_b' => $soal->opsi_b,
+                    'opsi_c' => $soal->opsi_c, 
+                    'opsi_d' => $soal->opsi_d, 
+                    'kunci_jawaban' => $soal->kunci_jawaban,
+                    'data_soal' => $soal->data_soal,
+                ];
+            })->toArray();
+            session(['ujian_temp_soals' => $tempSoals]);
+        }
+
+        $tempSoals = session('ujian_temp_soals');
+        $jumlahSoal = count($tempSoals);
+        $mapel = $ujian->mapel;
+        $ujianDetails = session('ujian_temp_details');
+
+        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian', 'isOngoing', 'isFinished'));
+    }
+
+    public function updateUjian(Request $request, Mapel $mapel, ?Ujian $ujian = null)
+    {
+        $now = Carbon::now('Asia/Jakarta');
+        $isOngoing = ($ujian && $ujian->waktu_mulai <= $now && $ujian->waktu_selesai >= $now);
+        $isFinished = ($ujian && $ujian->waktu_selesai < $now);
+
+        if ($isFinished) return back()->with('error', 'Ujian selesai, tidak bisa diedit.');
+
+        $rules = ['waktu_selesai' => 'required|date_format:H:i'];
+        if (!$isOngoing) {
+            $rules += [
+                'nama_ujian' => 'required|string',
+                'jenis_ujian' => 'required',
+                'tanggal_ujian' => 'required|date',
+                'waktu_mulai' => 'required|date_format:H:i',
+            ];
+        }
+        $validated = $request->validate($rules);
+
+        if ($isOngoing) {
+            if ($request->input('action') == 'tambah_soal') return back()->with('error', 'Tidak bisa edit soal saat ujian berlangsung.');
+            
+            $start = new \DateTime(Carbon::parse($ujian->waktu_mulai)->format('H:i'));
+            $end = new \DateTime($validated['waktu_selesai']);
+            $diff = $start->diff($end);
+            $durasi = ($diff->h * 60) + $diff->i;
+
+            $ujianDataDB = [
+                'waktu_selesai' => $ujian->tanggal_ujian . ' ' . $validated['waktu_selesai'] . ':00',
+                'durasi_menit' => $durasi,
+            ];
+        } else {
+            $start = new \DateTime($validated['waktu_mulai']);
+            $end = new \DateTime($validated['waktu_selesai']);
+            $diff = $start->diff($end);
+            $durasi = ($diff->h * 60) + $diff->i;
+
+            $ujianDataDB = [
+                'nama_ujian' => $validated['nama_ujian'],
+                'jenis_ujian' => $validated['jenis_ujian'],
+                'tanggal_ujian' => $validated['tanggal_ujian'],
+                'waktu_mulai' => $validated['tanggal_ujian'] . ' ' . $validated['waktu_mulai'] . ':00',
+                'waktu_selesai' => $validated['tanggal_ujian'] . ' ' . $validated['waktu_selesai'] . ':00',
+                'durasi_menit' => $durasi,
             ];
         }
 
-        // 3d. Hitung nilai dummy
-        $nilaiSiswa = ($jumlahTotalSoal > 0) ? round(($jumlahBenar / $jumlahTotalSoal) * 100) : 0;
+        if ($request->input('action') == 'tambah_soal') {
+            return redirect()->route('guru.mapel.soal.show', ['ujian' => $ujian->id]);
+        } elseif ($request->input('action') == 'simpan_ujian') {
+            try {
+                DB::beginTransaction();
+                $ujian->update($ujianDataDB);
+
+                if (!$isOngoing) {
+                    $ujian->soals()->delete(); 
+                    $tempSoals = session('ujian_temp_soals', []);
+                    foreach ($tempSoals as $dataSoal) {
+                        $gambarPath = $dataSoal['gambar_path'] ?? null;
+                        if ($gambarPath && str_starts_with($gambarPath, 'temp/')) {
+                            $newPath = str_replace('temp_soal/', 'soal/', $gambarPath);
+                            Storage::disk('public')->move($gambarPath, $newPath);
+                            $gambarPath = $newPath;
+                        }
+                        Soal::create(array_merge($dataSoal, ['ujian_id' => $ujian->id, 'gambar' => $gambarPath]));
+                    }
+                }
+                DB::commit();
+                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+                return redirect()->route('guru.mapel.dashboard', $mapel->id)->with('success', 'Perubahan disimpan.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Error: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Update Waktu Ujian (Modal)
+     * Menambah atau mengurangi waktu selesai ujian yang sedang berlangsung.
+     */
+    public function updateWaktu(Request $request, Ujian $ujian)
+    {
+        // 1. Validasi
+        if ($ujian->guru_id != Auth::id()) return back()->with('error', 'Akses ditolak.');
+
+        $request->validate([
+            'tambahan_menit' => 'required|integer', // Bisa negatif untuk mengurangi
+        ]);
+
+        $tambahan = (int) $request->tambahan_menit;
+
+        // 2. Hitung Waktu Baru
+        $currentEnd = Carbon::parse($ujian->waktu_selesai);
+        $newEnd = $currentEnd->copy()->addMinutes($tambahan);
+
+        // Jangan sampai waktu selesai kurang dari waktu mulai
+        $start = Carbon::parse($ujian->waktu_mulai);
+        if ($newEnd <= $start) {
+            return back()->with('error', 'Waktu selesai tidak boleh kurang dari waktu mulai.');
+        }
+
+        // 3. Update DB
+        $ujian->waktu_selesai = $newEnd->format('Y-m-d H:i:s');
         
-        // === AKHIR GENERASI DATA DUMMY ===
+        // Update Durasi Total
+        $diff = $start->diff($newEnd);
+        $ujian->durasi_menit = ($diff->h * 60) + $diff->i;
+        
+        $ujian->save();
 
+        return back()->with('success', 'Waktu ujian berhasil diperbarui.');
+    }
 
-        // 4. Kirim semua data ke view baru
-        return view('guru.mapel.detail_jawaban_siswa', compact(
-            'ujian',
-            'siswa',
-            'mapel',
-            'detailJawaban', // Array hasil dummy
-            'jumlahBenar',
-            'nilaiSiswa',
-            'jumlahTotalSoal'
-        ));
+    public function showSoalForm(Ujian $ujian = null)
+{
+    $ujianDetails = session('ujian_temp_details');
+    if (!$ujianDetails) return redirect()->route('guru.index');
+
+    // AMBIL DATA MAPEL BERDASARKAN ID DI SESSION
+    $mapel = Mapel::findOrFail($ujianDetails['mapel_id']);
+
+    $tempSoals = session('ujian_temp_soals', []);
+
+    // Kirim $mapel ke view
+    return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian', 'mapel'));
+}
+
+    public function destroyUjian(Ujian $ujian)
+    {
+        if ($ujian->guru_id != Auth::id()) return back()->with('error', 'Akses ditolak.');
+        $mapelId = $ujian->mapel_id;
+        $ujian->soals()->delete();
+        $ujian->delete();
+        return redirect()->route('guru.mapel.dashboard', $mapelId)->with('success', 'Ujian dihapus.');
     }
 
     public function indexBankSoal(Mapel $mapel)
     {
-        // 1. Verifikasi Keamanan
-        if ($mapel->guru_id != Auth::id()) {
-            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
-        }
-
-        // 2. Ambil semua bank soal milik guru dan mapel ini
-        $bankSoals = BankSoal::where('mapel_id', $mapel->id)
-                             ->where('guru_id', Auth::id())
-                             ->orderBy('nama', 'asc')
-                             ->get();
-
+        if ($mapel->guru_id != Auth::id()) return back()->with('error', 'Akses ditolak.');
+        $bankSoals = BankSoal::where('mapel_id', $mapel->id)->where('guru_id', Auth::id())->get();
         return view('guru.mapel.bank_soal', compact('mapel', 'bankSoals'));
     }
 
-    /**
-     * Menangani upload file baru dan update visibilitas file lama.
-     */
     public function handleBankSoal(Request $request, Mapel $mapel)
     {
-        if ($mapel->guru_id != Auth::id()) {
-            return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
-        }
-        
-        // 1. Validasi untuk file yang di-upload
-        $request->validate([
-            'new_files.*.file'       => 'required_with:new_files.*.nama|file|mimes:pdf|max:5120', // Maks 5MB
-            'new_files.*.nama'       => 'required_with:new_files.*.file|string|max:255',
-            'new_files.*.visibilitas'=> 'required_with:new_files.*.file|in:Public,Private,Draft',
-            // Validasi untuk update file lama (jika ada)
-            'existing.*.visibilitas' => 'required|in:Public,Private,Draft', 
-            'existing.*.nama'        => 'required|string|max:255',
-        ]);
+        $request->validate(['new_files.*.file' => 'required|mimes:pdf|max:5120']);
         
         try {
             DB::beginTransaction();
-
-            // 2. Handle File Baru (Jika ada upload)
             if ($request->has('new_files')) {
-                foreach ($request->file('new_files') as $index => $newFile) {
-                    // Pastikan file dan nama ada
-                    if (isset($newFile['file']) && $request->new_files[$index]['nama']) {
-                        $file = $newFile['file'];
-                        
-                        // Simpan file ke folder 'bank_soal' di public disk
-                        $filePath = $file->store('bank_soal/' . $mapel->id, 'public'); 
-
-                        BankSoal::create([
-                            'guru_id' => Auth::id(),
-                            'mapel_id' => $mapel->id,
-                            'nama' => $request->new_files[$index]['nama'],
-                            'file_path' => $filePath,
-                            'visibilitas' => $request->new_files[$index]['visibilitas'],
-                        ]);
-                    }
-                }
-            }
-
-            // 3. Handle Update Visibilitas & Nama File Lama
-            if ($request->has('existing')) {
-                foreach ($request->existing as $fileId => $data) {
-                    $fileToUpdate = BankSoal::findOrFail($fileId);
-                    $fileToUpdate->update([
-                        'nama' => $data['nama'],
-                        'visibilitas' => $data['visibilitas'],
+                foreach ($request->file('new_files') as $idx => $newFile) {
+                    $path = $newFile['file']->store('bank_soal/' . $mapel->id, 'public');
+                    BankSoal::create([
+                        'guru_id' => Auth::id(),
+                        'mapel_id' => $mapel->id,
+                        'nama' => $request->new_files[$idx]['nama'],
+                        'file_path' => $path,
+                        'visibilitas' => $request->new_files[$idx]['visibilitas'],
                     ]);
                 }
             }
-
+            if ($request->has('existing')) {
+                foreach ($request->existing as $id => $data) {
+                    BankSoal::findOrFail($id)->update($data);
+                }
+            }
             DB::commit();
-            return redirect()->route('guru.mapel.bank_soal.index', $mapel->id)->with('success', 'Bank soal berhasil diperbarui.');
-
+            return back()->with('success', 'Bank soal diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error Bank Soal: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal memperbarui bank soal: ' . $e->getMessage());
+            return back()->with('error', 'Gagal update bank soal.');
         }
     }
-    
-    /**
-     * Menghapus file soal dari database dan storage.
-     */
+
     public function destroyBankSoal(BankSoal $bankSoal)
     {
-        if ($bankSoal->guru_id != Auth::id()) {
-            return redirect()->back()->with('error', 'Akses ditolak.');
-        }
-
-        try {
-            // 1. Hapus file dari storage
-            if (Storage::disk('public')->exists($bankSoal->file_path)) {
-                Storage::disk('public')->delete($bankSoal->file_path);
-            }
-
-            // 2. Hapus record dari database
-            $bankSoal->delete();
-
-            return redirect()->back()->with('success', 'File "' . $bankSoal->nama . '" berhasil dihapus.');
-
-        } catch (\Exception $e) {
-            Log::error('Gagal hapus bank soal: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Gagal menghapus file bank soal.');
-        }
+        if ($bankSoal->guru_id != Auth::id()) return back();
+        if (Storage::disk('public')->exists($bankSoal->file_path)) Storage::disk('public')->delete($bankSoal->file_path);
+        $bankSoal->delete();
+        return back()->with('success', 'File dihapus.');
     }
 }

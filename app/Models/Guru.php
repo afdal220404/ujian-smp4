@@ -19,6 +19,11 @@ class Guru extends Authenticatable
         'role',     // Tambahkan
     ];
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     protected $hidden = [
         'password',
     ];

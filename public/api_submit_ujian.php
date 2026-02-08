@@ -1,11 +1,11 @@
 <?php
-// api_submit_ujian.php
-ob_clean(); // Bersihkan output buffer sebelumnya
-header('Content-Type: application/json'); // Pastikan header JSON
+
+ob_clean(); 
+header('Content-Type: application/json'); 
 
 require 'db_config.php';
 
-// Pastikan permintaan adalah POST dan menerima JSON body
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendResponse(["status" => "error", "message" => "Metode tidak diizinkan."], 405);
 }
@@ -13,14 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = json_decode(file_get_contents("php://input"), true);
 
 $hasil_ujian_id = $data['hasil_ujian_id'] ?? 0;
-$jawaban_siswa = $data['jawaban_siswa'] ?? []; // Array of {soalId, jawabanPilihan}
+$jawaban_siswa = $data['jawaban_siswa'] ?? [];
 $waktu_selesai = date('Y-m-d H:i:s');
 
 if ($hasil_ujian_id == 0 || empty($jawaban_siswa)) {
     sendResponse(["status" => "error", "message" => "Data submit tidak lengkap."], 400);
 }
 
-// 1. Ambil Semua Kunci Jawaban
+
 $soal_ids = array_map(function ($j) {
     return $j['soalId'];
 }, $jawaban_siswa);
@@ -34,9 +34,8 @@ while ($row = $result_kunci->fetch_assoc()) {
 $total_soal = count($kunci_map);
 $jumlah_benar = 0;
 
-// 2. Simpan Jawaban Siswa & Hitung Jumlah Benar
 $stmt_jawaban = $conn->prepare("INSERT INTO jawaban_siswas (hasil_ujian_id, soal_id, jawaban_dipilih, is_correct) VALUES (?, ?, ?, ?)");
-$conn->begin_transaction(); // Mulai transaksi
+$conn->begin_transaction(); 
 
 try {
     foreach ($jawaban_siswa as $jawaban) {
@@ -53,26 +52,26 @@ try {
         if (!$stmt_jawaban->execute()) throw new Exception("Gagal simpan jawaban.");
     }
 
-    // 3. Hitung Nilai Akhir
+
     $nilai = ($total_soal > 0) ? round(($jumlah_benar / $total_soal) * 100, 2) : 0.00;
 
-    // 4. Update Hasil Ujian
+
     $stmt_update = $conn->prepare("UPDATE hasil_ujians SET nilai = ?, jumlah_benar = ?, waktu_selesai = ? WHERE id = ?");
     $stmt_update->bind_param("disi", $nilai, $jumlah_benar, $waktu_selesai, $hasil_ujian_id);
     if (!$stmt_update->execute()) throw new Exception("Gagal update hasil ujian.");
 
-    $conn->commit(); // Commit transaksi
+    $conn->commit(); 
 
     sendResponse([
         "status" => "success",
         "message" => "Ujian berhasil dikumpulkan.",
-        "data" => [ // PENTING: Bungkus dalam objek 'data' agar sesuai dengan ApiResponse<T>
+        "data" => [ 
             "nilai_akhir" => (float)$nilai,
             "jumlah_benar" => (int)$jumlah_benar
         ]
     ]);
 } catch (Exception $e) {
-    $conn->rollback(); // Rollback jika ada error
+    $conn->rollback(); 
     sendResponse(["status" => "error", "message" => "Proses submit gagal: " . $e->getMessage()], 500);
 }
 

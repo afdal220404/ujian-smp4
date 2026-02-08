@@ -1,167 +1,56 @@
-body {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-html, body {
-    height: 100%;
-}
+/* public/css/style.css */
 
-
-.right, .left{
-    height: 50vh;
-    width: 100%;
-    font-family:'Poppins-Bold', sans-serif;
-    font-size: 45px;
-}
-
-
-@media screen and (min-width:768px){
-    .left,.right{
-        height: 100vh;
-    }
-}
-
-.left {
-    background-color: #F8F9FA;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.welcome-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-.welcome-text {
-    margin-bottom: 20px;
-}
-
-.right{
-   background-image: 
-       linear-gradient(rgba(0, 0, 0, 0.3)), /* overlay hitam 50% */
-       url("/image/foto_sekolah.jpg");
-}
-
-.button {
-  background-color: #447d9b; 
-  border: none;
-  border-radius: 10px;
-  color: white;
-  padding: 16px 32px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 4px 2px;
-  transition-duration: 0.4s;
-  cursor: pointer;
-  margin-top: 60px;
-  padding: 10px 160px;
-  font-size: 18px;
-}
-
-.button1 {
-  background-color: #F8F9FA; 
-  color: black; 
-  border: 5px solid #447d9b;
-}
-
-.button1:hover {
-  background-color: #447d9b;
-  color: white;
-}
-
-.center-logo-group {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column; /* buat vertikal */
-    gap: 20px;
-    z-index: 10;
-}
-
-/* Bentuk logo bulat */
-.logo-placeholder {
-    border-radius: 50%;
-    background-color: white;
-    border: 3px solid #447d9b;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.logo-wrapper {
-    align-items: center;
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid #447d9b;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.logo-wrapper img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-}
-.main-footer {
-    background-color: #447d9b; /* abu gelap */
-    color: white;
-    text-align: center;
-    padding: 16px 0;
-    font-size: 14px;
-    position: relative;
-    z-index: 5;
-    margin-top: -25px;
-
-}
-
-/* landing page end */
-
-
-/* login page start */
-.left-login {
-    width: 50%;
-    background-image: 
-        linear-gradient(rgba(255, 165, 0, 0.6), rgba(255, 165, 0, 0.6)),
-        url('/image/foto_sekolah.jpg');
-    background-size: cover;
-    background-position: center;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-top-left-radius: 1rem;
-    border-bottom-left-radius: 1rem;
-}
-
-
-.text-welcome {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: white;
-    margin-bottom: 1rem;
-    text-shadow: 1px 1px 2px black;
-}
-
-
+/* --- 1. Font Setup --- */
 @font-face {
     font-family: 'Poppins-Regular';
     src: url('/font/Poppins/Poppins-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
 }
 @font-face {
     font-family: 'Poppins-Bold';
     src: url('/font/Poppins/Poppins-Bold.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
+}
+
+/* --- 2. Global Setup --- */
+body {
+    font-family: 'Poppins-Regular', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* --- 3. Custom Animations --- */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+}
+
+@keyframes glow-pulse {
+    0% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); border-color: rgba(255, 255, 255, 0.8); }
+    50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5); border-color: #60a5fa; }
+    100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); border-color: rgba(255, 255, 255, 0.8); }
+}
+
+/* --- 4. Utility Classes --- */
+.animate-float-slow {
+    animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+    animation: float 7s ease-in-out infinite;
+    animation-delay: 3s;
+}
+
+.logo-main-glow {
+    /* Border lebih tipis agar logo makin penuh */
+    border-width: 3px; 
+    animation: glow-pulse 3s infinite;
+}
+
+/* Efek Kaca (Glassmorphism) */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1); /* Sedikit lebih terang */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid rgba(255, 255, 255, 0.3); /* Border lebih tegas */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
