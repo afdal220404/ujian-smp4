@@ -3,20 +3,18 @@
 @section('title', isset($guru) ? 'Edit Guru' : 'Tambah Guru')
 
 @section('sidebar-menu')
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Utama</div>
-    <a href="{{ route('operator.landingpage') }}" class="nav-link active">
+    <a href="{{ route('operator.landingpage') }}" class="nav-link">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Manajemen Data</div>
     <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
         <i class="bi bi-people"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('daftar_guru2') }}" class="nav-link">
-        <i class="bi bi-person-video3"></i> <span>Data Guru</span>
+    <a href="{{ route('operator.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Akademik</div>
+    <a href="{{ route('daftar_guru2') }}" class="nav-link">
+        <i class="bi bi-person-video3"></i> <span>Data Staff</span>
+    </a>
     <a href="{{ route('walikelas.index') }}" class="nav-link">
         <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
     </a>
@@ -215,7 +213,7 @@
                             </span>
                             <input type="password" name="password" id="passwordInput"
                                    class="w-full pl-9 pr-10 py-2 bg-indigo-50/30 border border-indigo-100 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all font-medium text-sm text-gray-700 placeholder-indigo-300/70 shadow-sm"
-                                   placeholder="{{ isset($guru) ? '••••••' : 'Min. 6 Karakter' }}">
+                                   placeholder="{{ isset($guru) ? '•••••• (Isi jika ingin mengubah)' : 'Min. 6 Karakter (Huruf & Angka)' }}">
                             
                             {{-- Toggle Eye --}}
                             <button type="button" onclick="togglePassword()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-300 hover:text-indigo-600 cursor-pointer transition-colors focus:outline-none">
@@ -225,9 +223,9 @@
                         
                         <div class="flex justify-between items-center mt-0.5 ml-1">
                             @if(isset($guru))
-                                <p class="text-[10px] text-gray-400">Kosongkan jika tidak ingin mengubah.</p>
+                                <p class="text-[10px] text-gray-400">Kosongkan jika tidak ingin mengubah. (Jika diisi: Min. 6 Karakter & Alfanumerik)</p>
                             @else
-                                <p class="text-[10px] text-gray-400">Wajib diisi untuk akun baru.</p>
+                                <p class="text-[10px] text-gray-400">Wajib diisi untuk akun baru. (Min. 6 Karakter & Alfanumerik)</p>
                             @endif
                             @error('password') <p class="text-[10px] text-red-500 font-bold">{{ $message }}</p> @enderror
                         </div>

@@ -8,12 +8,15 @@
         <i class="bi bi-grid-fill"></i> <span>Dashboard</span>
     </a>
     <a href="{{ route('kepsek.guru') }}" class="nav-link">
-        <i class="bi bi-person-workspace"></i> <span>Monitoring Guru</span>
+        <i class="bi bi-person-workspace"></i> <span>Data Guru</span>
     </a>
     <a href="{{ route('kepsek.siswa') }}" class="nav-link">
         <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('kepsek.nilai') }}" class="nav-link active">
+    <a href="{{ route('kepsek.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
+    </a>
+    <a href="{{ route('kepsek.nilai') }}" class="nav-link">
         <i class="bi bi-bar-chart-line-fill"></i> <span>Laporan Nilai</span>
     </a>
 @endsection
@@ -33,6 +36,61 @@
         <a href="{{ route('kepsek.nilai') }}" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-sm shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
+    </div>
+
+    {{-- FILTER KELAS HISTORIS --}}
+    <div class="flex flex-wrap items-center gap-3 mb-6 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+        <div class="flex items-center gap-2 mr-2">
+            <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
+                <i class="bi bi-filter"></i>
+            </div>
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Histori Akademik:</span>
+        </div>
+        
+        <div class="flex flex-wrap gap-2">
+            @php
+                $listKelasFilter = [
+                    ['id' => 1, 'nama' => 'VII'],
+                    ['id' => 2, 'nama' => 'VIII'],
+                    ['id' => 3, 'nama' => 'IX'],
+                ];
+            @endphp
+
+            @foreach($listKelasFilter as $kf)
+                @php
+                    $hasData = in_array($kf['id'], $availableKelasIds);
+                    $isActive = $activeKelasId == $kf['id'];
+                @endphp
+                
+                @if($hasData)
+                    <a href="{{ route('kepsek.nilai.detail', ['id' => $siswa->id, 'kelas_id' => $kf['id']]) }}" 
+                       class="px-4 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2
+                       {{ $isActive 
+                          ? 'bg-[#00415a] border-[#00415a] text-white shadow-md shadow-blue-200' 
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50/50' }}">
+                       <i class="bi {{ $isActive ? 'bi-bookmarks-fill' : 'bi-bookmarks' }} text-[10px]"></i>
+                       Kelas {{ $kf['nama'] }}
+                    </a>
+                @else
+                    <button disabled title="Tidak ada data nilai di kelas ini"
+                       class="px-4 py-2 rounded-xl border border-gray-100 bg-gray-50 text-gray-400 text-sm font-bold cursor-not-allowed opacity-60 flex items-center gap-2">
+                       <i class="bi bi-slash-circle text-[10px]"></i>
+                       Kelas {{ $kf['nama'] }}
+                    </button>
+                @endif
+            @endforeach
+        </div>
+
+        @php
+            // Karena ini Kepsek, kita tampilkan indikator mode historis yang lebih "elegan"
+        @endphp
+        @if($activeKelasId != $siswa->kelas_id)
+            <div class="ml-auto">
+                <span class="text-[10px] px-2 py-1 bg-orange-50 text-orange-600 border border-orange-100 rounded-md font-bold uppercase">
+                    <i class="bi bi-clock-history mr-1"></i> Mode Peninjauan Arsip
+                </span>
+            </div>
+        @endif
     </div>
 
     {{-- INFORMASI SISWA --}}
@@ -76,8 +134,11 @@
                             Kuis 
                         </th>
 
-                        <th colspan="2" class="px-4 py-2 text-center border-r border-gray-100 bg-orange-50/30 text-orange-700">
-                            Evaluasi
+                        <th colspan="{{ $maxUts }}" class="px-4 py-2 text-center border-r border-gray-100 bg-orange-50/30 text-orange-700">
+                            UTS
+                        </th>
+                        <th colspan="{{ $maxUas }}" class="px-4 py-2 text-center border-r border-gray-100 bg-rose-50/30 text-rose-700">
+                            UAS
                         </th>
                         <th rowspan="2" class="px-4 py-4 text-center text-darkblue bg-gray-50 w-24">Nilai Akhir</th>
                     </tr>
@@ -91,8 +152,13 @@
                         
                         <th class="px-2 py-2 text-center bg-blue-100/50 text-blue-800 border-r border-gray-100 w-16">Rata-Rata</th>
                         
-                        <th class="px-4 py-2 text-center bg-orange-50/30 w-16">UTS</th>
-                        <th class="px-4 py-2 text-center bg-orange-50/30 border-r border-gray-100 w-16">UAS</th>
+                        @for($i = 1; $i <= $maxUts; $i++)
+                            <th class="px-4 py-2 text-center bg-orange-50/30 border-r border-gray-100 w-16">UTS {{ $i }}</th>
+                        @endfor
+                        
+                        @for($i = 1; $i <= $maxUas; $i++)
+                            <th class="px-4 py-2 text-center bg-rose-50/30 border-r border-gray-100 w-16">UAS {{ $i }}</th>
+                        @endfor
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -123,9 +189,27 @@
                             {{ $data->rata_kuis }}
                         </td>
 
-                        {{-- UTS & UAS --}}
-                        <td class="px-4 py-3 text-center text-orange-600 font-medium">{{ $data->uts }}</td>
-                        <td class="px-4 py-3 text-center text-red-600 font-medium border-r border-gray-100">{{ $data->uas }}</td>
+                        {{-- UTS Dinamis --}}
+                        @for($i = 0; $i < $maxUts; $i++)
+                            <td class="px-4 py-3 text-center text-orange-600 font-medium">
+                                @if(isset($data->list_uts[$i]))
+                                    {{ $data->list_uts[$i] }}
+                                @else
+                                    <span class="text-gray-300">-</span>
+                                @endif
+                            </td>
+                        @endfor
+
+                        {{-- UAS Dinamis --}}
+                        @for($i = 0; $i < $maxUas; $i++)
+                            <td class="px-4 py-3 text-center text-rose-600 font-medium border-r border-gray-100">
+                                @if(isset($data->list_uas[$i]))
+                                    {{ $data->list_uas[$i] }}
+                                @else
+                                    <span class="text-gray-300">-</span>
+                                @endif
+                            </td>
+                        @endfor
 
                         {{-- Nilai Akhir --}}
                         <td class="px-4 py-3 text-center bg-gray-50">
@@ -133,9 +217,9 @@
                                 $val = floatval($data->grade_val);
                                 $color = 'text-gray-400';
                                 if($val > 0) {
-                                    if($val >= 90) $color = 'text-green-600';
+                                    if($val >= 85) $color = 'text-green-600';
                                     elseif($val >= 75) $color = 'text-blue-600';
-                                    elseif($val >= 60) $color = 'text-orange-500';
+                                    elseif($val >= 70) $color = 'text-yellow-600';
                                     else $color = 'text-red-500';
                                 }
                             @endphp
@@ -146,8 +230,7 @@
                     </tr>
                     @empty
                     <tr>
-                        {{-- Hitung colspan: No(1) + Mapel(1) + MaxKuis + RataKuis(1) + UTS(1) + UAS(1) + Akhir(1) --}}
-                        <td colspan="{{ 6 + $maxKuis }}" class="px-6 py-12 text-center text-gray-400 italic">
+                        <td colspan="{{ 4 + $maxKuis + $maxUts + $maxUas }}" class="px-6 py-12 text-center text-gray-400 italic">
                             Belum ada mata pelajaran yang terdaftar untuk kelas ini.
                         </td>
                     </tr>

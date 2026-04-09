@@ -8,12 +8,15 @@
         <i class="bi bi-grid-fill"></i> <span>Dashboard</span>
     </a>
     <a href="{{ route('kepsek.guru') }}" class="nav-link">
-        <i class="bi bi-person-workspace"></i> <span>Monitoring Guru</span>
+        <i class="bi bi-person-workspace"></i> <span>Data Guru</span>
     </a>
     <a href="{{ route('kepsek.siswa') }}" class="nav-link">
         <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('kepsek.nilai') }}" class="nav-link active">
+    <a href="{{ route('kepsek.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
+    </a>
+    <a href="{{ route('kepsek.nilai') }}" class="nav-link">
         <i class="bi bi-bar-chart-line-fill"></i> <span>Laporan Nilai</span>
     </a>
 @endsection
@@ -76,10 +79,10 @@
                     <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-bold tracking-wider">
                         <th class="px-6 py-4 w-12 text-center">No</th>
                         <th class="px-6 py-4">Identitas Siswa</th>
-                        <th class="px-6 py-4 text-center text-blue-600 bg-blue-50/50">Rata Kuis</th>
-                        <th class="px-6 py-4 text-center text-orange-600 bg-orange-50/50">Rata UTS</th>
-                        <th class="px-6 py-4 text-center text-red-600 bg-red-50/50">Rata UAS</th>
-                        <th class="px-6 py-4 text-center text-darkblue bg-gray-100/50 font-extrabold">Nilai Akhir</th>
+                        <th class="px-6 py-4 text-center text-blue-600 bg-blue-50/50">Rata Rata Kuis</th>
+                        <th class="px-6 py-4 text-center text-orange-600 bg-orange-50/50">Rata Rata UTS</th>
+                        <th class="px-6 py-4 text-center text-red-600 bg-red-50/50">Rata Rata UAS</th>
+                        <th class="px-6 py-4 text-center text-darkblue bg-gray-100/50 font-extrabold">Rata Rata Nilai Akhir</th>
                         {{-- Header Aksi Baru --}}
                         <th class="px-6 py-4 text-center w-24">Aksi</th>
                     </tr>
@@ -114,24 +117,43 @@
 
                         {{-- Nilai Kuis --}}
                         <td class="px-6 py-4 text-center">
-                            <span class="font-bold text-blue-600">{{ $siswa->rata_kuis }}</span>
+                            @php
+                                $getColor = function($val) {
+                                    $v = floatval($val);
+                                    if ($val === '-' || $val === null) return 'text-gray-300';
+                                    if ($v >= 85) return 'text-green-600 font-bold';
+                                    if ($v >= 75) return 'text-blue-600 font-medium';
+                                    if ($v >= 70) return 'text-yellow-600 font-medium';
+                                    return 'text-red-500 font-bold';
+                                };
+                            @endphp
+                            <span class="{{ $getColor($siswa->rata_kuis) }}">{{ $siswa->rata_kuis }}</span>
                         </td>
 
                         {{-- Nilai UTS --}}
                         <td class="px-6 py-4 text-center">
-                            <span class="font-bold text-orange-600">{{ $siswa->rata_uts }}</span>
+                            <span class="{{ $getColor($siswa->rata_uts) }}">{{ $siswa->rata_uts }}</span>
                         </td>
 
                         {{-- Nilai UAS --}}
                         <td class="px-6 py-4 text-center">
-                            <span class="font-bold text-red-600">{{ $siswa->rata_uas }}</span>
+                            <span class="{{ $getColor($siswa->rata_uas) }}">{{ $siswa->rata_uas }}</span>
                         </td>
 
                         {{-- Nilai Akhir --}}
                         <td class="px-6 py-4 text-center bg-gray-50/30">
-                            <div class="inline-flex items-center justify-center w-16 py-1 rounded-lg bg-[#00415a] text-white font-[Poppins-Bold] shadow-sm text-sm">
+                            @php
+                                $gr  = floatval($siswa->grade_raw);
+                                $bg  = $siswa->nilai_akhir === '-'
+                                     ? 'bg-gray-100 text-gray-400 border-gray-200'
+                                     : ($gr >= 85 ? 'bg-green-100 text-green-700 border-green-200'
+                                     : ($gr >= 75 ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                     : ($gr >= 70 ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                     :              'bg-red-100 text-red-700 border-red-200')));
+                            @endphp
+                            <span class="px-3 py-1 rounded-lg text-sm font-bold border {{ $bg }}">
                                 {{ $siswa->nilai_akhir }}
-                            </div>
+                            </span>
                         </td>
 
                         {{-- Tombol Aksi Baru --}}

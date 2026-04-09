@@ -8,39 +8,27 @@ use Illuminate\Database\Eloquent\Model;
 class BankSoal extends Model
 {
     use HasFactory;
+
+    protected $table = 'bank_soal_items';
+
     protected $fillable = [
-        'guru_id',
-        'mapel_id',
-        'nama',
-        'file_path',
-        'visibilitas', // Public, Private, Draft
+        'mapel_id', 'tipe', 'pertanyaan', 'gambar',
+        'opsi_a', 'gambar_a', 'opsi_b', 'gambar_b',
+        'opsi_c', 'gambar_c', 'opsi_d', 'gambar_d',
+        'kunci_jawaban', 'data_soal',
     ];
 
-    
     protected $casts = [
-        'visibilitas' => 'string',
+        'data_soal' => 'array',
     ];
 
-    /**
-     * Relasi ke Guru (Pemilik file).
-     */
-    public function guru()
-    {
-        return $this->belongsTo(Guru::class);
-    }
-
-    /**
-     * Relasi ke Mata Pelajaran (Mapel).
-     */
     public function mapel()
     {
         return $this->belongsTo(Mapel::class);
     }
-    
-    // Anda bisa menambahkan helper untuk mendapatkan URL file
-    public function getFileUrlAttribute()
+
+    public function soals()
     {
-        // Menggunakan asset() untuk URL yang sudah terbukti bekerja dengan storage:link
-        return asset('storage/' . $this->file_path);
+        return $this->hasMany(Soal::class, 'bank_soal_id');
     }
 }

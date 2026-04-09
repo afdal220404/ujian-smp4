@@ -11,7 +11,7 @@ error_reporting(E_ALL);
 
 $host = "127.0.0.1"; 
 $user = "user";      
-$pass = "euShiV3UE0q0BU5dsynr";          
+$pass = "NP46MpQKo8Uc3j9NzZV2M";          
 $db   = "ujiansmp4"; 
 
 

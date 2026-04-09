@@ -3,32 +3,18 @@
 @section('title', 'Data Guru')
 
 @section('sidebar-menu')
-    {{-- Kategori UTAMA: Jarak atas dikurangi drastis (mt-1) agar naik mendekati foto --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-1">
-        Utama
-    </div>
-    
-    <a href="{{ route('operator.landingpage') }}" class="nav-link active">
+    <a href="{{ route('operator.landingpage') }}" class="nav-link">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-
-    {{-- Kategori MANAJEMEN DATA: Margin dikurangi dari mt-4 jadi mt-2 --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-2">
-        Manajemen Data
-    </div>
-    
     <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
         <i class="bi bi-people"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('daftar_guru2') }}" class="nav-link">
-        <i class="bi bi-person-video3"></i> <span>Data Guru</span>
+    <a href="{{ route('operator.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
-
-    {{-- Kategori AKADEMIK: Margin dikurangi dari mt-4 jadi mt-2 --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-2">
-        Akademik
-    </div>
-    
+    <a href="{{ route('daftar_guru2') }}" class="nav-link">
+        <i class="bi bi-person-video3"></i> <span>Data Staff</span>
+    </a>
     <a href="{{ route('walikelas.index') }}" class="nav-link">
         <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
     </a>

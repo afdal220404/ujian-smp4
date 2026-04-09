@@ -3,24 +3,22 @@
 @section('title', 'Mata Pelajaran')
 
 @section('sidebar-menu')
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Utama</div>
     <a href="{{ route('operator.landingpage') }}" class="nav-link">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Manajemen Data</div>
     <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
         <i class="bi bi-people"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('daftar_guru2') }}" class="nav-link">
-        <i class="bi bi-person-video3"></i> <span>Data Guru</span>
+    <a href="{{ route('operator.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Akademik</div>
+    <a href="{{ route('daftar_guru2') }}" class="nav-link">
+        <i class="bi bi-person-video3"></i> <span>Data Staff</span>
+    </a>
     <a href="{{ route('walikelas.index') }}" class="nav-link">
         <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
     </a>
-    <a href="{{ route('mapel') }}" class="nav-link active">
+    <a href="{{ route('mapel') }}" class="nav-link">
         <i class="bi bi-book"></i> <span>Mata Pelajaran</span>
     </a>
 @endsection

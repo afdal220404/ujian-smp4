@@ -3,20 +3,20 @@
 @section('title', 'Siswa Kelas ' . $kelas->kelas)
 
 @section('sidebar-menu')
-    <div class="mb-4 px-3">
-        <a href="{{ route('guru.index') }}" 
-           class="flex items-center gap-2 text-cyan-100/70 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider">
-            <i class="bi bi-arrow-left"></i> Kembali ke Menu Utama
-        </a>
-    </div>
-    <hr class="my-3 border-gray-100 opacity-20">
-    <a href="{{ route('guru.walikelas.dashboard', $kelas->id)}}" class="nav-link active">
-        <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard Kelas</span>
+<div class="mb-4 px-3">
+    <a href="{{ route('guru.index') }}"
+        class="flex items-center gap-2 text-cyan-100/70 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider">
+        <i class="bi bi-arrow-left"></i> Kembali ke Menu Utama
     </a>
-    <a href="{{ route('guru.walikelas.siswa', $kelas->id)}}" class="nav-link">
-        <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
-    </a>
-    <a href="{{ route('guru.walikelas.rekap_nilai', $kelas->id)}}" class="nav-link">
+</div>
+<hr class="my-3 border-gray-100 opacity-20">
+<a href="{{ route('guru.walikelas.dashboard', $kelas->id)}}" class="nav-link active">
+    <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard Kelas</span>
+</a>
+<a href="{{ route('guru.walikelas.siswa', $kelas->id)}}" class="nav-link">
+    <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
+</a>
+<a href="{{ route('guru.walikelas.rekap_nilai', $kelas->id)}}" class="nav-link">
     <i class="bi bi-table"></i> <span>Leger Nilai</span>
 </a>
 @endsection
@@ -26,6 +26,13 @@
     {{-- HEADER & SEARCH --}}
     <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
         <div>
+            <div class="flex items-center gap-2 text-gray-400 text-xs mb-2">
+                <a href="{{ route('guru.index') }}" class="hover:text-blue-600 transition-colors"><i class="bi bi-house-door"></i> Home</a>
+                <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+                <span class="text-gray-500">Wali Kelas</span>
+                <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+                <span class="text-blue-600 font-bold">Data Siswa</span>
+            </div>
             <h1 class="text-3xl font-[Poppins-Bold] text-darkblue">Data Siswa</h1>
             <p class="text-gray-500 mt-1">
                 Daftar siswa kelas <span class="font-bold text-darkblue">{{ $kelas->kelas }}</span> beserta rekapitulasi nilai Ujian Sementara.
@@ -49,10 +56,10 @@
                     <tr class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold tracking-wider border-b border-gray-100">
                         <th class="px-6 py-4 w-12 text-center">No</th>
                         <th class="px-6 py-4">Identitas Siswa</th>
-                        <th class="px-6 py-4 text-center text-blue-600">Rata Kuis</th>
-                        <th class="px-6 py-4 text-center text-yellow-600">Rata UTS</th>
-                        <th class="px-6 py-4 text-center text-red-600">Rata UAS</th>
-                        <th class="px-6 py-4 text-center text-darkblue font-extrabold bg-blue-50/20">Nilai Akhir</th>
+                        <th class="px-6 py-4 text-center text-blue-600">Rata Rata Kuis</th>
+                        <th class="px-6 py-4 text-center text-yellow-600">Rata Rata UTS</th>
+                        <th class="px-6 py-4 text-center text-red-600">Rata Rata UAS</th>
+                        <th class="px-6 py-4 text-center text-darkblue font-extrabold bg-blue-50/20">Rata Rata Nilai Akhir</th>
                         <th class="px-6 py-4 text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -65,29 +72,39 @@
                             
                             {{-- Nama & NISN --}}
                             <td class="px-6 py-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-                                        {{ substr($siswa->nama_lengkap, 0, 1) }}
+                                <div>
+                                    <div class="font-[Poppins-Bold] text-darkblue text-sm group-hover:text-primary transition-colors">
+                                        {{ $siswa->nama_lengkap }}
                                     </div>
-                                    <div>
-                                        <div class="font-[Poppins-Bold] text-darkblue text-sm group-hover:text-primary transition-colors">
-                                            {{ $siswa->nama_lengkap }}
-                                        </div>
-                                        <div class="text-xs text-gray-400">{{ $siswa->nisn }}</div>
-                                    </div>
+                                    <div class="text-xs text-gray-400">{{ $siswa->nisn }}</div>
                                 </div>
                             </td>
 
                             {{-- Nilai Rata-rata --}}
-                            <td class="px-6 py-4 text-center font-bold text-gray-600">{{ $siswa->rata_kuis }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-gray-600">{{ $siswa->rata_uts }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-gray-600">{{ $siswa->rata_uas }}</td>
+                            @php
+                                $getColor = function($val) {
+                                    $v = floatval($val);
+                                    if ($val === '-' || $val === null) return 'text-gray-300';
+                                    if ($v >= 85) return 'text-green-600 font-bold';
+                                    if ($v >= 75) return 'text-blue-600 font-medium';
+                                    if ($v >= 70) return 'text-yellow-600 font-medium';
+                                    return 'text-red-500 font-bold';
+                                };
+                            @endphp
+                            <td class="px-6 py-4 text-center"><span class="{{ $getColor($siswa->rata_kuis) }}">{{ $siswa->rata_kuis }}</span></td>
+                            <td class="px-6 py-4 text-center"><span class="{{ $getColor($siswa->rata_uts) }}">{{ $siswa->rata_uts }}</span></td>
+                            <td class="px-6 py-4 text-center"><span class="{{ $getColor($siswa->rata_uas) }}">{{ $siswa->rata_uas }}</span></td>
 
                             {{-- Nilai Akhir (Badge Warna) --}}
                             <td class="px-6 py-4 text-center bg-gray-50/30">
                                 @php
-                                    $val = floatval($siswa->grade_raw);
-                                    $bg = $val >= 85 ? 'bg-green-100 text-green-700' : ($val >= 70 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700');
+                                    $gr  = floatval($siswa->grade_raw);
+                                    $bg  = $siswa->nilai_akhir === '-'
+                                         ? 'bg-gray-100 text-gray-400'
+                                         : ($gr >= 85 ? 'bg-green-100 text-green-700'
+                                         : ($gr >= 75 ? 'bg-blue-100 text-blue-700'
+                                         : ($gr >= 70 ? 'bg-yellow-100 text-yellow-700'
+                                         :              'bg-red-100 text-red-700')));
                                 @endphp
                                 <span class="px-3 py-1 rounded-lg text-sm font-bold {{ $bg }}">
                                     {{ $siswa->nilai_akhir }}

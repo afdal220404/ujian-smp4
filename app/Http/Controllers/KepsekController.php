@@ -24,25 +24,10 @@ class KepsekController extends Controller
         // Cek apakah sudah ada nilai ujian yang masuk di sistem?
         $totalNilaiMasuk = HasilUjian::count();
 
-        // Ambil Data Asli dari Database
-        $dataKelas = Kelas::with(['ujians.hasilUjians', 'ujians.mapel', 'siswas'])->get()->map(function ($kelas) {
+        // Ambil Data Asli dari Database, abaikan kelas Alumni
+        $dataKelas = Kelas::where('kelas', '!=', 'Alumni')->with(['ujians.hasilUjians', 'ujians.mapel', 'siswas'])->get()->map(function ($kelas) {
             
-            // --- LOGIKA HITUNG NILAI ASLI ---
-            $hitungRataGlobal = function ($keyword) use ($kelas) {
-                $ujians = $kelas->ujians->filter(function ($ujian) use ($keyword) {
-                    return stripos($ujian->nama_ujian, $keyword) !== false 
-                        || stripos($ujian->jenis_ujian ?? '', $keyword) !== false;
-                });
-                $rata = $ujians->flatMap->hasilUjians->avg('nilai');
-                return number_format($rata ?? 0, 2);
-            };
-
-            $nilaiKuis = $hitungRataGlobal('Kuis');
-            $nilaiUTS  = $hitungRataGlobal('UTS');
-            $nilaiUAS  = $hitungRataGlobal('UAS');
-            $rataAkhir = number_format($kelas->ujians->flatMap->hasilUjians->avg('nilai') ?? 0, 2);
-
-            // --- DATA GRAFIK ASLI ---
+            // --- DATA GRAFIK MAPEL ASLI ---
             $groupedByMapel = $kelas->ujians->groupBy('mapel_id');
             $chartLabels = [];
             $dataKuis = []; $dataUTS = []; $dataUAS = [];
@@ -50,12 +35,12 @@ class KepsekController extends Controller
             foreach ($groupedByMapel as $mapelId => $ujians) {
                 $namaMapel = $ujians->first()->mapel->nama_mapel ?? 'Mapel Lain';
                 
-                $avgPerMapel = function($keyword) use ($ujians) {
+                $avgPerMapel = function($keyword) use ($ujians, $kelas) {
                     $filtered = $ujians->filter(function ($u) use ($keyword) {
                         return stripos($u->nama_ujian, $keyword) !== false 
                             || stripos($u->jenis_ujian ?? '', $keyword) !== false;
                     });
-                    return round($filtered->flatMap->hasilUjians->avg('nilai') ?? 0, 1);
+                    return round($filtered->flatMap->hasilUjians->where('kelas_id', $kelas->id)->avg('nilai') ?? 0, 1);
                 };
 
                 $chartLabels[] = $namaMapel;
@@ -64,25 +49,81 @@ class KepsekController extends Controller
                 $dataUAS[] = $avgPerMapel('UAS');
             }
 
-            // Data Siswa Asli
-            $chartSiswa = $kelas->siswas->map(function ($siswa) use ($kelas) {
-                $nilaiSiswa = $kelas->ujians->flatMap(function ($ujian) use ($siswa) {
-                    return $ujian->hasilUjians->where('siswa_id', $siswa->id);
-                })->avg('nilai');
-                return ['label' => $siswa->nama_lengkap, 'value' => round($nilaiSiswa ?? 0, 1)];
-            })->sortByDesc('value')->take(5)->values();
-
-            // Data Sebaran Asli
+            // --- HITUNG NILAI AKHIR SISWA DENGAN RUMUS BARU ---
+            $mapels = $kelas->ujians->pluck('mapel')->unique('id');
+            $siswaAverages = collect();
             $gradeDistribution = [0, 0, 0, 0];
-            $kelas->siswas->each(function ($siswa) use ($kelas, &$gradeDistribution) {
-                $nilai = $kelas->ujians->flatMap(function ($ujian) use ($siswa) {
-                    return $ujian->hasilUjians->where('siswa_id', $siswa->id);
-                })->avg('nilai') ?? 0;
-                if ($nilai > 85) $gradeDistribution[0]++;
-                elseif ($nilai >= 70) $gradeDistribution[1]++;
-                elseif ($nilai >= 55) $gradeDistribution[2]++;
-                else $gradeDistribution[3]++;
-            });
+            
+            $totalKuisSiswaGlobal = collect();
+            $totalUtsSiswaGlobal = collect();
+            $totalUasSiswaGlobal = collect();
+            
+            foreach ($kelas->siswas as $siswa) {
+                $hasil = $kelas->ujians->flatMap(function ($ujian) use ($siswa, $kelas) {
+                    return $ujian->hasilUjians->where('siswa_id', $siswa->id)->where('kelas_id', $kelas->id);
+                });
+                
+                $totalAkhirMapel = 0;
+                $jumlahMapel = 0;
+                
+                $totalKuisSiswa = 0; $countKuisSiswa = 0;
+                $totalUtsSiswa  = 0; $countUtsSiswa  = 0;
+                $totalUasSiswa  = 0; $countUasSiswa  = 0;
+
+                if ($hasil->isNotEmpty()) {
+                    foreach ($mapels as $mapel) {
+                        if (!$mapel) continue;
+                        $hasilSiswaMapel = $hasil->filter(fn($h) => $h->ujian->mapel_id == $mapel->id);
+                        // --- KONSOLIDASI NILAI INDUK & SUSULAN ---
+                        $hasilSiswaMapelConsolidated = $hasilSiswaMapel->groupBy(function($h) {
+                            return $h->ujian->is_susulan ? $h->ujian->ujian_induk_id : $h->ujian_id;
+                        })->map(fn($group) => $group->first());
+
+                        if ($hasilSiswaMapelConsolidated->isNotEmpty()) {
+                            $kuisColl = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'Kuis') !== false);
+                            $utsColl  = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'UTS') !== false);
+                            $uasColl  = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'UAS') !== false);
+                            
+                            $kuis = $kuisColl->isNotEmpty() ? $kuisColl->avg('nilai') : null;
+                            $uts  = $utsColl->isNotEmpty() ? $utsColl->avg('nilai') : null;
+                            $uas  = $uasColl->isNotEmpty() ? $uasColl->avg('nilai') : null;
+                            
+                            if($kuis !== null) { $totalKuisSiswa += $kuis; $countKuisSiswa++; }
+                            if($uts !== null) { $totalUtsSiswa += $uts; $countUtsSiswa++; }
+                            if($uas !== null) { $totalUasSiswa += $uas; $countUasSiswa++; }
+                            
+                            $komponen = array_filter([$kuis, $uts, $uas], fn($v) => $v !== null);
+                            $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+                            
+                            if ($akhir !== null) {
+                                $totalAkhirMapel += $akhir;
+                                $jumlahMapel++;
+                            }
+                        }
+                    }
+                }
+                
+                $nilaiSiswa = $jumlahMapel > 0 ? $totalAkhirMapel / $jumlahMapel : null;
+                
+                if ($countKuisSiswa > 0) $totalKuisSiswaGlobal->push($totalKuisSiswa / $countKuisSiswa);
+                if ($countUtsSiswa > 0) $totalUtsSiswaGlobal->push($totalUtsSiswa / $countUtsSiswa);
+                if ($countUasSiswa > 0) $totalUasSiswaGlobal->push($totalUasSiswa / $countUasSiswa);
+                
+                if ($nilaiSiswa !== null) {
+                    $siswaAverages->push(['label' => $siswa->nama_lengkap, 'value' => round($nilaiSiswa, 1)]);
+                    if ($nilaiSiswa >= 85) $gradeDistribution[0]++;
+                    elseif ($nilaiSiswa >= 75) $gradeDistribution[1]++;
+                    elseif ($nilaiSiswa >= 70) $gradeDistribution[2]++;
+                    else $gradeDistribution[3]++;
+                }
+            }
+            
+            $rataAkhir = $siswaAverages->isNotEmpty() ? number_format($siswaAverages->avg('value'), 2) : 0;
+            $nilaiKuis = $totalKuisSiswaGlobal->isNotEmpty() ? number_format($totalKuisSiswaGlobal->avg(), 2) : 0;
+            $nilaiUTS  = $totalUtsSiswaGlobal->isNotEmpty() ? number_format($totalUtsSiswaGlobal->avg(), 2) : 0;
+            $nilaiUAS  = $totalUasSiswaGlobal->isNotEmpty() ? number_format($totalUasSiswaGlobal->avg(), 2) : 0;
+            
+            $chartSiswa = $siswaAverages->sortByDesc('value')->take(5)->values();
 
             return (object) [
                 'id'         => $kelas->id,
@@ -273,39 +314,72 @@ class KepsekController extends Controller
             $query->where('nama_lengkap', 'LIKE', "%{$keyword}%");
         }
 
+        // Ambil semua mapel dan group by kelas_id
+        $semuaMapel = Mapel::all()->groupBy('kelas_id');
+
         // 3. Ambil Data & Proses Hitung Nilai Rata-rata
-        $siswas = $query->get()->map(function($siswa) {
+        $siswas = $query->get()->map(function($siswa) use ($semuaMapel) {
             
             $hasil = $siswa->hasilUjians;
+            $mapels = $semuaMapel->get($siswa->kelas_id) ?? collect();
+            
+            $totalAkhirMapel = 0; $jumlahMapel = 0;
+            $totalKuisSiswa = 0; $countKuisSiswa = 0;
+            $totalUtsSiswa  = 0; $countUtsSiswa  = 0;
+            $totalUasSiswa  = 0; $countUasSiswa  = 0;
 
-            // Helper untuk hitung rata-rata berdasarkan kata kunci nama ujian
-            $hitungRata = function($keyword) use ($hasil) {
-                $filtered = $hasil->filter(function($h) use ($keyword) {
-                    // Cek di nama ujian atau jenis ujian
-                    return stripos($h->ujian->nama_ujian, $keyword) !== false 
-                        || stripos($h->ujian->jenis_ujian ?? '', $keyword) !== false;
-                });
-                return $filtered->avg('nilai') ?? 0;
-            };
+            if ($hasil->isNotEmpty()) {
+                foreach ($mapels as $mapel) {
+                    $hasilSiswaMapel = $hasil->filter(fn($h) => $h->ujian->mapel_id == $mapel->id && $h->kelas_id == $siswa->kelas_id);
+                    if ($hasilSiswaMapel->isNotEmpty()) {
+                        // --- KONSOLIDASI NILAI INDUK & SUSULAN ---
+                        $hasilSiswaMapelConsolidated = $hasilSiswaMapel->groupBy(function($h) {
+                            return $h->ujian->is_susulan ? $h->ujian->ujian_induk_id : $h->ujian_id;
+                        })->map(fn($group) => $group->first());
 
-            $rataKuis = $hitungRata('Kuis');
-            $rataUTS  = $hitungRata('UTS');
-            $rataUAS  = $hitungRata('UAS');
+                        $kuisColl = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'Kuis') !== false);
+                        $utsColl  = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'UTS') !== false);
+                        $uasColl  = $hasilSiswaMapelConsolidated->filter(fn($h) => stripos($h->ujian->jenis_ujian ?? '', 'UAS') !== false);
+                        
+                        $kuis = $kuisColl->isNotEmpty() ? $kuisColl->avg('nilai') : null;
+                        $uts  = $utsColl->isNotEmpty() ? $utsColl->avg('nilai') : null;
+                        $uas  = $uasColl->isNotEmpty() ? $uasColl->avg('nilai') : null;
+                        
+                        if($kuis !== null) { $totalKuisSiswa += $kuis; $countKuisSiswa++; }
+                        if($uts  !== null) { $totalUtsSiswa += $uts; $countUtsSiswa++; }
+                        if($uas  !== null) { $totalUasSiswa += $uas; $countUasSiswa++; }
+                        
+                        $komponen = array_filter([$kuis, $uts, $uas], fn($v) => $v !== null);
+                        $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+                        
+                        if ($akhir !== null) {
+                            $totalAkhirMapel += $akhir;
+                            $jumlahMapel++;
+                        }
+                    }
+                }
+            }
 
-            // Rumus Nilai Akhir (Contoh: 30% Kuis + 30% UTS + 40% UAS)
-            // Anda bisa sesuaikan bobotnya
-            $nilaiAkhir = ($rataKuis * 0.3) + ($rataUTS * 0.3) + ($rataUAS * 0.4);
+            // Global display stats — null jika belum ada ujian
+            $rataKuis = $countKuisSiswa > 0 ? $totalKuisSiswa / $countKuisSiswa : null;
+            $rataUTS  = $countUtsSiswa  > 0 ? $totalUtsSiswa  / $countUtsSiswa  : null;
+            $rataUAS  = $countUasSiswa  > 0 ? $totalUasSiswa  / $countUasSiswa  : null;
+
+            $nilaiAkhir = $jumlahMapel > 0 ? $totalAkhirMapel / $jumlahMapel : null;
+
+            $show = fn($val) => $val === null ? '-' : number_format($val, 1);
 
             // RETURN SEBAGAI OBJECT (Pastikan 'id' ada!)
             return (object) [
-                'id'          => $siswa->id, // <--- INI PENTING (Perbaikan Error)
+                'id'          => $siswa->id,
                 'nama'        => $siswa->nama_lengkap,
                 'nisn'        => $siswa->nisn,
                 'kelas'       => $siswa->kelas->kelas ?? 'Belum Masuk',
-                'rata_kuis'   => number_format($rataKuis, 1),
-                'rata_uts'    => number_format($rataUTS, 1),
-                'rata_uas'    => number_format($rataUAS, 1),
-                'nilai_akhir' => number_format($nilaiAkhir, 1),
+                'rata_kuis'   => $show($rataKuis),
+                'rata_uts'    => $show($rataUTS),
+                'rata_uas'    => $show($rataUAS),
+                'nilai_akhir' => $show($nilaiAkhir),
+                'grade_raw'   => $nilaiAkhir ?? 0,
             ];
         });
 
@@ -316,78 +390,252 @@ class KepsekController extends Controller
     {
         $siswa = Siswa::with('kelas')->findOrFail($id);
 
-        // 1. AMBIL MAPEL YANG TERDAFTAR DI KELAS SISWA
-        $mapelKelas = Mapel::where('kelas_id', $siswa->kelas_id)->get();
+        // Tentukan kelas mana yang mau dilihat (Filter Historis)
+        $availableKelasIds = HasilUjian::where('siswa_id', $siswa->id)
+                                ->whereNotNull('kelas_id')
+                                ->distinct()
+                                ->pluck('kelas_id')
+                                ->toArray();
+        
+        // Selalu masukkan kelas saat ini ke daftar filter
+        if (!in_array($siswa->kelas_id, $availableKelasIds)) {
+            $availableKelasIds[] = $siswa->kelas_id;
+        }
+
+        $activeKelasId = request('kelas_id', $siswa->kelas_id);
+        
+        // Ambil data kelas aktif (bisa jadi kelas lama)
+        $kelas = Kelas::find($activeKelasId) ?? $siswa->kelas;
+
+        // 1. AMBIL MAPEL YANG TERDAFTAR DI KELAS SISWA (Filter Kelas Aktif)
+        $mapelKelas = Mapel::where('kelas_id', $activeKelasId)->get();
         
         $maxKuis = 0; 
+        $maxUts = 0;
+        $maxUas = 0;
 
-        $transkrip = $mapelKelas->map(function ($mapel) use ($siswa, &$maxKuis) {
+        $transkrip = $mapelKelas->map(function ($mapel) use ($siswa, $activeKelasId, &$maxKuis, &$maxUts, &$maxUas) {
             
-            // A. AMBIL MASTER KUIS (Agar kolom konsisten)
-            // Kita ambil daftar ujian tipe 'Kuis' yang dibuat guru untuk mapel ini
+            // A. AMBIL MASTER (Hanya Ujian Induk, Bukan Susulan)
             $masterKuis = \App\Models\Ujian::where('mapel_id', $mapel->id)
                             ->where('jenis_ujian', 'Kuis')
-                            ->orderBy('created_at', 'asc') // Urutkan berdasarkan waktu buat
+                            ->where('is_susulan', false)
+                            ->orderBy('created_at', 'asc')
                             ->get();
 
-            // B. AMBIL HASIL UJIAN SISWA
+            $masterUts = \App\Models\Ujian::where('mapel_id', $mapel->id)
+                            ->where('jenis_ujian', 'UTS')
+                            ->where('is_susulan', false)
+                            ->orderBy('created_at', 'asc')
+                            ->get();
+                            
+            $masterUas = \App\Models\Ujian::where('mapel_id', $mapel->id)
+                            ->where('jenis_ujian', 'UAS')
+                            ->where('is_susulan', false)
+                            ->orderBy('created_at', 'asc')
+                            ->get();
+
+            // B. AMBIL HASIL UJIAN SISWA (Filter Kelas Aktif)
             $hasilSiswa = HasilUjian::where('siswa_id', $siswa->id)
+                            ->where('kelas_id', $activeKelasId)
                             ->whereHas('ujian', function($q) use ($mapel) {
                                 $q->where('mapel_id', $mapel->id);
                             })
                             ->with('ujian')
                             ->get();
 
-            // C. LOOPING MATRIX (Kuis 1, Kuis 2, dst)
+            // C. LOOPING MATRIX (Ambil nilai dari Induk ATAU Susulannya)
             $listKuis = [];
             foreach($masterKuis as $kuis) {
-                // Cek apakah siswa punya nilai di ujian ini
-                $dataNilai = $hasilSiswa->firstWhere('ujian_id', $kuis->id);
-                
-                // Jika ada nilainya ambil, jika tidak beri tanda '-'
+                $dataNilai = $hasilSiswa->filter(fn($h) => $h->ujian_id == $kuis->id || $h->ujian->ujian_induk_id == $kuis->id)->first();
                 $listKuis[] = $dataNilai ? $dataNilai->nilai : '-';
             }
 
-            // Update Max Kuis untuk Header Tabel View
-            if (count($listKuis) > $maxKuis) {
-                $maxKuis = count($listKuis);
+            $listUts = [];
+            foreach($masterUts as $utsMod) {
+                $dataNilai = $hasilSiswa->filter(fn($h) => $h->ujian_id == $utsMod->id || $h->ujian->ujian_induk_id == $utsMod->id)->first();
+                $listUts[] = $dataNilai ? $dataNilai->nilai : '-';
             }
 
-            // Hitung Rata-rata Kuis (Hanya hitung yang ada angkanya/valid)
+            $listUas = [];
+            foreach($masterUas as $uasMod) {
+                $dataNilai = $hasilSiswa->filter(fn($h) => $h->ujian_id == $uasMod->id || $h->ujian->ujian_induk_id == $uasMod->id)->first();
+                $listUas[] = $dataNilai ? $dataNilai->nilai : '-';
+            }
+
+            if (count($listKuis) > $maxKuis) $maxKuis = count($listKuis);
+            if (count($listUts) > $maxUts) $maxUts = count($listUts);
+            if (count($listUas) > $maxUas) $maxUas = count($listUas);
+
             $nilaiValid = array_filter($listKuis, fn($v) => is_numeric($v));
-            $rataKuis = count($nilaiValid) > 0 ? array_sum($nilaiValid) / count($nilaiValid) : 0;
+            $rataKuis = count($nilaiValid) > 0 ? array_sum($nilaiValid) / count($nilaiValid) : null;
 
-            // --- AMBIL UTS & UAS ---
-            $nilaiUTS = $hasilSiswa->filter(fn($h) => stripos($h->ujian->nama_ujian ?? '', 'UTS') !== false || stripos($h->ujian->jenis_ujian ?? '', 'UTS') !== false)->first()->nilai ?? 0;
-            $nilaiUAS = $hasilSiswa->filter(fn($h) => stripos($h->ujian->nama_ujian ?? '', 'UAS') !== false || stripos($h->ujian->jenis_ujian ?? '', 'UAS') !== false)->first()->nilai ?? 0;
+            $utsValid = array_filter($listUts, fn($v) => is_numeric($v));
+            $utsVal = count($utsValid) > 0 ? array_sum($utsValid) / count($utsValid) : null;
 
-            // Hitung Nilai Akhir
-            $akhir = ($rataKuis * 0.4) + ($nilaiUTS * 0.3) + ($nilaiUAS * 0.3);
+            $uasValid = array_filter($listUas, fn($v) => is_numeric($v));
+            $uasVal = count($uasValid) > 0 ? array_sum($uasValid) / count($uasValid) : null;
 
-            // Tentukan Predikat (Opsional, untuk tampilan)
-            if($akhir >= 90) $grade = 'A';
-            elseif($akhir >= 80) $grade = 'B';
-            elseif($akhir >= 70) $grade = 'C';
-            else $grade = 'D';
+            $komponen = array_filter([$rataKuis, $utsVal, $uasVal], fn($v) => $v !== null);
+            $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
 
-            // Helper Tampilan
-            $show = fn($val) => $val == 0 ? '-' : number_format($val, 0);
+            $grade = '-';
+            if ($akhir !== null) {
+                if($akhir >= 85) $grade = 'A';
+                elseif($akhir >= 75) $grade = 'B';
+                elseif($akhir >= 70) $grade = 'C';
+                else $grade = 'D';
+            }
+
+            $show = fn($val) => $val === null ? '-' : number_format($val, 1);
 
             return (object) [
                 'mapel'      => $mapel->nama_mapel,
-                'list_kuis'  => $listKuis, // Array yang urut sesuai master ujian
+                'list_kuis'  => $listKuis,
+                'list_uts'   => $listUts,
+                'list_uas'   => $listUas,
                 'rata_kuis'  => $show($rataKuis),
-                'uts'        => $show($nilaiUTS),
-                'uas'        => $show($nilaiUAS),
-                'akhir'      => $akhir == 0 ? '-' : number_format($akhir, 1),
-                'grade_val'  => $akhir,
+                'uts'        => $show($utsVal),
+                'uas'        => $show($uasVal),
+                'akhir'      => $akhir === null ? '-' : number_format($akhir, 1),
+                'grade_val'  => $akhir ?? 0,
                 'predikat'   => $grade
             ];
         });
 
-        // Default minimal 1 kolom kuis
         if ($maxKuis == 0) $maxKuis = 1;
+        if ($maxUts == 0) $maxUts = 1;
+        if ($maxUas == 0) $maxUas = 1;
 
-        return view('kepsek.detail_nilai', compact('siswa', 'transkrip', 'maxKuis'));
+        return view('kepsek.detail_nilai', compact('siswa', 'transkrip', 'maxKuis', 'maxUts', 'maxUas', 'availableKelasIds', 'activeKelasId', 'kelas'));
+    }
+
+    public function indexAlumni(Request $request)
+    {
+        // Cari kelas Alumni
+        $alumniKelas = Kelas::where('kelas', 'Alumni')->first();
+        $alumniId = $alumniKelas ? $alumniKelas->id : -1;
+
+        // Query Siswa yang Alumni atau kelas_id nya null (legacy alumni)
+        $query = Siswa::with(['hasilUjians.ujian'])->where(function($q) use ($alumniId) {
+            $q->where('kelas_id', $alumniId)
+              ->orWhereNull('kelas_id');
+        });
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_lengkap', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%");
+            });
+        }
+
+        $siswas = $query->orderBy('nama_lengkap', 'asc')->get();
+        return view('kepsek.daftar_alumni', compact('siswas'));
+    }
+
+    public function detailAlumni($id)
+    {
+        $siswa = Siswa::with('kelas')->findOrFail($id);
+
+        $availableKelasIds = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                                ->whereNotNull('kelas_id')
+                                ->distinct()
+                                ->pluck('kelas_id')
+                                ->toArray();
+        
+        if ($siswa->kelas_id && !in_array($siswa->kelas_id, $availableKelasIds)) {
+            $availableKelasIds[] = $siswa->kelas_id;
+        }
+
+        $allTranskrips = [];
+        $kelasToProcess = [1, 2, 3]; // Kelas SMP VII, VIII, IX
+
+        foreach($kelasToProcess as $kId) {
+            // Hanya proses jika siswa pernah di kelas ini
+            if (!in_array($kId, $availableKelasIds)) {
+                continue;
+            }
+
+            $kelas = \App\Models\Kelas::find($kId);
+            if (!$kelas) continue;
+
+            $mapelKelas = \App\Models\Mapel::where('kelas_id', $kId)->with('guru')->get();
+
+            $maxKuis = 0; $maxUts = 0; $maxUas = 0;
+
+            $transkrip = $mapelKelas->map(function ($mapel) use ($siswa, $kId, &$maxKuis, &$maxUts, &$maxUas) {
+                
+                // A. AMBIL MASTER (Hanya Ujian Induk, Bukan Susulan)
+                $masterKuis = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'Kuis')->where('is_susulan', false)->orderBy('created_at', 'asc')->get();
+                $masterUts = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'UTS')->where('is_susulan', false)->orderBy('created_at', 'asc')->get();
+                $masterUas = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'UAS')->where('is_susulan', false)->orderBy('created_at', 'asc')->get();
+
+                // B. AMBIL HASIL UJIAN SISWA
+                $hasilSiswa = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                                ->where('kelas_id', $kId)
+                                ->whereHas('ujian', function($q) use ($mapel) {
+                                    $q->where('mapel_id', $mapel->id);
+                                })
+                                ->with('ujian')
+                                ->get();
+
+                $listKuis = [];
+                foreach ($masterKuis as $ujian) {
+                    $score = $hasilSiswa->filter(fn($h) => $h->ujian_id == $ujian->id || $h->ujian->ujian_induk_id == $ujian->id)->first();
+                    $listKuis[] = $score ? $score->nilai : '-';
+                }
+
+                $listUts = [];
+                foreach ($masterUts as $ujian) {
+                    $score = $hasilSiswa->filter(fn($h) => $h->ujian_id == $ujian->id || $h->ujian->ujian_induk_id == $ujian->id)->first();
+                    $listUts[] = $score ? $score->nilai : '-';
+                }
+
+                $listUas = [];
+                foreach ($masterUas as $ujian) {
+                    $score = $hasilSiswa->filter(fn($h) => $h->ujian_id == $ujian->id || $h->ujian->ujian_induk_id == $ujian->id)->first();
+                    $listUas[] = $score ? $score->nilai : '-';
+                }
+
+                if (count($masterKuis) > $maxKuis) $maxKuis = count($masterKuis);
+                if (count($masterUts) > $maxUts) $maxUts = count($masterUts);
+                if (count($masterUas) > $maxUas) $maxUas = count($masterUas);
+
+                $validKuis = array_filter($listKuis, fn($v) => is_numeric($v));
+                $rataKuis = count($validKuis) > 0 ? array_sum($validKuis) / count($validKuis) : null;
+
+                $validUts = array_filter($listUts, fn($v) => is_numeric($v));
+                $rataUts = count($validUts) > 0 ? array_sum($validUts) / count($validUts) : null;
+
+                $validUas = array_filter($listUas, fn($v) => is_numeric($v));
+                $rataUas = count($validUas) > 0 ? array_sum($validUas) / count($validUas) : null;
+
+                $komponen = array_filter([$rataKuis, $rataUts, $rataUas], fn($v) => $v !== null);
+                $nilaiAkhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+
+                return [
+                    'mapel'      => $mapel,
+                    'detailKuis' => $listKuis,
+                    'detailUts'  => $listUts,
+                    'detailUas'  => $listUas,
+                    'nilaiAkhir' => $nilaiAkhir
+                ];
+            });
+
+            if ($maxKuis == 0) $maxKuis = 1;
+            if ($maxUts == 0) $maxUts = 1;
+            if ($maxUas == 0) $maxUas = 1;
+
+            $allTranskrips[] = [
+                'kelas' => $kelas,
+                'transkrip' => $transkrip,
+                'maxKuis' => $maxKuis,
+                'maxUts' => $maxUts,
+                'maxUas' => $maxUas
+            ];
+        }
+
+        return view('kepsek.detail_alumni', compact('siswa', 'allTranskrips'));
     }
 }

@@ -13,7 +13,7 @@ class WaliKelasController extends Controller
 {
     public function index()
     {
-        $kelasList = Kelas::orderBy('kelas')->get();
+        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
         $gurus = Guru::orderBy('nama_lengkap')->get();
         $waliKelasData = WaliKelas::pluck('guru_id', 'kelas_id');
 

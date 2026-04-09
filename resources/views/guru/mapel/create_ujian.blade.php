@@ -11,17 +11,19 @@
     </a>
 </div>
 
-<div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Menu Mapel</div>
-
-<a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link active">
-    <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
-</a>
-<a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link">
-    <i class="bi bi-journal-check"></i> <span>Daftar Nilai Siswa</span>
-</a>
-<a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link">
-    <i class="bi bi-collection"></i> <span>Bank Soal</span>
-</a>
+    
+    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.dashboard') ? 'active' : '' }}">
+        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+    </a>
+    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.siswa') ? 'active' : '' }}">
+        <i class="bi bi-journal-check"></i> <span>Daftar Nilai Siswa</span>
+    </a>
+    <a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.bank_soal.*') ? 'active' : '' }}">
+        <i class="bi bi-archive-fill"></i> <span>Bank Soal</span>
+    </a>
+    <a href="{{ route('guru.mapel.arsip_soal_siswa.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.arsip_soal_siswa.*') ? 'active' : '' }}">
+        <i class="bi bi-collection"></i> <span>Arsip Soal Siswa</span>
+    </a>
 @endsection
 
 @section('content')

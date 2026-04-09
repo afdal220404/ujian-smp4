@@ -1526,7 +1526,7 @@ select.select2-guru ~ .select2-container .select2-selection__clear:hover {
     }
 /* ===========================Style detail jawaban siswa=========================== */
 
-/* ===========================Bank Soal=========================== */
+/* ===========================Arsip Soal Siswa=========================== */
 /* Style untuk wrapper utama */
     .bank-soal-wrapper {
         background-color: #fff;
@@ -1607,4 +1607,4 @@ select.select2-guru ~ .select2-container .select2-selection__clear:hover {
     .remove-new-file-btn:hover {
         background-color: #DC2626;
     }
-/* ===========================Bank Soal=========================== */
+/* ===========================Arsip Soal Siswa=========================== */

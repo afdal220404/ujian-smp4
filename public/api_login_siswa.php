@@ -9,7 +9,12 @@ $password = $_POST['password'] ?? '';
 if (empty($username) || empty($password)) {
     sendResponse(["status" => "error", "message" => "Username dan password harus diisi."], 400);
 }
-$stmt = $conn->prepare("SELECT id, nama_lengkap, kelas_id, nisn, password FROM siswas WHERE username = ?");
+$stmt = $conn->prepare("
+    SELECT s.id, s.nama_lengkap, s.kelas_id, s.nisn, s.password, k.kelas AS nama_kelas 
+    FROM siswas s
+    LEFT JOIN kelas k ON s.kelas_id = k.id
+    WHERE s.username = ?
+");
 $stmt->bind_param("s", $username);
 $stmt->execute();
 $result = $stmt->get_result();

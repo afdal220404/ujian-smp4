@@ -41,7 +41,7 @@ class DashboardController extends Controller
 
         $siswaTanpaNISN = Siswa::whereNull('nisn')->orWhere('nisn', '')->count();
         $guruTanpaNIP = Guru::whereNull('nip')->orWhere('nip', '')->count();
-        $kelasTanpaWali = Kelas::doesntHave('waliKelas')->count();
+        $kelasTanpaWali = Kelas::where('id', '!=', 4)->doesntHave('waliKelas')->count();
 
         return view('operator.landingpage', compact(
             'jumlahSiswa',

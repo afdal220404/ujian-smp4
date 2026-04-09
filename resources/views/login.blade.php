@@ -105,7 +105,7 @@
                     
                     {{-- Input Username --}}
                     <div>
-                        <label class="block text-darkblue text-sm font-bold mb-2 ml-1">Username / NISN</label>
+                        <label class="block text-darkblue text-sm font-bold mb-2 ml-1">Username</label>
                         <div class="relative group">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">

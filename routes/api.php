@@ -44,6 +44,6 @@ Route::group([], function () {
     // 9. Ganti Password
     Route::post('/profil/change-password', [SiswaController::class, 'changePasswordApi']);
     
-    // 10. Bank Soal
-    Route::get('/bank-soal', [UjianController::class, 'getBankSoalApi']);
+    // 10. Arsip Soal Siswa
+    Route::get('/arsip-soal-siswa', [UjianController::class, 'getArsipSoalSiswaApi']);
 });

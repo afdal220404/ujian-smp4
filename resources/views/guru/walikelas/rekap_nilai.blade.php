@@ -3,41 +3,61 @@
 @section('title', 'Leger Nilai Kelas ' . $kelas->kelas)
 
 @section('sidebar-menu')
-    <div class="mb-4 px-3">
-        <a href="{{ route('guru.index') }}" 
-           class="flex items-center gap-2 text-cyan-100/70 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider">
-            <i class="bi bi-arrow-left"></i> Kembali ke Menu Utama
-        </a>
-    </div>
-    <hr class="my-3 border-gray-100 opacity-20">
-    <a href="{{ route('guru.walikelas.dashboard', $kelas->id)}}" class="nav-link">
-        <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard Kelas</span>
+<div class="mb-4 px-3">
+    <a href="{{ route('guru.index') }}"
+        class="flex items-center gap-2 text-cyan-100/70 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider">
+        <i class="bi bi-arrow-left"></i> Kembali ke Menu Utama
     </a>
-    <a href="{{ route('guru.walikelas.siswa', $kelas->id)}}" class="nav-link">
-        <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
-    </a>
-    <a href="#" class="nav-link active">
-        <i class="bi bi-table"></i> <span>Leger Nilai</span>
-    </a>
+</div>
+<hr class="my-3 border-gray-100 opacity-20">
+<a href="{{ route('guru.walikelas.dashboard', $kelas->id)}}" class="nav-link active">
+    <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard Kelas</span>
+</a>
+<a href="{{ route('guru.walikelas.siswa', $kelas->id)}}" class="nav-link">
+    <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
+</a>
+<a href="{{ route('guru.walikelas.rekap_nilai', $kelas->id)}}" class="nav-link">
+    <i class="bi bi-table"></i> <span>Leger Nilai</span>
+</a>
 @endsection
 
 @section('content')
 
-    {{-- HEADER --}}
     <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
-        <div>
-            <h1 class="text-3xl font-[Poppins-Bold] text-darkblue">Leger Nilai Detail</h1>
-            <p class="text-gray-500 mt-1">
-                Rincian nilai harian (Kuis), UTS, dan UAS seluruh siswa kelas <span class="font-bold text-darkblue">{{ $kelas->kelas }}</span>.
-            </p>
-        </div>
-        <div class="flex gap-2">
-            {{-- Tombol Export Excel --}}
-            <a href="{{ route('guru.walikelas.rekap_nilai.export', $kelas->id) }}" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2 print:hidden">
-                <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+    <div>
+        {{-- BREADCRUMB --}}
+        <div class="flex items-center gap-2 text-gray-400 text-xs mb-2">
+            {{-- Level 1: Home --}}
+            <a href="{{ route('guru.index') }}" class="hover:text-blue-600 transition-colors">
+                <i class="bi bi-house-door"></i> Home
             </a>
+
+            {{-- Separator --}}
+            <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+
+            {{-- Level 2: Dashboard Kelas (Link aktif untuk kembali) --}}
+            <span class="text-gray-500">Wali Kelas</span>
+
+            {{-- Separator --}}
+            <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
+
+            {{-- Level 3: Halaman Aktif --}}
+            <span class="text-blue-600 font-bold">Leger Nilai</span>
         </div>
+
+        <h1 class="text-3xl font-[Poppins-Bold] text-darkblue">Leger Nilai Siswa</h1>
+        <p class="text-gray-500 mt-1">
+            Rincian nilai Kuis, UTS, dan UAS seluruh siswa kelas <span class="font-bold text-darkblue">{{ $kelas->kelas }}</span>.
+        </p>
     </div>
+
+    <div class="flex gap-2">
+        {{-- Tombol Export Excel --}}
+        <a href="{{ route('guru.walikelas.rekap_nilai.export', $kelas->id) }}" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2 print:hidden">
+            <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+        </a>
+    </div>
+</div>
 
     {{-- TABEL LEGER --}}
     <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
@@ -66,8 +86,8 @@
                         <th rowspan="2" class="px-6 py-2 border-r border-white/10 sticky left-[48px] bg-[#00415a] z-30 min-w-[250px] text-xs font-bold text-left">NAMA SISWA</th>
                         
                         @foreach($mapels as $mapel)
-                            {{-- Colspan menyesuaikan jumlah kuis + 2 (UTS & UAS) --}}
-                            <th colspan="{{ $mapel->jumlah_kuis + 2 }}" 
+                            {{-- Colspan menyesuaikan jumlah kuis + uts + uas --}}
+                            <th colspan="{{ $mapel->jumlah_kuis + $mapel->jumlah_uts + $mapel->jumlah_uas }}" 
                                 class="px-2 py-2 text-center border-r border-white/10 text-[10px] font-bold tracking-wider uppercase bg-[#00415a]">
                                 {{ $mapel->nama_mapel }}
                             </th>
@@ -87,8 +107,12 @@
                             @endfor
                             
                             {{-- Header UTS & UAS --}}
-                            <th class="px-2 py-1 text-center border-r border-white/10 text-[9px] w-10 bg-purple-900/30 font-bold" title="Nilai UTS">U</th>
-                            <th class="px-2 py-1 text-center border-r border-white/10 text-[9px] w-10 bg-orange-900/30 font-bold" title="Nilai UAS">A</th>
+                            @for($i = 1; $i <= $mapel->jumlah_uts; $i++)
+                                <th class="px-2 py-1 text-center border-r border-white/10 text-[8px] w-8 bg-purple-900/30 font-bold" title="Nilai UTS">UTS{{ $i }}</th>
+                            @endfor
+                            @for($i = 1; $i <= $mapel->jumlah_uas; $i++)
+                                <th class="px-2 py-1 text-center border-r border-white/10 text-[8px] w-8 bg-orange-900/30 font-bold" title="Nilai UAS">UAS{{ $i }}</th>
+                            @endfor
                         @endforeach
                     </tr>
                 </thead>
@@ -131,15 +155,25 @@
                                     <td class="px-2 py-2 text-center border-r border-gray-50 text-gray-300">-</td>
                                 @endfor
 
-                                {{-- 2. Nilai UTS --}}
-                                <td class="px-2 py-2 text-center border-r border-gray-50 text-[#00415a] bg-purple-50/10 font-medium">
-                                    {{ $data['uts'] }}
-                                </td>
+                                {{-- 2. Loop Nilai UTS --}}
+                                @foreach($data['detail_uts'] as $nilaiUts)
+                                    <td class="px-2 py-2 text-center border-r border-gray-50 text-[#00415a] bg-purple-50/10 font-medium">
+                                        {{ $nilaiUts }}
+                                    </td>
+                                @endforeach
+                                @for($k = count($data['detail_uts']); $k < $mapel->jumlah_uts; $k++)
+                                    <td class="px-2 py-2 text-center border-r border-gray-50 text-[#00415a] bg-purple-50/10 font-medium">-</td>
+                                @endfor
 
-                                {{-- 3. Nilai UAS --}}
-                                <td class="px-2 py-2 text-center border-r border-gray-200 text-[#00415a] bg-orange-50/10 font-medium">
-                                    {{ $data['uas'] }}
-                                </td>
+                                {{-- 3. Loop Nilai UAS --}}
+                                @foreach($data['detail_uas'] as $nilaiUas)
+                                    <td class="px-2 py-2 text-center border-r border-gray-200 text-[#00415a] bg-orange-50/10 font-medium">
+                                        {{ $nilaiUas }}
+                                    </td>
+                                @endforeach
+                                @for($k = count($data['detail_uas']); $k < $mapel->jumlah_uas; $k++)
+                                    <td class="px-2 py-2 text-center border-r border-gray-200 text-[#00415a] bg-orange-50/10 font-medium">-</td>
+                                @endfor
                             @endforeach
 
                             {{-- Rata-Rata Akhir Siswa --}}

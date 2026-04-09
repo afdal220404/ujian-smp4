@@ -29,9 +29,10 @@ if ($siswa_id == 0 || $kelas_id == 0) {
 
 // Ambil Mapel
 $query_mapel = "
-    SELECT m.id as mapel_id, m.nama_mapel, g.nama_lengkap as nama_guru
+    SELECT m.id as mapel_id, m.nama_mapel, g.nama_lengkap as nama_guru, k.kelas as nama_kelas
     FROM mapels m
     JOIN gurus g ON m.guru_id = g.id
+    LEFT JOIN kelas k ON m.kelas_id = k.id
     WHERE m.kelas_id = ?
     ORDER BY m.nama_mapel ASC
 ";
@@ -48,7 +49,7 @@ while ($mapel = $result_mapel->fetch_assoc()) {
 
     // Query Nilai (Gunakan try-catch block logic jika perlu, tapi query SQL jarang crash PHP)
     $query_nilai = "
-        SELECT h.id AS hasil_ujian_id, u.nama_ujian, u.tanggal_ujian, h.nilai
+        SELECT h.id AS hasil_ujian_id, u.nama_ujian, u.jenis_ujian, u.tanggal_ujian, h.nilai
         FROM hasil_ujians h
         JOIN ujians u ON h.ujian_id = u.id
         WHERE h.siswa_id = ? AND u.mapel_id = ?
@@ -65,8 +66,9 @@ while ($mapel = $result_mapel->fetch_assoc()) {
         $nilai_angka = isset($nilai['nilai']) ? (float)$nilai['nilai'] : 0.0;
         
         $riwayat_ujian[] = [
-            "hasil_ujian_id" => (int)$nilai['hasil_ujian_id'], // <--- TAMBAHKAN INI
+            "hasil_ujian_id" => (int)$nilai['hasil_ujian_id'], 
             "nama_ujian" => $nilai['nama_ujian'] ?? "Ujian Tanpa Nama",
+            "jenis_ujian" => $nilai['jenis_ujian'] ?? "Kuis", // <--- TAMBAHKAN INI
             "tanggal" => $nilai['tanggal_ujian'] ?? "-",
             "nilai" => $nilai_angka
         ];

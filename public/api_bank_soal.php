@@ -17,7 +17,7 @@ if ($kelas_id == 0) {
 $query = "
     SELECT b.id, b.nama as judul_materi, b.file_path, b.created_at,
            m.nama_mapel, g.nama_lengkap as nama_guru
-    FROM bank_soals b
+    FROM arsip_soal_siswas b
     JOIN mapels m ON b.mapel_id = m.id
     LEFT JOIN gurus g ON b.guru_id = g.id
     WHERE m.kelas_id = ?
@@ -35,8 +35,19 @@ while ($row = $result->fetch_assoc()) {
     $data[] = $row;
 }
 
+$mapelQuery = "SELECT nama_mapel FROM mapels WHERE kelas_id = ?";
+$stmtMapel = $conn->prepare($mapelQuery);
+$stmtMapel->bind_param("i", $kelas_id);
+$stmtMapel->execute();
+$resMapel = $stmtMapel->get_result();
+$mapels = [];
+while ($rowM = $resMapel->fetch_assoc()) {
+    $mapels[] = $rowM['nama_mapel'];
+}
+
 echo json_encode([
     "status" => "success",
-    "data" => $data
+    "data" => $data,
+    "mapels" => $mapels
 ]);
 ?>

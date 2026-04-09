@@ -12,7 +12,7 @@
             <i class="bi bi-award"></i> <span>Nilai</span>
         </a>
         <a href="{{ route('siswa.bank_soal') }}" class="nav-link rounded-xl">
-            <i class="bi bi-file-earmark-text"></i> <span>Bank Soal</span>
+            <i class="bi bi-file-earmark-text"></i> <span>Arsip Soal Siswa</span>
         </a>
     </div>
 @endsection

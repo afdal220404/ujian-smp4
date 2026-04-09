@@ -6,8 +6,8 @@
             <th rowspan="2" style="font-weight:bold; vertical-align:middle; text-align:center; border:1px solid #000; width:30px;">NAMA SISWA</th>
             
             @foreach($mapels as $mapel)
-                {{-- Colspan --}}
-                <th colspan="{{ $mapel->jumlah_kuis + 2 }}" 
+                {{-- Colspan menyesuaikan jumlah kuis + uts + uas --}}
+                <th colspan="{{ $mapel->jumlah_kuis + $mapel->jumlah_uts + $mapel->jumlah_uas }}" 
                     style="font-weight:bold; text-align:center; border:1px solid #000; background-color:#00415a; color:#ffffff;">
                     {{ $mapel->nama_mapel }}
                 </th>
@@ -22,8 +22,14 @@
                 @for($i = 1; $i <= $mapel->jumlah_kuis; $i++)
                     <th style="text-align:center; border:1px solid #000; background-color:#f3f4f6;">K{{ $i }}</th>
                 @endfor
-                <th style="text-align:center; border:1px solid #000; background-color:#e0e7ff;">U</th>
-                <th style="text-align:center; border:1px solid #000; background-color:#ffedd5;">A</th>
+                
+                @for($i = 1; $i <= $mapel->jumlah_uts; $i++)
+                    <th style="text-align:center; border:1px solid #000; background-color:#e0e7ff;">UTS{{ $i }}</th>
+                @endfor
+                
+                @for($i = 1; $i <= $mapel->jumlah_uas; $i++)
+                    <th style="text-align:center; border:1px solid #000; background-color:#ffedd5;">UAS{{ $i }}</th>
+                @endfor
             @endforeach
         </tr>
     </thead>
@@ -38,8 +44,8 @@
                     @php
                         $data = $rekapNilai[$siswa->id]['mapel'][$mapel->id] ?? [
                             'detail_kuis' => array_fill(0, $mapel->jumlah_kuis, '-'),
-                            'uts' => '-',
-                            'uas' => '-'
+                            'detail_uts' => array_fill(0, $mapel->jumlah_uts, '-'),
+                            'detail_uas' => array_fill(0, $mapel->jumlah_uas, '-')
                         ];
                     @endphp
                     
@@ -53,9 +59,21 @@
                         <td style="text-align:center; border:1px solid #000;">-</td>
                     @endfor
 
-                    {{-- UTS & UAS --}}
-                    <td style="text-align:center; border:1px solid #000; font-weight:bold;">{{ $data['uts'] }}</td>
-                    <td style="text-align:center; border:1px solid #000; font-weight:bold;">{{ $data['uas'] }}</td>
+                    {{-- UTS --}}
+                    @foreach($data['detail_uts'] as $nilaiUts)
+                        <td style="text-align:center; border:1px solid #000; font-weight:bold;">{{ $nilaiUts }}</td>
+                    @endforeach
+                    @for($k = count($data['detail_uts']); $k < $mapel->jumlah_uts; $k++)
+                        <td style="text-align:center; border:1px solid #000; font-weight:bold;">-</td>
+                    @endfor
+                    
+                    {{-- UAS --}}
+                    @foreach($data['detail_uas'] as $nilaiUas)
+                        <td style="text-align:center; border:1px solid #000; font-weight:bold;">{{ $nilaiUas }}</td>
+                    @endforeach
+                    @for($k = count($data['detail_uas']); $k < $mapel->jumlah_uas; $k++)
+                        <td style="text-align:center; border:1px solid #000; font-weight:bold;">-</td>
+                    @endfor
                 @endforeach
 
                 {{-- Rata Akhir --}}

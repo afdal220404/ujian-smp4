@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Bank Soal')
+@section('title', 'Arsip Soal Siswa')
 
 @section('sidebar-menu')
     <div class="px-3 mb-4">
@@ -12,7 +12,7 @@
             <i class="bi bi-award"></i> <span>Nilai</span>
         </a>
         <a href="{{ route('siswa.bank_soal') }}" class="nav-link active rounded-xl">
-            <i class="bi bi-file-earmark-text"></i> <span>Bank Soal</span>
+            <i class="bi bi-file-earmark-text"></i> <span>Arsip Soal Siswa</span>
         </a>
     </div>
 @endsection
@@ -23,7 +23,7 @@
     <div class="flex items-center gap-2 text-gray-400 text-xs mb-6">
         <a href="{{ route('siswa.dashboard') }}" class="hover:text-blue-600"><i class="bi bi-house-door"></i> Home</a>
         <i class="bi bi-chevron-right text-[8px] opacity-50"></i>
-        <span class="text-blue-600 font-bold">Bank Soal</span>
+        <span class="text-blue-600 font-bold">Arsip Soal Siswa</span>
     </div>
 
     {{-- Main Card Container --}}
@@ -39,7 +39,7 @@
                     <span class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
                         <i class="bi bi-folder-fill"></i>
                     </span>
-                    Bank Soal <span class="text-blue-600">Publik</span>
+                    Arsip Soal Siswa <span class="text-blue-600">Publik</span>
                 </h1>
                 <p class="text-gray-500 mt-2 text-sm leading-relaxed ml-14">
                     Kumpulan materi dan latihan soal resmi dari bapak/ibu guru.
@@ -74,7 +74,7 @@
         </div>
 
         {{-- Content Grid --}}
-        @if($bankSoals->isEmpty())
+        @if($arsipSoalSiswas->isEmpty())
             <div class="flex flex-col items-center justify-center py-24 text-center bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200 hover:border-blue-200 transition-colors group">
                 <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center text-gray-300 mb-4 shadow-sm group-hover:scale-110 transition-transform duration-300">
                     <i class="bi bi-emoji-smile-upside-down text-4xl"></i>
@@ -93,7 +93,7 @@
             </div>
         @else
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                @foreach($bankSoals as $soal)
+                @foreach($arsipSoalSiswas as $soal)
                 <div class="group bg-white p-5 rounded-3xl border border-gray-200 shadow-sm hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] hover:border-blue-300 transition-all duration-300 relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1">
                     
                     {{-- Card Gradient Background --}}
@@ -131,8 +131,8 @@
                         {{-- Action Button --}}
                         <a href="{{ asset('storage/' . $soal->file_path) }}" target="_blank" 
                            class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm group-hover:shadow-lg group-hover:shadow-blue-200/50">
-                            <span>Download PDF</span>
-                            <i class="bi bi-download"></i>
+                            <span>Lihat PDF</span>
+                            <i class="bi bi-eye"></i>
                         </a>
                     </div>
 

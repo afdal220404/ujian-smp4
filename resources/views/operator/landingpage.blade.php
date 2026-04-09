@@ -3,20 +3,18 @@
 @section('title', 'Dashboard Operator')
 
 @section('sidebar-menu')
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Utama</div>
-    <a href="{{ route('operator.landingpage') }}" class="nav-link active">
+    <a href="{{ route('operator.landingpage') }}" class="nav-link">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Manajemen Data</div>
     <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
         <i class="bi bi-people"></i> <span>Data Siswa</span>
+    </a>
+    <a href="{{ route('operator.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
     <a href="{{ route('daftar_guru2') }}" class="nav-link">
         <i class="bi bi-person-video3"></i> <span>Data Staff</span>
     </a>
-
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Akademik</div>
     <a href="{{ route('walikelas.index') }}" class="nav-link">
         <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
     </a>
@@ -228,11 +226,8 @@
                 <canvas id="userRoleChart"></canvas>
             </div>
             
-            {{-- Legend Custom (Opsional, agar lebih rapi di bawah chart) --}}
-            <div class="mt-4 flex flex-wrap justify-center gap-3 text-xs text-gray-600">
-                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Operator</div>
-                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Kepala Sekolah</div>
-                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Guru</div>
+         
+            <div id="chartLegend" class="mt-4 flex flex-col gap-2 text-xs font-medium text-gray-700 w-full">
             </div>
         </div>
 
@@ -277,19 +272,60 @@
 
         // --- 2. CHART ROLE PEGAWAI (DOUGHNUT) ---
         const ctxRole = document.getElementById('userRoleChart').getContext('2d');
+        const roleLabels = @json($chartRoleLabels);
+        const roleData = @json($chartRoleData);
+        const roleColors = [
+            '#8b5cf6', // Ungu
+            '#3b82f6', // Biru
+            '#f97316', // Orange
+            '#10b981'  // Hijau
+        ];
+
+        const legendContainer = document.getElementById('chartLegend');
+        if (legendContainer && roleLabels.length > 0) {
+      
+            const displayOrder = ['kepala sekolah', 'guru', 'operator'];
+            
+            let sortedRoles = roleLabels.map((label, index) => {
+                let lowerLabel = label.toString().toLowerCase();
+                return {
+                    label: label,
+                    count: roleData[index] || 0,
+                    color: roleColors[index % roleColors.length],
+                    order: displayOrder.indexOf(lowerLabel) !== -1 ? displayOrder.indexOf(lowerLabel) : 99 
+                };
+            });
+
+            // Sort based on the defined order
+            sortedRoles.sort((a, b) => a.order - b.order);
+
+            let legendHtml = '';
+            sortedRoles.forEach((role) => {
+                let formattedLabel = role.label.toString().charAt(0).toUpperCase() + role.label.toString().slice(1);
+                // Special case for kepala sekolah to capitalize both words
+                if (formattedLabel.toLowerCase() === 'kepala sekolah') {
+                    formattedLabel = 'Kepala Sekolah';
+                }
+                
+                legendHtml += `
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${role.color}"></span> 
+                            <span>${formattedLabel}</span>
+                        </div>
+                        <span class="font-bold text-gray-900"> ${role.count} orang</span>
+                    </div>`;
+            });
+            legendContainer.innerHTML = legendHtml;
+        }
         
         new Chart(ctxRole, {
             type: 'doughnut',
             data: {
-                labels: @json($chartRoleLabels),
+                labels: roleLabels,
                 datasets: [{
-                    data: @json($chartRoleData),
-                    backgroundColor: [
-                        '#8b5cf6', // Ungu (Guru)
-                        '#3b82f6', // Biru (Operator)
-                        '#f97316', // Orange (Kepsek)
-                        '#10b981'  // Hijau (Lainnya jika ada)
-                    ],
+                    data: roleData,
+                    backgroundColor: roleColors,
                     borderWidth: 0,
                     hoverOffset: 4
                 }]
@@ -305,7 +341,9 @@
                             label: function(context) {
                                 let label = context.label || '';
                                 let value = context.raw || 0;
-                                return label + ': ' + value + ' Orang';
+                                let total = context.dataset.data.reduce((a, b) => Number(a) + Number(b), 0);
+                                let percentage = total > 0 ? ((value * 100) / total).toFixed(1) + "%" : "0%";
+                                return label + ': ' + percentage;
                             }
                         }
                     }

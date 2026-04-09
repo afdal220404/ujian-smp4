@@ -3,32 +3,18 @@
 @section('title', isset($siswa) ? 'Edit Siswa' : 'Tambah Siswa')
 
 @section('sidebar-menu')
-    {{-- Kategori UTAMA: Jarak atas dikurangi drastis (mt-1) agar naik mendekati foto --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-1">
-        Utama
-    </div>
-    
-    <a href="{{ route('operator.landingpage') }}" class="nav-link active">
+    <a href="{{ route('operator.landingpage') }}" class="nav-link">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-
-    {{-- Kategori MANAJEMEN DATA: Margin dikurangi dari mt-4 jadi mt-2 --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-2">
-        Manajemen Data
-    </div>
-    
     <a href="{{ route('operator.daftar_siswa') }}" class="nav-link">
         <i class="bi bi-people"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('daftar_guru2') }}" class="nav-link">
-        <i class="bi bi-person-video3"></i> <span>Data Guru</span>
+    <a href="{{ route('operator.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
-
-    {{-- Kategori AKADEMIK: Margin dikurangi dari mt-4 jadi mt-2 --}}
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-3 mt-2">
-        Akademik
-    </div>
-    
+    <a href="{{ route('daftar_guru2') }}" class="nav-link">
+        <i class="bi bi-person-video3"></i> <span>Data Staff</span>
+    </a>
     <a href="{{ route('walikelas.index') }}" class="nav-link">
         <i class="bi bi-award"></i> <span>Set Wali Kelas</span>
     </a>
@@ -130,10 +116,10 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-400 group-focus-within:text-blue-600">
                                 <i class="bi bi-postcard"></i>
                             </span>
-                            <input type="number" name="nisn" 
+                            <input type="text" name="nisn" inputmode="numeric" oninput="this.value = this.value.replace(/\D/g, '')"
                                    value="{{ old('nisn', $siswa->nisn ?? '') }}" 
                                    class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all font-mono font-medium text-sm text-gray-700 placeholder-slate-400 shadow-sm"
-                                   placeholder="Nomor Induk..." required>
+                                   placeholder="Masukkan 10 digit NISN..." required>
                         </div>
                         @error('nisn') <p class="text-[10px] text-red-500 mt-0.5 ml-1 font-bold">{{ $message }}</p> @enderror
                     </div>
@@ -207,7 +193,7 @@
                             @if(isset($siswa))
                                 <p class="text-[10px] text-gray-400">Kosongkan jika tetap.</p>
                             @else
-                                <p class="text-[10px] text-gray-400">Default: 123456</p>
+                                <p class="text-[10px] text-gray-400">kombinasi huruf dan angka</p>
                             @endif
                             @error('password') <p class="text-[10px] text-red-500 font-bold">{{ $message }}</p> @enderror
                         </div>

@@ -32,7 +32,7 @@ class GuruController extends Controller
             'nama_lengkap' => 'required|string|max:255',
             'nip' => 'required|string|unique:gurus,nip',
             'username' => 'required|string|unique:gurus,username',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'role' => 'required|string|in:Operator,Kepala Sekolah,Guru',
         ];
@@ -46,6 +46,7 @@ class GuruController extends Controller
             'username.unique' => 'Username ini sudah digunakan. Silakan pilih username lain.',
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal harus 6 karakter.',
+            'password.regex' => 'Password harus mengandung kombinasi huruf dan angka.',
             'foto.image' => 'File yang diunggah harus berupa gambar.',
             'foto.mimes' => 'Format gambar harus .jpg, .jpeg, atau .png.',
             'foto.max' => 'Ukuran gambar maksimal adalah 2MB.',
@@ -84,7 +85,7 @@ class GuruController extends Controller
             'nama_lengkap' => 'required|string|max:255',
             'nip' => 'required|string|unique:gurus,nip,' . $guru->id,
             'username' => 'required|string|unique:gurus,username,' . $guru->id,
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'role' => 'required|string|in:Operator,Kepala Sekolah,Guru',
         ];
@@ -97,6 +98,7 @@ class GuruController extends Controller
             'username.required' => 'Username wajib diisi.',
             'username.unique' => 'Username ini sudah digunakan. Silakan pilih username lain.',
             'password.min' => 'Password minimal harus 6 karakter.',
+            'password.regex' => 'Password baru harus mengandung kombinasi huruf dan angka.',
             'foto.image' => 'File yang diunggah harus berupa gambar.',
             'foto.mimes' => 'Format gambar harus .jpg, .jpeg, atau .png.',
             'foto.max' => 'Ukuran gambar maksimal adalah 2MB.',

@@ -18,17 +18,36 @@
         $role = 'Guru';
         $foto = null;
         $nip_nisn = '-';
+        $roleContext = null;
 
         if (Auth::guard('siswa')->check()) {
             $user = Auth::guard('siswa')->user();
             $role = 'Siswa';
             $nip_nisn = $user->nisn;
         } elseif ($user) {
-            // Jika masuk sini berarti login sebagai Guru/Operator/Kepsek
             $foto = $user->foto;
             $nip_nisn = $user->nip ?? '020517';
-            // $role defaultnya 'Guru', bisa dioverride jika ada kolom role
             if(isset($user->role)) $role = $user->role;
+
+            // Context Role Khusus Guru
+            if ($role === 'Guru' || $role === 'guru') {
+                $routeName = request()->route() ? request()->route()->getName() : '';
+                if (str_starts_with($routeName, 'guru.walikelas.')) {
+                    $kelas = request()->route('kelas');
+                    if (is_numeric($kelas)) $kelas = \App\Models\Kelas::find($kelas);
+                    if ($kelas) {
+                        $roleContext = 'Guru Wali Kelas ' . ($kelas->kelas ?? $kelas->nama_kelas ?? '');
+                    }
+                } elseif (str_starts_with($routeName, 'guru.mapel.')) {
+                    $mapel = request()->route('mapel');
+                    if (is_numeric($mapel)) $mapel = \App\Models\Mapel::with('kelas')->find($mapel);
+                    if ($mapel) {
+                        $namaMapel = $mapel->nama_mapel ?? '';
+                        $namaKelas = $mapel->kelas->nama_kelas ?? $mapel->kelas->kelas ?? '';
+                        $roleContext = 'Guru ' . $namaMapel . ' - Kelas ' . $namaKelas;
+                    }
+                }
+            }
         }
     @endphp
 
@@ -50,10 +69,16 @@
         <h2 class="teacher-name font-bold text-white tracking-wide text-sm md:text-base truncate px-2">
             {{ $user->nama_lengkap }}
         </h2>
-        <p class="mt-2 inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/5 text-cyan-100/80 text-[10px] md:text-xs font-mono">
-            <i class="bi bi-person-badge"></i> {{ $nip_nisn }}
-        </p>
-        <span class="block text-xs text-cyan-200/50 mt-1 uppercase tracking-widest font-bold">{{ $role }}</span>
+        <div class="flex flex-col items-center mt-1.5 space-y-2">
+            <p class="inline-flex items-center justify-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/5 text-cyan-100/80 text-[10px] md:text-xs font-mono">
+                <i class="bi bi-person-badge"></i> {{ $nip_nisn }}
+            </p>
+            @if($roleContext)
+                <span class="block text-[10px] text-cyan-200/90 bg-cyan-900/40 px-2.5 py-1 rounded-md border border-cyan-500/30 uppercase tracking-widest font-bold shadow-sm">{{ $roleContext }}</span>
+            @else
+                <span class="block text-xs text-cyan-200/50 uppercase tracking-widest font-bold">{{ $role }}</span>
+            @endif
+        </div>
     </div>
 
     <div class="sidebar-divider w-full h-px bg-white/10 my-4 flex-shrink-0"></div>
@@ -77,3 +102,5 @@
 <div id="sidebarOverlay" onclick="toggleSidebar()" 
      class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity backdrop-blur-sm">
 </div>
+
+

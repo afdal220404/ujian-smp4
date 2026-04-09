@@ -12,7 +12,7 @@
             <i class="bi bi-award"></i> <span>Nilai</span>
         </a>
         <a href="{{ route('siswa.bank_soal') }}" class="nav-link rounded-xl">
-             <i class="bi bi-file-earmark-text"></i> <span>Bank Soal</span>
+             <i class="bi bi-file-earmark-text"></i> <span>Arsip Soal Siswa</span>
         </a>
     </div>
 @endsection
@@ -52,8 +52,11 @@
                 </div>
                 
                 {{-- Styled Exam Title --}}
-                <div class="mt-2 px-4 py-2 bg-[#00415a]/5 rounded-xl border border-[#00415a]/10 inline-block">
+                <div class="mt-2 px-4 py-2 bg-[#00415a]/5 rounded-xl border border-[#00415a]/10 inline-block flex items-center gap-3 w-fit">
                     <h1 class="text-2xl font-[Poppins-Bold] text-[#00415a] tracking-tight">{{ $ujian->nama_ujian }}</h1>
+                    @if($ujian->is_susulan)
+                        <span class="px-2 py-1 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">Susulan</span>
+                    @endif
                 </div>
 
                 <p class="text-gray-500 mt-4 text-base">
@@ -90,6 +93,8 @@
                 </div>
             </div>
             
+            @php $isUtsUas = in_array(strtoupper($ujian->jenis_ujian ?? ''), ['UTS', 'UAS']); @endphp
+            @if(!$isUtsUas)
             <div class="flex items-center gap-6">
                 <div class="text-right hidden md:block">
                     <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nilai Akhir</p>
@@ -108,10 +113,22 @@
                     </div>
                 </div>
             </div>
+            @else
+            <div class="flex items-center gap-3 px-5 py-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <div class="w-10 h-10 rounded-full bg-white border border-blue-100 flex items-center justify-center text-blue-500 shadow-sm">
+                    <i class="bi bi-lock-fill"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-blue-400 uppercase tracking-widest">Nilai {{ strtoupper($ujian->jenis_ujian) }}</p>
+                    <p class="text-xs font-bold text-blue-700">Tidak Ditampilkan</p>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 
     {{-- Statistik Ringkas --}}
+    @if(!$isUtsUas)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white rounded-2xl p-6 border border-emerald-100 shadow-sm flex items-center gap-5 hover:border-emerald-300 transition-colors group">
             <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 text-2xl group-hover:scale-110 transition-transform">
@@ -143,8 +160,31 @@
             </div>
         </div>
     </div>
+    @else
+    {{-- UTS/UAS: info total soal saja --}}
+    <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-white border border-blue-100 flex items-center justify-center text-blue-500 shadow-sm flex-shrink-0">
+            <i class="bi bi-info-circle-fill text-xl"></i>
+        </div>
+        <div>
+            <p class="font-bold text-blue-700 text-sm">Nilai tidak ditampilkan untuk {{ strtoupper($ujian->jenis_ujian) }}</p>
+            <p class="text-xs text-blue-500 mt-0.5">Rincian benar/salah dan nilai akhir hanya dapat dilihat oleh guru. Total: <span class="font-bold">{{ count($daftarSoal) }} soal</span>.</p>
+        </div>
+    </div>
+    @endif
 
     {{-- Detail Jawaban --}}
+    @if($isUtsUas)
+    <div class="bg-amber-50 border border-amber-100 rounded-2xl p-6 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-white border border-amber-200 flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
+            <i class="bi bi-eye-slash-fill text-xl"></i>
+        </div>
+        <div>
+            <p class="font-bold text-amber-700 text-sm">Analisis Jawaban Tidak Tersedia</p>
+            <p class="text-xs text-amber-600 mt-0.5">Pembahasan soal untuk ujian {{ strtoupper($ujian->jenis_ujian) }} tidak ditampilkan kepada siswa.</p>
+        </div>
+    </div>
+    @else
     <div class="space-y-6">
         <div class="flex items-center justify-between">
             <h3 class="font-[Poppins-Bold] text-[#00415a] text-xl flex items-center gap-2">
@@ -185,8 +225,14 @@
                         </span>
                     </div>
 
-                    <div class="text-gray-800 font-medium text-sm leading-relaxed mb-3 font-[Poppins-Medium]">
-                        {!! nl2br(e($soal->pertanyaan)) !!}
+                    <div class="mb-3">
+                        <div class="text-gray-800 font-medium text-sm leading-relaxed font-[Poppins-Medium] question-text line-clamp-3 transition-all duration-300">
+                            {!! nl2br(e($soal->pertanyaan)) !!}
+                        </div>
+                        <button type="button" class="toggle-question-btn hidden text-blue-600 hover:text-blue-800 text-xs font-bold mt-1 flex items-center gap-1 transition-colors">
+                            <span>Tampilkan lebih banyak</span>
+                            <i class="bi bi-chevron-down text-[10px]"></i>
+                        </button>
                     </div>
                     
                     @if($soal->gambar)
@@ -223,6 +269,11 @@
                                     {{ $opt }}
                                 </div>
                                 <div class="flex-1 font-medium text-xs">
+                                    @if($soal->{'gambar_'.strtolower($opt)})
+                                        <div class="mb-2">
+                                            <img src="{{ asset('storage/' . $soal->{'gambar_'.strtolower($opt)}) }}" class="max-h-24 rounded border border-gray-200">
+                                        </div>
+                                    @endif
                                     {{ $optionText }}
                                 </div>
                                 <div class="ml-2 flex items-center gap-2">
@@ -236,49 +287,104 @@
                     </div>
                     {{-- 2. BENAR / SALAH --}}
                     @elseif($soal->tipe == 'benar_salah')
-                        <div class="flex gap-4 mt-3">
-                            @foreach(['A' => 'BENAR', 'B' => 'SALAH'] as $val => $label)
+                        @if(isset($soal->data_soal['pernyataan']) && is_array($soal->data_soal['pernyataan']))
+                            {{-- COMPLEX TF REVIEW --}}
+                            <div class="mt-3 space-y-2">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Evaluasi Pernyataan</p>
                                 @php
-                                    $isKey = ($soal->kunci_jawaban == ($val == 'A' ? 'TRUE' : 'FALSE') || $soal->kunci_jawaban == $val); // Support TRUE/FALSE or A/B storage
-                                    $isSelected = ($soal->jawaban_siswa == $val);
-                                    
-                                    $baseColor = ($val == 'A') ? 'emerald' : 'red';
-                                    $opacity = ($isSelected || $isKey) ? '100' : '40';
-                                    $ring = ($isKey) ? "ring-2 ring-blue-400 ring-offset-1" : "";
+                                    $userAnswers = json_decode($soal->jawaban_siswa, true);
+                                    if(!is_array($userAnswers)) $userAnswers = [];
                                 @endphp
-                                <div class="flex-1 p-3 rounded-lg border flex items-center justify-between opacity-{{ $opacity }}
-                                    {{ $isSelected 
-                                        ? ($isKey ? "bg-{$baseColor}-50 border-{$baseColor}-500 text-{$baseColor}-700" : "bg-red-50 border-red-500 text-red-700")
-                                        : ($isKey ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-white border-gray-200") 
-                                    }} {{ $ring }}">
-                                    
-                                    <span class="font-bold text-sm">{{ $label }}</span>
-                                    
-                                    @if($isSelected)
-                                        <span class="text-[10px] bg-white border px-1.5 rounded font-bold uppercase">Kamu</span>
-                                    @endif
-                                    @if($isKey)
-                                        <i class="bi bi-check-circle-fill text-emerald-600"></i>
-                                    @elseif($isSelected)
-                                        <i class="bi bi-x-circle-fill text-red-600"></i>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
+                                @foreach($soal->data_soal['pernyataan'] as $idx => $item)
+                                    @php
+                                        $uAns = $userAnswers[$idx] ?? '-';
+                                        $kAns = $item['correct'] ?? '';
+                                        $isMatch = ($uAns == $kAns);
+                                        
+                                        $uLabel = ($uAns == 'TRUE') ? 'BENAR' : (($uAns == 'FALSE') ? 'SALAH' : '-');
+                                        $kLabel = ($kAns == 'TRUE') ? 'BENAR' : 'SALAH';
+                                    @endphp
+                                    <div class="flex flex-col md:flex-row md:items-center gap-3 p-3 bg-white border border-gray-100 rounded-lg text-sm shadow-sm">
+                                        <div class="flex-1 font-medium text-gray-700">{{ $item['text'] ?? '' }}</div>
+                                        
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            {{-- User Answer --}}
+                                            <div class="px-3 py-1 rounded-lg text-xs font-bold border flex items-center gap-2 w-24 justify-center
+                                                {{ $isMatch ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200' }}">
+                                                {{ $uLabel }}
+                                                @if($isMatch) <i class="bi bi-check-lg"></i> @else <i class="bi bi-x-lg"></i> @endif
+                                            </div>
+                                            
+                                            {{-- Correction if wrong --}}
+                                            @if(!$isMatch)
+                                                <div class="text-xs text-gray-400">
+                                                    <i class="bi bi-arrow-right"></i>
+                                                </div>
+                                                <div class="px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 w-24 justify-center text-center">
+                                                    {{ $kLabel }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            {{-- OLD SIMPLE TF (Existing Code) --}}
+                            <div class="flex gap-4 mt-3">
+                                @foreach(['A' => 'BENAR', 'B' => 'SALAH'] as $val => $label)
+                                    @php
+                                        $isKey = ($soal->kunci_jawaban == ($val == 'A' ? 'TRUE' : 'FALSE') || $soal->kunci_jawaban == $val); // Support TRUE/FALSE or A/B storage
+                                        $isSelected = ($soal->jawaban_siswa == $val);
+                                        
+                                        $baseColor = ($val == 'A') ? 'emerald' : 'red';
+                                        $opacity = ($isSelected || $isKey) ? '100' : '40';
+                                        $ring = ($isKey) ? "ring-2 ring-blue-400 ring-offset-1" : "";
+                                    @endphp
+                                    <div class="flex-1 p-3 rounded-lg border flex items-center justify-between opacity-{{ $opacity }}
+                                        {{ $isSelected 
+                                            ? ($isKey ? "bg-{$baseColor}-50 border-{$baseColor}-500 text-{$baseColor}-700" : "bg-red-50 border-red-500 text-red-700")
+                                            : ($isKey ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-white border-gray-200") 
+                                        }} {{ $ring }}">
+                                        
+                                        <span class="font-bold text-sm">{{ $label }}</span>
+                                        
+                                        @if($isSelected)
+                                            <span class="text-[10px] bg-white border px-1.5 rounded font-bold uppercase">Kamu</span>
+                                        @endif
+                                        @if($isKey)
+                                            <i class="bi bi-check-circle-fill text-emerald-600"></i>
+                                        @elseif($isSelected)
+                                            <i class="bi bi-x-circle-fill text-red-600"></i>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
 
                     {{-- 3. JAWABAN GANDA --}}
                     @elseif($soal->tipe == 'jawaban_ganda')
                         <div class="space-y-2 mt-3">
                             <p class="text-[10px] font-bold text-gray-400 uppercase">Opsi Jawaban</p>
-                            @foreach(['A', 'B', 'C', 'D'] as $opt)
+                            @php
+                                $opsiDinamic = $soal->data_soal['options'] ?? [];
+                                if (empty($opsiDinamic)) {
+                                    $opsiDinamic = [
+                                        ['id' => 'A', 'text' => $soal->opsi_a, 'gambar' => $soal->gambar_a],
+                                        ['id' => 'B', 'text' => $soal->opsi_b, 'gambar' => $soal->gambar_b],
+                                        ['id' => 'C', 'text' => $soal->opsi_c, 'gambar' => $soal->gambar_c],
+                                        ['id' => 'D', 'text' => $soal->opsi_d, 'gambar' => $soal->gambar_d],
+                                    ];
+                                }
+                            @endphp
+                            @foreach($opsiDinamic as $opt)
                                 @php
+                                    $optId = $opt['id'];
                                     // Parse CSV with Trim & Upper
                                     $keys = array_map(function($val) { return trim(strtoupper($val)); }, explode(',', $soal->kunci_jawaban));
                                     $answers = array_map(function($val) { return trim(strtoupper($val)); }, explode(',', $soal->jawaban_siswa ?? ''));
                                     
-                                    $isKey = in_array($opt, $keys);
-                                    $isSelected = in_array($opt, $answers);
-                                    $optionText = $soal->{'opsi_'.strtolower($opt)};
+                                    $isKey = in_array($optId, $keys);
+                                    $isSelected = in_array($optId, $answers);
                                     
                                     // Logic Styling
                                     $styleClass = 'bg-gray-50 border-gray-200 text-gray-400';
@@ -297,9 +403,20 @@
                                 @endphp
                                 <div class="flex items-center p-2.5 rounded-lg border {{ $styleClass }} text-xs">
                                     <div class="w-5 h-5 flex items-center justify-center border rounded mr-2 bg-white text-gray-500 font-bold shadow-sm">
-                                        {{ $opt }}
+                                        @if($isSelected)
+                                            <i class="bi bi-check"></i>
+                                        @else
+                                            <span class="text-[10px]">{{ substr($optId, 0, 1) == 'O' ? '-' : $optId }}</span>
+                                        @endif
                                     </div>
-                                    <div class="flex-1">{{ $optionText }}</div>
+                                    <div class="flex-1">
+                                        @if(!empty($opt['gambar']))
+                                            <div class="mb-2 block">
+                                                <img src="{{ asset('storage/' . $opt['gambar']) }}" class="max-h-24 rounded border border-gray-200 inline-block">
+                                            </div>
+                                        @endif
+                                        {!! nl2br(e($opt['text'])) !!}
+                                    </div>
                                     <div class="ml-2">{!! $icon !!}</div>
                                 </div>
                             @endforeach
@@ -356,8 +473,11 @@
                                     
                                     <div class="flex flex-col md:flex-row gap-2 text-xs">
                                         {{-- Left --}}
-                                        <div class="flex-1 p-2 bg-white border border-gray-200 rounded-lg shadow-sm font-medium text-gray-700">
-                                            {{ $leftText }}
+                                        <div class="flex-1 p-2 bg-white border border-gray-200 rounded-lg shadow-sm font-medium text-gray-700 flex flex-col gap-2">
+                                            @if(isset($match['gambar_left']) && $match['gambar_left'])
+                                                <img src="{{ asset('storage/' . $match['gambar_left']) }}" class="max-h-20 object-contain rounded border border-gray-100">
+                                            @endif
+                                            <span>{{ $leftText }}</span>
                                         </div>
                                         
                                         {{-- Connector --}}
@@ -366,21 +486,29 @@
                                         </div>
 
                                         {{-- Right (User Answer) --}}
-                                        <div class="flex-1 p-2 border rounded-lg shadow-sm flex items-center justify-between
+                                        <div class="flex-1 flex flex-col gap-2 p-2 border rounded-lg shadow-sm
                                             {{ $pairIsCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-red-50 border-red-300 text-red-700' }}">
-                                            <span>{{ $userAnswerText }}</span>
-                                            @if($pairIsCorrect)
-                                                <i class="bi bi-check-lg"></i>
-                                            @else
-                                                <i class="bi bi-x-lg"></i>
+                                            @if($userRightId && isset($matches[$rIndex]['gambar_right']) && $matches[$rIndex]['gambar_right'])
+                                                 <img src="{{ asset('storage/' . $matches[$rIndex]['gambar_right']) }}" class="max-h-20 object-contain rounded border border-gray-100 bg-white">
                                             @endif
+                                            <div class="flex items-center justify-between">
+                                                <span>{{ $userAnswerText }}</span>
+                                                @if($pairIsCorrect)
+                                                    <i class="bi bi-check-lg"></i>
+                                                @else
+                                                    <i class="bi bi-x-lg"></i>
+                                                @endif
+                                            </div>
                                         </div>
 
                                         @if(!$pairIsCorrect)
                                             {{-- Correction --}}
-                                            <div class="flex-1 p-2 bg-blue-50 border border-blue-200 rounded-lg shadow-sm text-blue-700 opacity-80">
+                                            <div class="flex-1 flex flex-col gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg shadow-sm text-blue-700 opacity-80">
                                                 <span class="text-[9px] font-bold block text-blue-400 uppercase">Seharusnya:</span>
-                                                {{ $correctAnswerText }}
+                                                @if(isset($match['gambar_right']) && $match['gambar_right'])
+                                                     <img src="{{ asset('storage/' . $match['gambar_right']) }}" class="max-h-20 object-contain rounded border border-gray-100 bg-white">
+                                                @endif
+                                                <span>{{ $correctAnswerText }}</span>
                                             </div>
                                         @endif
                                     </div>
@@ -395,6 +523,45 @@
         @endforeach
         </div>
     </div>
+    @endif
 
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const questionTexts = document.querySelectorAll('.question-text');
+        
+        questionTexts.forEach(function(textEl) {
+            // Check if the element's content overflows its visible height constraints
+            if (textEl.scrollHeight > textEl.clientHeight) {
+                const btn = textEl.parentElement.querySelector('.toggle-question-btn');
+                if (btn) {
+                    btn.classList.remove('hidden');
+                    
+                    btn.addEventListener('click', function() {
+                        const isExpanded = textEl.classList.contains('line-clamp-none');
+                        const span = btn.querySelector('span');
+                        const icon = btn.querySelector('i');
+                        
+                        if (isExpanded) {
+                            textEl.classList.remove('line-clamp-none');
+                            textEl.classList.add('line-clamp-3');
+                            span.textContent = 'Tampilkan lebih banyak';
+                            icon.classList.remove('bi-chevron-up');
+                            icon.classList.add('bi-chevron-down');
+                        } else {
+                            textEl.classList.remove('line-clamp-3');
+                            textEl.classList.add('line-clamp-none');
+                            span.textContent = 'Tampilkan lebih sedikit';
+                            icon.classList.remove('bi-chevron-down');
+                            icon.classList.add('bi-chevron-up');
+                        }
+                    });
+                }
+            }
+        });
+    });
+</script>
 @endsection

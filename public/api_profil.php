@@ -79,7 +79,12 @@ if ($action == 'get_profil') {
     $stmt->execute();
     $result = $stmt->get_result()->fetch_assoc();
 
-    if ($result && password_verify($old_pass, $result['password'])) {
+    if (!$result) {
+        echo json_encode(["status" => "error", "message" => "Akun tidak ditemukan. Pastikan Anda sudah login dengan benar."]);
+        exit();
+    }
+
+    if (password_verify($old_pass, $result['password'])) {
         // Password lama cocok, update ke baru
         $new_hash = password_hash($new_pass, PASSWORD_BCRYPT);
         $stmt_up = $conn->prepare("UPDATE siswas SET password = ? WHERE id = ?");
@@ -91,7 +96,12 @@ if ($action == 'get_profil') {
             echo json_encode(["status" => "error", "message" => "Gagal update database."]);
         }
     } else {
-        echo json_encode(["status" => "error", "message" => "Password lama salah."]);
+        $len_input = strlen($old_pass);
+        $len_db = strlen($result['password']);
+        echo json_encode([
+            "status" => "error", 
+            "message" => "Password salah (Input: $len_input char). Jika yakin benar, hubungi IT/Admin."
+        ]);
     }
 } else {
     echo json_encode(["status" => "error", "message" => "Action tidak valid."]);

@@ -11,16 +11,18 @@
         </a>
     </div>
 
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Menu Mapel</div>
     
-    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link active">
+    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.dashboard') ? 'active' : '' }}">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link">
+    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.siswa') ? 'active' : '' }}">
         <i class="bi bi-journal-check"></i> <span>Daftar Nilai Siswa</span>
     </a>
-    <a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link">
+    <a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.bank_soal.*') ? 'active' : '' }}">
         <i class="bi bi-collection"></i> <span>Bank Soal</span>
+    </a>
+    <a href="{{ route('guru.mapel.arsip_soal_siswa.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.arsip_soal_siswa.*') ? 'active' : '' }}">
+        <i class="bi bi-folder2-open"></i> <span>Arsip Soal Siswa</span>
     </a>
 @endsection
 
@@ -234,15 +236,27 @@
 
                         <td class="px-6 py-4 text-center">
                              <div class="flex items-center justify-center gap-2">
-                                <button onclick="window.location.href='{{ route('guru.mapel.ujian.detail', $ujian->id) }}'"
-                                        class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-xs font-bold flex items-center gap-2">
-                                    <i class="bi bi-eye-fill"></i> Pantau
-                                </button>
-                                <button onclick="openTimeModal({{ $ujian->id }}, '{{ str_replace("'", "\'", $ujian->nama_ujian) }}', '{{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i') }}')"
-                                        class="px-3 py-2 bg-white border border-emerald-200 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all text-xs font-bold flex items-center gap-2"
-                                        title="Tambah Waktu / Edit Durasi">
-                                    <i class="bi bi-clock-history"></i> Atur Waktu
-                                </button>
+                                 <button onclick="window.location.href='{{ route('guru.mapel.ujian.detail', $ujian->id) }}'"
+                                         class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-xs font-bold shadow-sm">
+                                     <i class="bi bi-eye-fill"></i> Pantau
+                                 </button>
+                                 <button onclick="openTimeModal({{ $ujian->id }}, '{{ str_replace("'", "\'", $ujian->nama_ujian) }}', '{{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i') }}')"
+                                         class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-emerald-200 text-emerald-600 rounded-xl hover:bg-emerald-50 transition-all text-xs font-bold shadow-sm"
+                                         title="Tambah Waktu / Edit Durasi">
+                                     <i class="bi bi-clock-history"></i> Atur Waktu
+                                 </button>
+                                 {{-- Tombol Selesaikan --}}
+                                <form id="form-finish-{{ $ujian->id }}" action="{{ route('guru.mapel.ujian.force_finish', $ujian->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('POST')
+                                    <button type="button" 
+                                            onclick="confirmForceFinish('{{ $ujian->id }}', '{{ $ujian->nama_ujian }}')" 
+                                            class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm text-xs font-bold" 
+                                            title="Selesaikan Paksa Sekarang">
+                                        <i class="bi bi-stop-circle-fill"></i>
+                                        <span>Selesaikan</span>
+                                    </button>
+                                </form>
                              </div>
                         </td>
                     </tr>
@@ -344,127 +358,138 @@
         </div>
     </div>
 
-    {{-- 6. TABEL RIWAYAT UJIAN (HISTORY) --}}
-    <div class="bg-white border border-gray-200 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden relative">
-        <div class="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
-                    <i class="bi bi-clock-history"></i>
+    {{-- 6. TABEL RIWAYAT UJIAN (HISTORY GROUPED BY YEAR) --}}
+    @if($historyUjian->count() > 0)
+        @foreach ($historyUjian as $tahun => $ujians)
+            @php 
+                $isCurrent = ($tahun == $currentTahunAjaran); 
+                $groupSafe = str_replace(['/', ' '], '_', $tahun);
+            @endphp
+            
+            <div class="mb-6 bg-white border border-gray-200 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden transition-all duration-300">
+                {{-- Unified Header Inside Card --}}
+                <div class="px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4 {{ $isCurrent ? 'border-b border-gray-100 bg-gray-50/30' : 'cursor-pointer hover:bg-gray-50/50' }}" 
+                     @if(!$isCurrent) onclick="toggleHistory('{{ $groupSafe }}')" @endif>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-gray-200 text-slate-500 flex items-center justify-center text-lg shadow-sm">
+                            <i class="bi bi-archive-fill"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-darkblue flex items-center gap-2">
+                                Riwayat Ujian T.A {{ $tahun }}
+                                @if($isCurrent)
+                                    <span class="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1 rounded-full font-bold uppercase tracking-widest">Tahun Ajaran Aktif</span>
+                                @endif
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-0.5 font-medium">Terdapat {{ $ujians->count() }} rekaman ujian yang telah selesai.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        @if(!$isCurrent)
+                            <button class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100 shadow-sm">
+                                <span id="text-{{ $groupSafe }}">Lihat Daftar Ujian</span> 
+                                <i class="bi bi-chevron-down transform transition-transform duration-300" id="icon-{{ $groupSafe }}"></i>
+                            </button>
+                        @endif
+                    </div>
                 </div>
-                <h3 class="text-base font-bold text-gray-800">Riwayat Ujian</h3>
+
+                {{-- Tabel Container Inside Card --}}
+                <div id="wrapper-{{ $groupSafe }}" 
+                     class="transition-all duration-300 {{ $isCurrent ? 'block' : 'hidden' }}">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-50/50">
+                                <tr>
+                                    <th class="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Nama Ujian</th>
+                                    <th class="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Jenis</th>
+                                    <th class="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Waktu Pelaksanaan</th>
+                                    <th class="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Durasi</th>
+                                    <th class="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach ($ujians as $ujian)
+                                <tr class="hover:bg-blue-50/20 transition-colors group">
+                                    <td class="px-6 py-5">
+                                        <span class="text-sm font-bold text-darkblue group-hover:text-blue-600 transition-colors">
+                                            {{ $ujian->nama_ujian }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        @php
+                                            $badgeColor = match($ujian->jenis_ujian) {
+                                                'Kuis' => 'bg-emerald-50 text-emerald-600 border-emerald-100',
+                                                'UTS' => 'bg-amber-50 text-amber-600 border-amber-100',
+                                                'UAS' => 'bg-red-50 text-red-600 border-red-100',
+                                                default => 'bg-gray-50 text-gray-600 border-gray-100',
+                                            };
+                                        @endphp
+                                        <span class="px-3 py-1.5 rounded-xl text-[10px] font-extrabold border {{ $badgeColor }} uppercase tracking-wider">
+                                            {{ $ujian->jenis_ujian }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-semibold text-gray-700">
+                                                {{ \Carbon\Carbon::parse($ujian->tanggal_ujian)->locale('id')->isoFormat('dddd, D MMMM Y') }}
+                                            </span>
+                                            <span class="text-[11px] text-gray-400 mt-1 flex items-center gap-1.5">
+                                                <i class="bi bi-clock text-blue-400"></i> 
+                                                <span class="font-bold text-gray-600">{{ \Carbon\Carbon::parse($ujian->waktu_mulai)->format('H:i') }}</span>
+                                                <span class="text-gray-300">-</span>
+                                                <span class="font-bold text-gray-600">{{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i') }}</span>
+                                                <span class="font-bold text-gray-400">WIB</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <span class="text-xs font-bold text-gray-600 bg-gray-100/80 px-2.5 py-1.5 rounded-lg border border-gray-200">
+                                            {{ $ujian->durasi_menit }} menit
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button onclick="window.location.href='{{ route('guru.mapel.ujian.detail', $ujian->id) }}'"
+                                                    class="p-2.5 bg-white border border-gray-200 text-gray-500 rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm group/btn">
+                                                <i class="bi bi-eye-fill"></i>
+                                            </button>
+                                            <button onclick="openDeleteModal({{ $ujian->id }}, '{{ str_replace("'", "\'", $ujian->nama_ujian) }}')"
+                                                    class="p-2.5 bg-red-50 border border-red-100 text-red-500 rounded-xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @else
+        {{-- Fallback jika total kosong --}}
+        <div class="bg-white border border-gray-200 rounded-2xl p-12 text-center mb-8">
+            <div class="flex flex-col items-center justify-center text-gray-400">
+                <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                    <i class="bi bi-clipboard-x text-2xl opacity-50"></i>
+                </div>
+                <span class="text-sm font-medium">Belum ada riwayat ujian yang dibuat.</span>
             </div>
         </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead class="bg-gray-50/50">
-                    <tr>
-                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">Nama Ujian</th>
-                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">Jenis</th>
-                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">Waktu Pelaksanaan</th>
-                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">Durasi</th>
-                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 text-center">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse ($historyUjian as $ujian)
-                    <tr class="hover:bg-blue-50/20 transition-colors group">
-                        
-                        {{-- Nama Ujian --}}
-                        <td class="px-6 py-4">
-                            <span class="text-sm font-bold text-darkblue group-hover:text-blue-600 transition-colors">
-                                {{ $ujian->nama_ujian }}
-                            </span>
-                        </td>
-
-                        {{-- Jenis Badge --}}
-                        <td class="px-6 py-4">
-                            @php
-                                $badgeColor = match($ujian->jenis_ujian) {
-                                    'Kuis' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                    'UTS' => 'bg-amber-100 text-amber-700 border-amber-200',
-                                    'UAS' => 'bg-red-100 text-red-700 border-red-200',
-                                    default => 'bg-gray-100 text-gray-700 border-gray-200',
-                                };
-                            @endphp
-                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold border {{ $badgeColor }}">
-                                {{ $ujian->jenis_ujian }}
-                            </span>
-                        </td>
-
-                        {{-- Waktu (BAHASA INDONESIA) --}}
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-gray-700">
-                                    {{ \Carbon\Carbon::parse($ujian->tanggal_ujian)->locale('id')->isoFormat('dddd, D MMMM Y') }}
-                                </span>
-                                <span class="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                    <i class="bi bi-clock"></i> 
-                                    <span class="font-mono font-bold text-blue-600">
-                                        {{ \Carbon\Carbon::parse($ujian->waktu_mulai)->format('H:i') }}
-                                    </span>
-                                    <span class="text-gray-400 mx-1">-</span>
-                                    <span class="font-mono font-bold text-gray-600">
-                                        {{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i') }}
-                                    </span>
-                                    WIB
-                                </span>
-                            </div>
-                        </td>
-
-                        {{-- Durasi --}}
-                        <td class="px-6 py-4">
-                            <span class="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                {{ $ujian->durasi_menit }} menit
-                            </span>
-                        </td>
-
-                        {{-- Aksi --}}
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="window.location.href='{{ route('guru.mapel.ujian.detail', $ujian->id) }}'"
-                                        class="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm text-xs font-bold flex items-center gap-2"
-                                        title="Lihat Detail">
-                                    <i class="bi bi-eye-fill"></i> Detail
-                                </button>
-
-                                {{-- Form Hapus Hidden --}}
-                                <form id="deleteForm-{{ $ujian->id }}"
-                                      action="{{ route('guru.mapel.ujian.destroy', $ujian->id) }}"
-                                      method="POST" style="display: none;">
-                                    @csrf
-                                    @method('DELETE')
-                                </form>
-
-                                {{-- Tombol Hapus --}}
-                                <button onclick="openDeleteModal({{ $ujian->id }}, '{{ str_replace("'", "\'", $ujian->nama_ujian) }}')"
-                                        class="px-3 py-2 bg-red-50 border border-red-100 text-red-600 rounded-lg hover:bg-red-100 hover:border-red-200 transition-all shadow-sm text-xs font-bold flex items-center gap-2"
-                                        title="Hapus Ujian">
-                                    <i class="bi bi-trash3-fill"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-12 text-center">
-                            <div class="flex flex-col items-center justify-center text-gray-400">
-                                <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                                    <i class="bi bi-clipboard-x text-2xl opacity-50"></i>
-                                </div>
-                                <span class="text-sm font-medium">Belum ada riwayat ujian yang dibuat.</span>
-                                <p class="text-xs mt-1">Klik "Buat Ujian Baru" untuk memulai.</p>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+    @endif
     
     {{-- Form Hapus (Hidden) dan Modal Hapus --}}
-    @foreach($upcomingUjian->merge($historyUjian)->merge($ongoingUjian) as $ujian)
+    @php
+        $allUjianForDelete = $upcomingUjian->merge($ongoingUjian);
+        foreach($historyUjian as $group) {
+            $allUjianForDelete = $allUjianForDelete->merge($group);
+        }
+    @endphp
+    @foreach($allUjianForDelete as $ujian)
     <form id="deleteForm-{{ $ujian->id }}"
           action="{{ route('guru.mapel.ujian.destroy', $ujian->id) }}"
           method="POST" style="display: none;">
@@ -473,39 +498,6 @@
     </form>
     @endforeach
 
-    {{-- Modal Hapus Code --}}
-    <div id="deleteModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onclick="closeDeleteModal()"></div>
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-gray-100">
-                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <i class="bi bi-trash3-fill text-red-600 text-lg"></i>
-                            </div>
-                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                                <h3 class="text-lg font-[Poppins-Bold] leading-6 text-gray-900">Hapus Ujian</h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500" id="deleteMessage">
-                                        Apakah Anda yakin? Data nilai siswa terkait ujian ini juga akan terhapus.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-2">
-                        <button type="button" id="confirmDeleteBtn" class="inline-flex w-full justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-500 sm:w-auto transition-colors">
-                            Ya, Hapus
-                        </button>
-                        <button type="button" onclick="closeDeleteModal()" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">
-                            Batal
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {{-- Modal Update Waktu --}}
     <div id="timeModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -559,30 +551,85 @@
             </div>
         </div>
     </div>
+    
+    {{-- =========================================================
+         3 MODAL CUSTOM UNIVERSAL (NOTIFIKASI, KONFIRMASI, LOADING)
+    ========================================================== --}}
+    
+    {{-- 1. Modal Notifikasi (Sukses, Error, Info) --}}
+    <div id="modal-notification" class="fixed inset-0 z-[110] hidden">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onclick="closeNotificationModal()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4 text-left">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 opacity-0 transition-all duration-300" id="notification-modal-content">
+                <div class="p-6 text-center">
+                    <div id="notif-icon-container" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px]">
+                        <i id="notif-icon" class="text-2xl"></i>
+                    </div>
+                    <h3 id="notif-title" class="text-xl font-[Poppins-Bold] text-gray-800 mb-2">Title</h3>
+                    <p id="notif-message" class="text-sm text-gray-500 mb-6 font-medium">Message here.</p>
+                    <button type="button" id="notif-btn" onclick="closeNotificationModal()" class="px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg transition-all w-full flex items-center justify-center gap-2">
+                        Mengerti
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {{-- 2. Modal Konfirmasi (Restart, Hapus, dll) --}}
+    <div id="modal-custom-confirm" class="fixed inset-0 z-[105] hidden">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onclick="closeConfirmModal()"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4 text-left">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 opacity-0 transition-all duration-300" id="confirm-modal-content">
+                <div class="p-6 text-center">
+                    <div class="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4 border-[6px] border-orange-100">
+                        <i class="bi bi-question-circle-fill text-2xl text-orange-500"></i>
+                    </div>
+                    <h3 id="confirm-title" class="text-xl font-[Poppins-Bold] text-gray-800 mb-2">Konfirmasi</h3>
+                    <p id="confirm-message" class="text-sm text-gray-500 mb-6 font-medium">Apakah Anda yakin?</p>
+                    <div class="flex gap-3 justify-center">
+                        <button type="button" onclick="closeConfirmModal()" class="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors w-full">
+                            Batal
+                        </button>
+                        <button type="button" id="confirm-action-btn" class="px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg transition-all w-full flex items-center justify-center gap-2">
+                            Ya, Lanjutkan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {{-- 3. Modal Loading --}}
+    <div id="modal-loading" class="fixed inset-0 z-[120] hidden">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center transform scale-95 opacity-0 transition-all duration-300" id="loading-modal-content">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mb-4"></div>
+                <h3 class="text-lg font-bold text-gray-800">Memproses...</h3>
+                <p class="text-sm text-gray-500 mt-1 text-center font-medium">Mohon tunggu sebentar, sistem sedang memproses permintaan Anda.</p>
+            </div>
+        </div>
+    </div>
 
 @endsection
 
 @section('scripts')
 <script>
     // --- MODAL DELETE SCRIPT ---
-    let deleteId = null;
-
     function openDeleteModal(id, nama) {
-        deleteId = id;
-        document.getElementById("deleteMessage").innerHTML = `Apakah Anda yakin ingin menghapus ujian <b>"${nama}"</b>?<br><span class="text-xs text-red-500 mt-1 block">Tindakan ini tidak dapat dibatalkan.</span>`;
-        document.getElementById("deleteModal").classList.remove('hidden');
+        showConfirmModal(
+            'Hapus Ujian?',
+            'Apakah Anda yakin ingin menghapus "' + nama + '"? Seluruh data nilai siswa terkait ujian ini akan dihapus secara permanen dan tidak dapat dikembalikan.',
+            function() {
+                const form = document.getElementById(`deleteForm-${id}`);
+                showLoadingModal();
+                form.submit();
+            },
+            'Ya, Hapus Permanen',
+            'bg-red-600',
+            'hover:bg-red-700'
+        );
     }
-
-    function closeDeleteModal() {
-        document.getElementById("deleteModal").classList.add('hidden');
-        deleteId = null;
-    }
-
-    document.getElementById("confirmDeleteBtn").addEventListener("click", function() {
-        if (deleteId) {
-            document.getElementById(`deleteForm-${deleteId}`).submit();
-        }
-    });
 
     // --- MODAL TIME SCRIPT ---
     function openTimeModal(id, nama, selesai) {
@@ -606,6 +653,44 @@
         const input = document.getElementById("timeInput");
         let val = parseInt(input.value) || 0;
         input.value = val + min;
+    }
+
+    // --- TOGGLE HISTORY SCRIPT ---
+    function toggleHistory(tahunSafe) {
+        const wrapper = document.getElementById(`wrapper-${tahunSafe}`);
+        const text = document.getElementById(`text-${tahunSafe}`);
+        const icon = document.getElementById(`icon-${tahunSafe}`);
+
+        if (wrapper.classList.contains('hidden')) {
+            // Open
+            wrapper.classList.remove('hidden');
+            setTimeout(() => wrapper.classList.remove('opacity-0', 'opacity-100'), 10);
+            text.innerText = 'Tutup Daftar';
+            icon.classList.add('rotate-180');
+        } else {
+            // Close
+            wrapper.classList.add('opacity-0');
+            setTimeout(() => wrapper.classList.add('hidden'), 300);
+            text.innerText = 'Lihat Ujian Tahun Ini';
+            icon.classList.remove('rotate-180');
+        }
+    }
+
+    // --- FORCE FINISH SCRIPT ---
+    function confirmForceFinish(ujianId, namaUjian) {
+        showConfirmModal(
+            'Selesaikan Ujian Paksa?',
+            'Anda yakin ingin mengakhiri ujian "' + namaUjian + '" sekarang? Waktu akan langsung dihentikan dan siswa tidak dapat lagi mengirim jawaban.',
+            function() {
+                // Submit form spesifik berdasarkan ID
+                const form = document.getElementById('form-finish-' + ujianId);
+                showLoadingModal(); // Tampilkan animasi loading
+                form.submit();
+            },
+            'Ya, Selesaikan Sekarang',
+            'bg-red-600',
+            'hover:bg-red-700'
+        );
     }
 
     // Auto Close Alerts
@@ -659,10 +744,102 @@
             setInterval(updateTimers, 1000);
             updateTimers(); // Jalankan langsung
         }
-        
-        // Auto Close Alert
-        const alert = document.getElementById('alert-success');
-        if(alert) setTimeout(() => alert.style.display = 'none', 4000);
     });
+
+    // =========================================================================
+    // FUNGSI PENGENDALI MODAL CUSTOM UNIVERSAL
+    // =========================================================================
+    function showNotificationModal(title, message, type = 'error', callback = null) {
+        const modal = document.getElementById('modal-notification');
+        const content = document.getElementById('notification-modal-content');
+        const iconContainer = document.getElementById('notif-icon-container');
+        const icon = document.getElementById('notif-icon');
+        const btn = document.getElementById('notif-btn');
+        
+        document.getElementById('notif-title').innerText = title;
+        document.getElementById('notif-message').innerText = message;
+
+        iconContainer.className = 'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px]';
+        icon.className = 'text-2xl';
+        btn.className = 'px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg transition-all w-full flex items-center justify-center gap-2';
+
+        if (type === 'error') {
+            iconContainer.classList.add('bg-red-50', 'border-red-100');
+            icon.classList.add('bi', 'bi-exclamation-circle-fill', 'text-red-500');
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-200');
+        } else if (type === 'success') {
+            iconContainer.classList.add('bg-green-50', 'border-green-100');
+            icon.classList.add('bi', 'bi-check-circle-fill', 'text-green-500');
+            btn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-green-200');
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+
+        btn.onclick = () => {
+            closeNotificationModal();
+            if (callback) setTimeout(callback, 300);
+        };
+    }
+
+    function closeNotificationModal() {
+        const modal = document.getElementById('modal-notification');
+        const content = document.getElementById('notification-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function showConfirmModal(title, message, onConfirm, confirmText = 'Ya', confirmBg = 'bg-blue-600', confirmHover = 'hover:bg-blue-700') {
+        const modal = document.getElementById('modal-custom-confirm');
+        const content = document.getElementById('confirm-modal-content');
+        const btn = document.getElementById('confirm-action-btn');
+
+        document.getElementById('confirm-title').innerText = title;
+        document.getElementById('confirm-message').innerText = message;
+        btn.innerText = confirmText;
+        btn.className = `px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg transition-all w-full flex items-center justify-center gap-2 ${confirmBg} ${confirmHover}`;
+
+        btn.onclick = () => {
+            closeConfirmModal();
+            if (onConfirm) onConfirm();
+        };
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('modal-custom-confirm');
+        const content = document.getElementById('confirm-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function showLoadingModal() {
+        const modal = document.getElementById('modal-loading');
+        const content = document.getElementById('loading-modal-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function hideLoadingModal() {
+        const modal = document.getElementById('modal-loading');
+        const content = document.getElementById('loading-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
 </script>
+
 @endsection

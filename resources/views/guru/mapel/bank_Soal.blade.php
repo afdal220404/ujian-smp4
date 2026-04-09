@@ -11,9 +11,8 @@
         </a>
     </div>
 
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Menu Mapel</div>
     
-    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link active">
+    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.dashboard') ? 'active' : '' }}">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
     <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link">

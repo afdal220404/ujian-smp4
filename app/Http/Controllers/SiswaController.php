@@ -21,14 +21,14 @@ class SiswaController extends Controller
 
     public function create()
     {
-        $kelasList = Kelas::all();
+        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.tambah_siswa', compact('kelasList'));
     }
 
     public function edit($id)
     {
         $siswa = Siswa::findOrFail($id);
-        $kelasList = Kelas::all();
+        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.tambah_siswa', compact('siswa', 'kelasList'));
     }
 
@@ -36,16 +36,17 @@ class SiswaController extends Controller
     {
         $rules = [
             'nama_lengkap' => 'required|string|max:255',
-            'nisn' => 'required|string|unique:siswas,nisn',
+            'nisn' => 'required|numeric|digits_between:10,20|unique:siswas,nisn',
             'kelas_id' => 'required|exists:kelas,id',
             'username' => 'required|string|unique:siswas,username',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
         ];
 
-        // ✅ PESAN ERROR KUSTOM DIKEMBALIKAN
         $messages = [
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
             'nisn.required' => 'NISN wajib diisi.',
+            'nisn.numeric' => 'NISN wajib berupa angka.',
+            'nisn.digits_between' => 'NISN minimal harus 10 karakter.',
             'nisn.unique' => 'NISN ini sudah terdaftar. Gunakan NISN yang lain.',
             'kelas_id.required' => 'Kelas wajib dipilih.',
             'kelas_id.exists' => 'Kelas yang dipilih tidak valid.',
@@ -53,6 +54,7 @@ class SiswaController extends Controller
             'username.unique' => 'Username ini sudah digunakan. Pilih username lain.',
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal harus 6 karakter.',
+            'password.regex' => 'Password harus mengandung kombinasi huruf dan angka.',
         ];
 
         $validatedData = $request->validate($rules, $messages);
@@ -79,21 +81,24 @@ class SiswaController extends Controller
 
         $rules = [
             'nama_lengkap' => 'required|string|max:255',
-            'nisn' => 'required|string|unique:siswas,nisn,' . $siswa->id,
+            'nisn' => 'required|numeric|digits_between:10,20|unique:siswas,nisn,' . $siswa->id,
             'kelas_id' => 'required|exists:kelas,id',
             'username' => 'required|string|unique:siswas,username,' . $siswa->id,
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
         ];
 
         // ✅ PESAN ERROR KUSTOM DIKEMBALIKAN
         $messages = [
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
             'nisn.required' => 'NISN wajib diisi.',
+            'nisn.numeric' => 'NISN wajib berupa angka.',
+            'nisn.digits_between' => 'NISN minimal harus 10 karakter.',
             'nisn.unique' => 'NISN ini sudah terdaftar. Gunakan NISN yang lain.',
             'kelas_id.required' => 'Kelas wajib dipilih.',
             'username.required' => 'Username wajib diisi.',
             'username.unique' => 'Username ini sudah digunakan. Pilih username lain.',
             'password.min' => 'Password minimal harus 6 karakter.',
+            'password.regex' => 'Password baru harus mengandung kombinasi huruf dan angka.',
         ];
         
         $validatedData = $request->validate($rules, $messages);
@@ -153,7 +158,7 @@ class SiswaController extends Controller
 
     public function indexKenaikan()
     {
-        $kelasList = Kelas::orderBy('kelas')->get();
+        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.kenaikan_kelas', compact('kelasList'));
     }
 
@@ -172,13 +177,15 @@ class SiswaController extends Controller
 
         try {
             if ($tujuan === 'LULUS') {
-                // Update status siswa menjadi Lulus (non-aktif) & hapus kelasnya
-                // Pastikan Anda punya kolom 'status' di tabel siswas, atau pindahkan ke tabel alumni
+                // Update status siswa menjadi Lulus (masuk kelas Alumni)
+                // Menggunakan kelas_id = 4 khusus untuk Alumni
+                // Sekaligus hapus username & password agar siswa tidak bisa login lagi
                 Siswa::whereIn('id', $ids)->update([
-                    'kelas_id' => null, 
-                    // 'status' => 'Lulus' // Jika ada kolom status
+                    'kelas_id' => 4,
+                    'username'  => null,
+                    'password'  => null,
                 ]);
-                $pesan = count($ids) . " Siswa berhasil diluluskan!";
+                $pesan = count($ids) . " Siswa berhasil diluluskan (dipindah ke kelas Alumni)!";
             } else {
                 // Update kelas_id ke kelas baru
                 Siswa::whereIn('id', $ids)->update([
@@ -260,5 +267,133 @@ class SiswaController extends Controller
         };
 
         return Excel::download(new TemplateSiswaExport, 'template_siswa.xlsx');
+    }
+
+    public function indexAlumni(Request $request)
+    {
+        $alumniKelas = Kelas::where('kelas', 'Alumni')->first();
+        $alumniId = $alumniKelas ? $alumniKelas->id : -1;
+
+        $query = Siswa::with(['hasilUjians.ujian'])->where(function($q) use ($alumniId) {
+            $q->where('kelas_id', $alumniId)
+              ->orWhereNull('kelas_id');
+        });
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_lengkap', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%");
+            });
+        }
+
+        $siswas = $query->orderBy('nama_lengkap', 'asc')->get();
+
+        return view('operator.daftar_alumni', compact('siswas'));
+    }
+
+    public function detailAlumni($id)
+    {
+        $siswa = Siswa::with('kelas')->findOrFail($id);
+
+        $availableKelasIds = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                                ->whereNotNull('kelas_id')
+                                ->distinct()
+                                ->pluck('kelas_id')
+                                ->toArray();
+        
+        if ($siswa->kelas_id && !in_array($siswa->kelas_id, $availableKelasIds)) {
+            $availableKelasIds[] = $siswa->kelas_id;
+        }
+
+        $allTranskrips = [];
+        $kelasToProcess = [1, 2, 3]; // Kelas SMP VII, VIII, IX
+
+        foreach($kelasToProcess as $kId) {
+            // Hanya proses jika siswa pernah di kelas ini
+            if (!in_array($kId, $availableKelasIds)) {
+                continue;
+            }
+
+            $kelas = \App\Models\Kelas::find($kId);
+            if (!$kelas) continue;
+
+            $mapelKelas = \App\Models\Mapel::where('kelas_id', $kId)->with('guru')->get();
+
+            $maxKuis = 0; $maxUts = 0; $maxUas = 0;
+
+            $transkrip = $mapelKelas->map(function ($mapel) use ($siswa, $kId, &$maxKuis, &$maxUts, &$maxUas) {
+                
+                // A. AMBIL MASTER
+                $masterKuis = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'Kuis')->orderBy('created_at', 'asc')->get();
+                $masterUts = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'UTS')->orderBy('created_at', 'asc')->get();
+                $masterUas = \App\Models\Ujian::where('mapel_id', $mapel->id)->where('jenis_ujian', 'UAS')->orderBy('created_at', 'asc')->get();
+
+                // B. AMBIL HASIL UJIAN SISWA
+                $hasilSiswa = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                                ->where('kelas_id', $kId)
+                                ->whereHas('ujian', function($q) use ($mapel) {
+                                    $q->where('mapel_id', $mapel->id);
+                                })
+                                ->with('ujian')
+                                ->get();
+
+                $listKuis = [];
+                foreach ($masterKuis as $ujian) {
+                    $score = $hasilSiswa->firstWhere('ujian_id', $ujian->id);
+                    $listKuis[] = $score ? $score->nilai : '-';
+                }
+
+                $listUts = [];
+                foreach ($masterUts as $ujian) {
+                    $score = $hasilSiswa->firstWhere('ujian_id', $ujian->id);
+                    $listUts[] = $score ? $score->nilai : '-';
+                }
+
+                $listUas = [];
+                foreach ($masterUas as $ujian) {
+                    $score = $hasilSiswa->firstWhere('ujian_id', $ujian->id);
+                    $listUas[] = $score ? $score->nilai : '-';
+                }
+
+                if (count($masterKuis) > $maxKuis) $maxKuis = count($masterKuis);
+                if (count($masterUts) > $maxUts) $maxUts = count($masterUts);
+                if (count($masterUas) > $maxUas) $maxUas = count($masterUas);
+
+                $validKuis = array_filter($listKuis, fn($v) => is_numeric($v));
+                $rataKuis = count($validKuis) > 0 ? array_sum($validKuis) / count($validKuis) : null;
+
+                $validUts = array_filter($listUts, fn($v) => is_numeric($v));
+                $rataUts = count($validUts) > 0 ? array_sum($validUts) / count($validUts) : null;
+
+                $validUas = array_filter($listUas, fn($v) => is_numeric($v));
+                $rataUas = count($validUas) > 0 ? array_sum($validUas) / count($validUas) : null;
+
+                $komponen = array_filter([$rataKuis, $rataUts, $rataUas], fn($v) => $v !== null);
+                $nilaiAkhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+
+                return [
+                    'mapel'      => $mapel,
+                    'detailKuis' => $listKuis,
+                    'detailUts'  => $listUts,
+                    'detailUas'  => $listUas,
+                    'nilaiAkhir' => $nilaiAkhir
+                ];
+            });
+
+            if ($maxKuis == 0) $maxKuis = 1;
+            if ($maxUts == 0) $maxUts = 1;
+            if ($maxUas == 0) $maxUas = 1;
+
+            $allTranskrips[] = [
+                'kelas' => $kelas,
+                'transkrip' => $transkrip,
+                'maxKuis' => $maxKuis,
+                'maxUts' => $maxUts,
+                'maxUas' => $maxUas
+            ];
+        }
+
+        return view('operator.detail_alumni', compact('siswa', 'allTranskrips'));
     }
 }

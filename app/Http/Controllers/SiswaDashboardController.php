@@ -15,11 +15,81 @@ class SiswaDashboardController extends Controller
     {
         $siswa = Auth::guard('siswa')->user()->load('kelas');
         
-        // Hitung Statistik Nilai
-        $nilaiSemua = \App\Models\HasilUjian::where('siswa_id', $siswa->id)->get();
-        $rataRata = $nilaiSemua->avg('nilai');
+        // Hitung Statistik Nilai (filter ke kelas aktif saja)
+        $mapelIdsKelas = Mapel::where('kelas_id', $siswa->kelas_id)->pluck('id');
+        $nilaiSemua = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+            ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
+                $q->whereIn('mapel_id', $mapelIdsKelas);
+            })->get();
         $totalUjian = $nilaiSemua->count();
+        
+        // Kalkulasi Rata-Rata (Konsisten dengan halaman Nilai)
+        $mapels = Mapel::where('kelas_id', $siswa->kelas_id)->get();
+        $totalNilaiGlobal = 0;
+        $countMapelGlobal = 0;
+
+        foreach($mapels as $mapel) {
+            $ujian_selesai = Ujian::where('mapel_id', $mapel->id)
+                ->whereHas('hasilUjians', function($q) use ($siswa) {
+                    $q->where('siswa_id', $siswa->id);
+                })
+                ->with(['hasilUjians' => function($q) use ($siswa) {
+                    $q->where('siswa_id', $siswa->id);
+                }])
+                ->get();
+                
+            $kuisColl = collect();
+            $utsColl = collect();
+            $uasColl = collect();
+            
+            foreach($ujian_selesai as $ujian) {
+                 $hasil = $ujian->hasilUjians->first();
+                 if($hasil) {
+                     if (stripos($ujian->jenis_ujian ?? '', 'Kuis') !== false) {
+                         $kuisColl->push($hasil->nilai);
+                     } elseif (stripos($ujian->jenis_ujian ?? '', 'UTS') !== false) {
+                         $utsColl->push($hasil->nilai);
+                     } elseif (stripos($ujian->jenis_ujian ?? '', 'UAS') !== false) {
+                         $uasColl->push($hasil->nilai);
+                     }
+                 }
+            }
+            
+            $kuis = $kuisColl->isNotEmpty() ? $kuisColl->avg() : null;
+            $uts = $utsColl->isNotEmpty() ? $utsColl->avg() : null;
+            $uas = $uasColl->isNotEmpty() ? $uasColl->avg() : null;
+            
+            $komponen = array_filter([$kuis, $uts, $uas], fn($v) => $v !== null);
+            $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+            
+            if ($akhir !== null) {
+                $totalNilaiGlobal += $akhir;
+                $countMapelGlobal++;
+            }
+        }
+        
+        $rataRata = $countMapelGlobal > 0 ? ($totalNilaiGlobal / $countMapelGlobal) : 0;
+
+        // Kalkulasi Rata-Rata Kuis saja (untuk ditampilkan di dashboard)
+        $totalKuisGlobal = 0;
+        $countKuisMapel = 0;
+        foreach($mapels as $mapel) {
+            $kuisNilais = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                ->whereHas('ujian', function($q) use ($mapel) {
+                    $q->where('mapel_id', $mapel->id)
+                      ->where(function($q2) { $q2->whereRaw("LOWER(jenis_ujian) LIKE '%kuis%'"); });
+                })->pluck('nilai');
+            if ($kuisNilais->isNotEmpty()) {
+                $totalKuisGlobal += $kuisNilais->avg();
+                $countKuisMapel++;
+            }
+        }
+        $rataRataKuis = $countKuisMapel > 0 ? ($totalKuisGlobal / $countKuisMapel) : 0;
+
         $ujianTerakhir = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                            ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
+                                $q->whereIn('mapel_id', $mapelIdsKelas);
+                            })
                             ->latest()
                             ->with('ujian')
                             ->first();
@@ -32,55 +102,44 @@ class SiswaDashboardController extends Controller
             ->whereDoesntHave('hasilUjians', function($q) use ($siswa) {
                 $q->where('siswa_id', $siswa->id);
             })
+            ->where(function($q) use ($siswa) {
+                $q->where('is_susulan', false)
+                  ->orWhereNull('is_susulan')
+                  ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
+                  ->orWhereJsonContains('peserta_susulan', $siswa->id);
+            })
             ->with(['mapel.guru']) // Fix: mapel.guru
             ->get();
 
         // 2. Akan Datang (Waktu mulai > sekarang)
         $akanDatang = Ujian::whereIn('mapel_id', $siswa->kelas->mapels->pluck('id')) // Fix: whereIn
             ->where('waktu_mulai', '>', now())
+            ->where(function($q) use ($siswa) {
+                $q->where('is_susulan', false)
+                  ->orWhereNull('is_susulan')
+                  ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
+                  ->orWhereJsonContains('peserta_susulan', $siswa->id);
+            })
             ->with(['mapel.guru']) // Fix: mapel.guru
             ->get();
 
-        // 3. Telah Berlalu (Waktu selesai < sekarang ATAU sudah dikerjakan)
+        // 3. Telah Berlalu — hanya ujian dari kelas aktif
         $telahBerlalu = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
-                            ->with(['ujian.mapel.guru']) // Fix: chain eager load
+                            ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
+                                $q->whereIn('mapel_id', $mapelIdsKelas);
+                            })
+                            ->with(['ujian.mapel.guru'])
                             ->latest()
                             ->get();
 
-        return view('siswa.dashboard', compact('siswa', 'rataRata', 'totalUjian', 'ujianTerakhir', 
+        return view('siswa.dashboard', compact('siswa', 'rataRata', 'rataRataKuis', 'totalUjian', 'ujianTerakhir', 
             'sedangBerlangsung', 'akanDatang', 'telahBerlalu'));
     }
 
     public function indexNilai(Request $request)
     {
-        $siswa = Auth::guard('siswa')->user();
+        $siswa = Auth::guard('siswa')->user()->load('kelas');
         $keyword = $request->input('search');
-        
-        // 1. Hitung Rata-Rata Keseluruhan (Global Stats)
-        // Revisi: Gunakan basis UJIAN yang unik, bukan HasilUjian (untuk menghindari duplikasi nilai jika ada remedial/multiple attempt yang belum dihandle)
-        // Ini memastikan konsistensi dengan tampilan per-mapel yang meloop Ujian.
-        $allUjianFinished = Ujian::whereHas('hasilUjians', function($q) use ($siswa) {
-                                $q->where('siswa_id', $siswa->id);
-                            })
-                            ->with(['hasilUjians' => function($q) use ($siswa) {
-                                $q->where('siswa_id', $siswa->id);
-                            }])
-                            ->get();
-
-        $totalNilaiGlobal = 0;
-        $countUjianGlobal = 0;
-
-        foreach($allUjianFinished as $ujian) {
-            // Gunakan logika yang sama dengan per-mapel: ambil satu nilai representatif per ujian
-            // Kita ambil yang pertama (default) atau bisa dimodifikasi ambil max()
-            $hasil = $ujian->hasilUjians->first(); 
-            if($hasil) {
-                $totalNilaiGlobal += $hasil->nilai;
-                $countUjianGlobal++;
-            }
-        }
-
-        $rataRataKeseluruhan = $countUjianGlobal > 0 ? ($totalNilaiGlobal / $countUjianGlobal) : 0;
         
         // 2. Query Mapel dengan Pencarian
         $mapelQuery = Mapel::where('kelas_id', $siswa->kelas_id)->with('guru');
@@ -96,11 +155,16 @@ class SiswaDashboardController extends Controller
 
         $mapels = $mapelQuery->get();
 
-        // 3. Load Ujian & Hitung Rata-Rata Per Mapel
+        // Seluruh mapel kelas (tanpa filter pencarian) — dipakai oleh mode tabel
+        $allMapels = Mapel::where('kelas_id', $siswa->kelas_id)->with('guru')->get();
+        
+        $totalNilaiGlobal = 0;
+        $countMapelGlobal = 0;
+
+        // Helper: load ujian_selesai dan hitung rata-rata per mapel
+        // 3. Load Ujian & Hitung Rata-Rata Per Mapel (untuk $mapels — terfilter pencarian)
         foreach($mapels as $mapel) {
             // Load ujian yang sudah selesai dikerjakan siswa
-            // Kita load SEMUA ujian selesai untuk mapel ini agar rata-rata mapel AKURAT
-            // (Meskipun valid jika kita mau filter ujian yang tampil nanti di view, tapi datanya harus ada)
             $mapel->ujian_selesai = Ujian::where('mapel_id', $mapel->id)
                 ->whereHas('hasilUjians', function($q) use ($siswa) {
                     $q->where('siswa_id', $siswa->id);
@@ -111,22 +175,132 @@ class SiswaDashboardController extends Controller
                 ->latest() // Urutkan terbaru
                 ->get();
                 
-            // Hitung Rata-Rata Mapel
-            $totalNilaiMapel = 0;
-            $countUjianMapel = 0;
+            $kuisColl = collect();
+            $utsColl = collect();
+            $uasColl = collect();
             
             foreach($mapel->ujian_selesai as $ujian) {
                  $hasil = $ujian->hasilUjians->first();
                  if($hasil) {
-                     $totalNilaiMapel += $hasil->nilai;
-                     $countUjianMapel++;
+                     if (stripos($ujian->jenis_ujian ?? '', 'Kuis') !== false) {
+                         $kuisColl->push($hasil->nilai);
+                     } elseif (stripos($ujian->jenis_ujian ?? '', 'UTS') !== false) {
+                         $utsColl->push($hasil->nilai);
+                     } elseif (stripos($ujian->jenis_ujian ?? '', 'UAS') !== false) {
+                         $uasColl->push($hasil->nilai);
+                     }
                  }
             }
             
-            $mapel->rata_rata = $countUjianMapel > 0 ? ($totalNilaiMapel / $countUjianMapel) : 0;
+            $kuis = $kuisColl->isNotEmpty() ? $kuisColl->avg() : null;
+            $uts = $utsColl->isNotEmpty() ? $utsColl->avg() : null;
+            $uas = $uasColl->isNotEmpty() ? $uasColl->avg() : null;
+            
+            $komponen = array_filter([$kuis, $uts, $uas], fn($v) => $v !== null);
+            $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+            
+            $mapel->rata_rata = $akhir ?? 0;
+            
+            if ($akhir !== null) {
+                $totalNilaiGlobal += $akhir;
+                $countMapelGlobal++;
+            }
+        }
+        
+        $rataRataKeseluruhan = $countMapelGlobal > 0 ? ($totalNilaiGlobal / $countMapelGlobal) : 0;
+
+        // Load ujian_selesai & rata_rata juga untuk $allMapels (semua mapel, tanpa filter)
+        foreach ($allMapels as $mp) {
+            if ($mapels->contains('id', $mp->id)) {
+                // Sudah dihitung di atas, salin reference-nya
+                $existing = $mapels->find($mp->id);
+                $mp->ujian_selesai = $existing->ujian_selesai ?? collect();
+                $mp->rata_rata     = $existing->rata_rata ?? 0;
+            } else {
+                // Mapel tidak termasuk dalam hasil pencarian — hitung sendiri
+                $ujianSelesai = Ujian::where('mapel_id', $mp->id)
+                    ->whereHas('hasilUjians', fn($q) => $q->where('siswa_id', $siswa->id))
+                    ->with(['hasilUjians' => fn($q) => $q->where('siswa_id', $siswa->id)])
+                    ->latest()->get();
+                $kC = collect(); $uC = collect(); $aC = collect();
+                foreach ($ujianSelesai as $uj) {
+                    $h = $uj->hasilUjians->first();
+                    if ($h) {
+                        if (stripos($uj->jenis_ujian ?? '', 'Kuis') !== false) $kC->push($h->nilai);
+                        elseif (stripos($uj->jenis_ujian ?? '', 'UTS') !== false) $uC->push($h->nilai);
+                        elseif (stripos($uj->jenis_ujian ?? '', 'UAS') !== false) $aC->push($h->nilai);
+                    }
+                }
+                $komp = array_filter([$kC->avg() ?: null, $uC->avg() ?: null, $aC->avg() ?: null], fn($v) => $v !== null);
+                $mp->ujian_selesai = $ujianSelesai;
+                $mp->rata_rata     = count($komp) > 0 ? array_sum($komp) / count($komp) : 0;
+            }
         }
 
-        return view('siswa.nilai', compact('siswa', 'mapels', 'rataRataKeseluruhan', 'keyword'));
+        // --- Semua Tingkat Kelas (VII, VIII, IX) ---
+        // $siswa->kelas adalah relasi ke model Kelas
+        // Kolom tingkat di tabel kelas bernama 'kelas' (VII/VIII/IX)
+        $tingkatList = ['VII', 'VIII', 'IX'];
+        $kelasAktif  = $siswa->kelas->kelas ?? null; // e.g. 'VIII'
+
+        $riwayatKelas = collect();
+        foreach ($tingkatList as $tingkat) {
+            // Skip tingkat yang sama dengan kelas aktif siswa
+            if ($tingkat === $kelasAktif) continue;
+
+            // Ambil semua kelas rows untuk tingkat ini (e.g. semua kelas IX: 9A, 9B, ...)
+            $kelasIds = \App\Models\Kelas::where('kelas', $tingkat)->pluck('id');
+
+            // Ambil mapels yang kelas_id-nya termasuk tingkat ini
+            $mapelsTingkat = Mapel::whereIn('kelas_id', $kelasIds)->with('guru')->get();
+
+            $totalKelas = 0;
+            $countKelas = 0;
+
+            foreach ($mapelsTingkat as $mapel) {
+                $ujianSelesai = Ujian::where('mapel_id', $mapel->id)
+                    ->whereHas('hasilUjians', function($q) use ($siswa) {
+                        $q->where('siswa_id', $siswa->id);
+                    })
+                    ->with(['hasilUjians' => function($q) use ($siswa) {
+                        $q->where('siswa_id', $siswa->id);
+                    }])
+                    ->get();
+
+                $kuisColl = collect(); $utsColl = collect(); $uasColl = collect();
+                foreach ($ujianSelesai as $ujian) {
+                    $hasil = $ujian->hasilUjians->first();
+                    if ($hasil) {
+                        if (stripos($ujian->jenis_ujian ?? '', 'Kuis') !== false) $kuisColl->push($hasil->nilai);
+                        elseif (stripos($ujian->jenis_ujian ?? '', 'UTS') !== false) $utsColl->push($hasil->nilai);
+                        elseif (stripos($ujian->jenis_ujian ?? '', 'UAS') !== false) $uasColl->push($hasil->nilai);
+                    }
+                }
+                $k = $kuisColl->isNotEmpty() ? $kuisColl->avg() : null;
+                $u = $utsColl->isNotEmpty() ? $utsColl->avg() : null;
+                $a = $uasColl->isNotEmpty() ? $uasColl->avg() : null;
+                $komponen = array_filter([$k, $u, $a], fn($v) => $v !== null);
+                $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
+
+                $mapel->rata_rata     = $akhir ?? 0;
+                $mapel->ujian_selesai = $ujianSelesai;
+                if ($akhir !== null) { $totalKelas += $akhir; $countKelas++; }
+            }
+
+            $riwayatKelas->push([
+                'tingkat'    => $tingkat,
+                'kelas'      => (object)['nama_kelas' => 'Kelas ' . $tingkat],
+                'mapels'     => $mapelsTingkat,
+                'rata_rata'  => $countKelas > 0 ? ($totalKelas / $countKelas) : 0,
+                'ada_nilai'  => $countKelas > 0,
+                'is_current' => false,
+            ]);
+        }
+
+        // Nama kelas aktif untuk label tab (e.g. "Kelas VIII")
+        $namaKelasAktif = $kelasAktif ? 'Kelas ' . $kelasAktif : 'Kelas Aktif';
+
+        return view('siswa.nilai', compact('siswa', 'mapels', 'allMapels', 'rataRataKeseluruhan', 'keyword', 'riwayatKelas', 'namaKelasAktif', 'kelasAktif'));
     }
 
     public function showUjian($id)
@@ -164,8 +338,8 @@ class SiswaDashboardController extends Controller
                                 ->get()
                                 ->keyBy('soal_id');
 
-        // 3. Ambil Soal
-        $semuaSoal = $ujian->soals()->get();
+        // 3. Ambil Soal (dengan eager load bankSoal)
+        $semuaSoal = $ujian->soals()->with('bankSoal')->get();
         $jumlahBenar = 0;
         $jumlahSalah = 0;
         $daftarSoal = [];
@@ -210,8 +384,8 @@ class SiswaDashboardController extends Controller
         // Ambil ID Mapel yang ada di kelas siswa (untuk security scope request)
         $mapelIds = $mapels->pluck('id');
 
-        // Query Bank Soal
-        $query = \App\Models\BankSoal::whereIn('mapel_id', $mapelIds)
+        // Query Arsip Soal Siswa
+        $query = \App\Models\ArsipSoalSiswa::whereIn('mapel_id', $mapelIds)
                     ->where('visibilitas', 'Public') // Hanya tampilkan yang Public
                     ->with(['mapel', 'guru']);
 
@@ -223,9 +397,9 @@ class SiswaDashboardController extends Controller
             $query->where('mapel_id', $selectedMapelId);
         }
 
-        $bankSoals = $query->latest()->get();
+        $arsipSoalSiswas = $query->latest()->get();
 
-        return view('siswa.bank_soal', compact('siswa', 'bankSoals', 'keyword', 'mapels', 'selectedMapelId'));
+        return view('siswa.bank_soal', compact('siswa', 'arsipSoalSiswas', 'keyword', 'mapels', 'selectedMapelId'));
     }
 
     // --- FITUR PENGERJAAN UJIAN ---
@@ -234,6 +408,14 @@ class SiswaDashboardController extends Controller
     {
         $siswa = Auth::guard('siswa')->user();
         $ujian = Ujian::with(['mapel.guru', 'soals'])->findOrFail($id);
+
+        // Cek Akses Ujian Susulan
+        if ($ujian->is_susulan) {
+            $peserta = $ujian->peserta_susulan ?? [];
+            if (!in_array($siswa->id, $peserta) && !in_array((string)$siswa->id, $peserta)) {
+                return redirect()->route('siswa.dashboard')->with('error', 'Anda tidak terdaftar untuk ujian susulan ini.');
+            }
+        }
 
         // Cek apakah siswa sudah mengerjakan?
         $sudahMengerjakan = \App\Models\HasilUjian::where('ujian_id', $id)
@@ -260,7 +442,15 @@ class SiswaDashboardController extends Controller
     public function mulaiUjian($id)
     {
         $siswa = Auth::guard('siswa')->user();
-        $ujian = Ujian::with('soals')->findOrFail($id); // Eager load soals
+        $ujian = Ujian::with('soals.bankSoal')->findOrFail($id); // Eager load soals dengan bankSoal
+
+        // Cek Akses Ujian Susulan
+        if ($ujian->is_susulan) {
+            $peserta = $ujian->peserta_susulan ?? [];
+            if (!in_array($siswa->id, $peserta) && !in_array((string)$siswa->id, $peserta)) {
+                return redirect()->route('siswa.dashboard')->with('error', 'Anda tidak terdaftar untuk ujian susulan ini.');
+            }
+        }
 
         // Cek Record Hasil Ujian (Session Ujian)
         $hasilUjian = \App\Models\HasilUjian::firstOrCreate(
@@ -269,8 +459,9 @@ class SiswaDashboardController extends Controller
                 'siswa_id' => $siswa->id
             ],
             [
+                'kelas_id'    => $siswa->kelas_id, // Simpan kelas saat ujian dimulai (historis)
                 'waktu_mulai' => now(), // Set waktu mulai saat pertama kali klik MULAI
-                'nilai' => 0
+                'nilai'       => 0
             ]
         );
 
@@ -321,7 +512,7 @@ class SiswaDashboardController extends Controller
         // Kita ambil JawabanSiswa yang sudah dibuat di mulaiUjian (yang sudah diacak), lalu load relasi Soalnya
         // Urutan JawabanSiswa = Urutan Acak yang persisten
         $jawabanSiswas = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)
-                            ->with('soal') // Eager load soal
+                            ->with('soal.bankSoal') // Eager load soal beserta bankSoal
                             ->get(); // Default order by ID (creation time), which matches our shuffle order
 
         // Reconstruct $ujian object structure expected by view, but with custom sorted questions
@@ -389,7 +580,7 @@ class SiswaDashboardController extends Controller
         $hasilUjian->waktu_selesai = now();
         
         // 2. Hitung Nilai Otomatis
-        $ujian = Ujian::with('soals')->findOrFail($id);
+        $ujian = Ujian::with('soals.bankSoal')->findOrFail($id);
         $jawabanSiswa = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)->get()->keyBy('soal_id');
         
         $jumlahBenar = 0;
@@ -408,6 +599,39 @@ class SiswaDashboardController extends Controller
                 
                 // Normalisasi Benar/Salah
                 if ($soal->tipe == 'benar_salah') {
+                    if ($kunci == 'COMPLEX_TF') {
+                        // LOGIK COMPLEX (All or Nothing)
+                        $pernyataan = $soal->data_soal['pernyataan'] ?? [];
+                        $jawabJson = json_decode($jawaban, true);
+                        
+                        // Strict Check: Count must match (to ensure all answered? not necessarily, but all existing must be correct)
+                        // Actually, if student skips one, it's WRONG.
+                        
+                        $allCorrect = true;
+                        // Avoid crash if pernyataan empty
+                        if(empty($pernyataan)) $allCorrect = false;
+
+                        if (is_array($pernyataan)) {
+                            foreach ($pernyataan as $idx => $item) {
+                                $kunciItem = $item['correct'] ?? '';
+                                $jawabItem = $jawabJson[$idx] ?? '';
+                                
+                                if ($kunciItem !== $jawabItem) {
+                                    $allCorrect = false;
+                                    break; 
+                                }
+                            }
+                        } else {
+                            $allCorrect = false;
+                        }
+
+                        if ($allCorrect) $isCorrect = true;
+
+                        // Skip logic bawah
+                        goto skip_simple_check;
+                    }
+
+                    // Normalisasi Old Simple TF
                     if ($jawab == 'A') $jawab = 'TRUE';
                     if ($jawab == 'B') $jawab = 'FALSE';
                     if ($kunci == 'A') $kunci = 'TRUE';
@@ -417,6 +641,8 @@ class SiswaDashboardController extends Controller
                 if ($jawab == $kunci && $jawab != '') {
                     $isCorrect = true;
                 }
+                
+                skip_simple_check:
             }
             
             // --- 2. JAWABAN GANDA ---
@@ -488,8 +714,63 @@ class SiswaDashboardController extends Controller
         
         $hasilUjian->nilai = $nilai;
         $hasilUjian->jumlah_benar = $jumlahBenar; // Simpan ke DB
+
+        // Pastikan kelas_id tetap ada, update jika misalnya dulu waktu_mulai belum terekam kelas_id (untuk data lama)
+        if (empty($hasilUjian->kelas_id)) {
+            $hasilUjian->kelas_id = $siswa->kelas_id;
+        }
+
         // User specifically asked to only store correct count, and DB reflects that.
         $hasilUjian->save();
+
+        // --- 4. MIRRORING KE UJIAN INDUK (Jika ini Ujian Susulan) ---
+        if ($ujian->is_susulan && $ujian->ujian_induk_id) {
+            try {
+                $hasilInduk = \App\Models\HasilUjian::updateOrCreate(
+                    [
+                        'ujian_id' => $ujian->ujian_induk_id,
+                        'siswa_id' => $siswa->id
+                    ],
+                    [
+                        'kelas_id'      => $siswa->kelas_id,
+                        'waktu_mulai'   => $hasilUjian->waktu_mulai,
+                        'waktu_selesai' => $hasilUjian->waktu_selesai,
+                        'nilai'         => $hasilUjian->nilai,
+                        'jumlah_benar'  => $hasilUjian->jumlah_benar,
+                    ]
+                );
+
+                // Mirror JawabanSiswa
+                $parentUjian = Ujian::with('soals')->find($ujian->ujian_induk_id);
+                if ($parentUjian) {
+                    $parentSoalMap = $parentUjian->soals->pluck('id', 'bank_soal_id');
+                    
+                    foreach ($jawabanSiswa as $susulanSoalId => $jsRecord) {
+                        // Ambil bank_soal_id dari soal susulan
+                        $susulanSoalRecord = $ujian->soals->where('id', $susulanSoalId)->first();
+                        $bankSoalId = $susulanSoalRecord ? $susulanSoalRecord->bank_soal_id : null;
+                        
+                        $parentSoalId = $parentSoalMap[$bankSoalId] ?? null;
+                        
+                        if ($parentSoalId) {
+                            \App\Models\JawabanSiswa::updateOrCreate(
+                                [
+                                    'hasil_ujian_id' => $hasilInduk->id,
+                                    'soal_id' => $parentSoalId
+                                ],
+                                [
+                                    'jawaban_dipilih' => $jsRecord->jawaban_dipilih,
+                                    'is_correct' => $jsRecord->is_correct,
+                                ]
+                            );
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Mirroring Error: ' . $e->getMessage());
+                // Tetap lanjut redirect agar siswa tidak error, guru bisa lapor jika nilai tidak sinkron
+            }
+        }
 
         return redirect()->route('siswa.ujian.hasil', $id)->with('success', 'Ujian telah selesai dikerjakan.');
     }

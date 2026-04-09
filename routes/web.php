@@ -38,6 +38,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/operator/siswa/import', [SiswaController::class, 'import'])->name('siswa.import');
     Route::get('/operator/siswa/template', [SiswaController::class, 'downloadTemplate'])->name('siswa.template');
 
+    // Route Alumni (Baru/Restore)
+    Route::get('/operator/alumni', [SiswaController::class, 'indexAlumni'])->name('operator.alumni.index');
+    Route::get('/operator/alumni/{id}/detail', [SiswaController::class, 'detailAlumni'])->name('operator.alumni.detail');
+
     Route::post('/guru/store', [GuruController::class, 'store'])->name('guru.store');
     // Halaman daftar guru
     Route::get('/daftar-guru', [GuruController::class, 'index'])->name('daftar_guru2');
@@ -128,15 +132,34 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     // Akses halaman Detail Ujian
     Route::get('/ujian/{ujian}/detail', [GuruMapelController::class, 'showUjianDetail'])->name('mapel.ujian.detail');
 
+    // Akses halaman Analisis Soal
+    Route::get('/ujian/{ujian}/analisis-soal', [GuruMapelController::class, 'showAnalisisSoal'])->name('mapel.ujian.analisis_soal');
+
     // Akses halaman Detail Siswa untuk Ujian Tertentu
     Route::get('/ujian/{ujian}/siswa/{siswa}/detail', [GuruMapelController::class, 'showSiswaUjianDetail'])->name('mapel.ujian.siswa.detail');
 
-    // GET: Menampilkan daftar bank soal
+    // --- BANK SOAL (Butir Soal untuk di-import) ---
     Route::get('/mapel/{mapel}/bank-soal', [GuruMapelController::class, 'indexBankSoal'])->name('mapel.bank_soal.index');
-    // POST: Menangani penambahan file baru dan update visibilitas
-    Route::post('/mapel/{mapel}/bank-soal', [GuruMapelController::class, 'handleBankSoal'])->name('mapel.bank_soal.store');
-    // DELETE: Menghapus file soal
-    Route::delete('/bank-soal/{bankSoal}', [GuruMapelController::class, 'destroyBankSoal'])->name('mapel.bank_soal.destroy');
+    Route::post('/mapel/{mapel}/bank-soal', [GuruMapelController::class, 'storeBankSoal'])->name('mapel.bank_soal.store');
+    Route::put('/mapel/{mapel}/bank-soal/{bankSoal}', [GuruMapelController::class, 'updateBankSoal'])->name('mapel.bank_soal.update');
+    Route::delete('/mapel/{mapel}/bank-soal/{bankSoal}', [GuruMapelController::class, 'destroyBankSoal'])->name('mapel.bank_soal.destroy');
+    Route::get('/mapel/{mapel}/bank-soal-items', [GuruMapelController::class, 'getBankSoalItems'])->name('mapel.bank_soal.items');
+    Route::post('/mapel/{mapel}/bank-soal/bulk-delete', [App\Http\Controllers\GuruMapelController::class, 'destroyBulkBankSoal'])->name('mapel.bank_soal.bulk_delete');
+
+    // --- ARSIP SOAL SISWA (Upload PDF) ---
+    Route::get('/mapel/{mapel}/arsip-soal-siswa', [GuruMapelController::class, 'indexArsipSoalSiswa'])->name('mapel.arsip_soal_siswa.index');
+    Route::post('/mapel/{mapel}/arsip-soal-siswa', [GuruMapelController::class, 'handleArsipSoalSiswa'])->name('mapel.arsip_soal_siswa.store');
+    Route::delete('/arsip-soal-siswa/{arsipSoalSiswa}', [GuruMapelController::class, 'destroyArsipSoalSiswa'])->name('mapel.arsip_soal_siswa.destroy');
+
+    // Ujian Susulan
+    Route::get('/ujian/{ujian}/susulan/create', [GuruMapelController::class, 'createSusulan'])->name('mapel.ujian.susulan.create');
+    Route::post('/ujian/{ujian}/susulan/store', [GuruMapelController::class, 'storeSusulan'])->name('mapel.ujian.susulan.store');
+
+    // Force Finish Ujian
+    Route::post('/ujian/{ujian}/force-finish', [GuruMapelController::class, 'forceFinish'])->name('mapel.ujian.force_finish');
+    
+    // Restart ujian siswa
+    Route::post('/ujian/{ujian}/siswa/{siswa}/restart', [GuruMapelController::class, 'restartUjianSiswa'])->name('mapel.ujian.siswa.restart');
 });
     
 // ---------------------------------------------------------------------
@@ -150,6 +173,10 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/monitor-siswa', [KepsekController::class, 'monitorSiswa'])->name('siswa');
     Route::get('/laporan-nilai', [KepsekController::class, 'laporanNilai'])->name('nilai');
     Route::get('/nilai/{id}', [KepsekController::class, 'detailNilai'])->name('nilai.detail');
+
+    // Route Alumni untuk Kepsek
+    Route::get('/alumni', [KepsekController::class, 'indexAlumni'])->name('alumni.index');
+    Route::get('/alumni/{id}/detail', [KepsekController::class, 'detailAlumni'])->name('alumni.detail');
 });
 Route::get('/landingpage', [KepsekController::class, 'index'])
     ->middleware('auth')

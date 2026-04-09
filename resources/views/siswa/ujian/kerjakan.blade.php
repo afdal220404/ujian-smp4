@@ -24,7 +24,7 @@
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
     </style>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col overflow-hidden" oncontextmenu="return false;">
+<body class="bg-slate-200 h-screen flex flex-col overflow-hidden" oncontextmenu="return false;">
     @php
         // Shuffle PHP Logic (Same as before)
         if (!function_exists('seededShuffle')) {
@@ -102,9 +102,15 @@
         
         {{-- LEFT SIDEBAR: NAVIGASI SOAL --}}
         <aside class="w-72 bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 hidden md:flex" id="sidebar-nav">
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                <h3 class="font-bold text-gray-700 text-sm">Navigasi Soal</h3>
-                <span class="text-xs text-gray-400">{{ $ujian->soals->count() }} Soal</span>
+            <div class="p-4 border-b border-gray-100 bg-gray-50">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-gray-700 text-sm">Navigasi Soal</h3>
+                    <span class="text-xs text-gray-400">{{ $ujian->soals->count() }} Soal</span>
+                </div>
+                <div class="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-600 w-0 transition-all duration-500 ease-out" id="progress-bar-nav"></div>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1 text-right">Progress: <span id="progress-text">0%</span></p>
             </div>
             <div class="flex-1 overflow-y-auto p-4">
                 <div class="grid grid-cols-5 gap-2">
@@ -117,6 +123,29 @@
                             {{ $index + 1 }}
                         </button>
                     @endforeach
+                </div>
+            </div>
+            
+            {{-- Legend (Footer) --}}
+            <div class="p-4 border-t border-gray-100 bg-gray-50">
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Keterangan</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded bg-blue-600 border border-blue-600 shadow-sm"></div>
+                        <span class="text-xs text-gray-600">Sudah Dijawab</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded bg-amber-400 border border-amber-400 shadow-sm"></div>
+                        <span class="text-xs text-gray-600">Ragu-ragu</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded bg-white border border-gray-200"></div>
+                        <span class="text-xs text-gray-600">Belum Dijawab</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded bg-white border-2 border-blue-400"></div>
+                        <span class="text-xs text-gray-600">Posisi Saat Ini</span>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -149,6 +178,13 @@
                         <div class="pl-0 md:pl-16 space-y-3 max-w-3xl">
                             {{-- PILIHAN GANDA --}}
                             @if($soal->tipe == 'pilihan_ganda')
+                                <div class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
+                                    <i class="bi bi-info-circle-fill text-blue-600 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-blue-800">Petunjuk Pengerjaan:</p>
+                                        <p class="text-xs text-blue-600">Pilihlah salah satu jawaban yang menurut Anda paling tepat.</p>
+                                    </div>
+                                </div>
                                 @php
                                     $optionKeys = ['A', 'B', 'C', 'D'];
                                     $optSeed = $seed + $soal->id;
@@ -163,92 +199,140 @@
                                         {{ $isChecked ? 'bg-blue-50/50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-gray-200' }}">
                                         <input type="radio" name="jawaban_{{ $soal->id }}" value="{{ $opt }}" class="peer sr-only" 
                                                onchange="saveAnswer({{ $soal->id }}, '{{ $opt }}', {{ $index }})" {{ $isChecked ? 'checked' : '' }}>
-                                        <div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 text-gray-500 flex items-center justify-center font-bold mr-4 peer-checked:bg-blue-600 peer-checked:border-blue-600 peer-checked:text-white transition-all shrink-0">
-                                            {{ $opt }}
+                                        <div class="w-6 h-6 rounded-full border-2 border-gray-300 mr-4 flex items-center justify-center peer-checked:border-blue-600 peer-checked:bg-blue-600 transition-all shrink-0">
+                                            <div class="w-2.5 h-2.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"></div>
                                         </div>
                                         <div class="flex-1 font-medium text-gray-700 peer-checked:text-blue-800">
+                                            @if($soal->{'gambar_'.strtolower($opt)})
+                                                <div class="mb-2">
+                                                    <img src="{{ asset('storage/' . $soal->{'gambar_'.strtolower($opt)}) }}" class="max-h-32 rounded border border-gray-200">
+                                                </div>
+                                            @endif
                                             {{ $soal->{'opsi_'.strtolower($opt)} }}
                                         </div>
                                     </label>
                                 @endforeach
                             @endif
 
-                            {{-- 2. BENAR / SALAH (REVAMPED) --}}
+                            {{-- 2. BENAR / SALAH (COMPLEX) --}}
                             @if($soal->tipe == 'benar_salah')
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="tf-container-{{ $soal->id }}">
-                                     @foreach(['A' => 'BENAR', 'B' => 'SALAH'] as $val => $label)
-                                        @php
-                                            $savedAnswer = $jawabanTersimpan[$soal->id] ?? '';
-                                            $isChecked = ($savedAnswer == $val);
-                                            $isBenar = $val == 'A';
-                                            $baseColor = $isBenar ? 'emerald' : 'rose';
-                                            
-                                            // Define states for JS usage
-                                            $activeClasses = "bg-{$baseColor}-50 border-{$baseColor}-500 ring-2 ring-{$baseColor}-500 shadow-xl shadow-{$baseColor}-100 scale-[1.02]";
-                                            $inactiveClasses = "bg-white border-gray-100 hover:border-{$baseColor}-200 hover:bg-gray-50 hover:-translate-y-1 hover:shadow-lg";
-                                            
-                                            $activeIcon = "bg-{$baseColor}-500 text-white scale-110 rotate-0";
-                                            $inactiveIcon = "bg-{$baseColor}-50 text-{$baseColor}-500 group-hover:scale-110 group-hover:rotate-12";
-                                            
-                                            $activeText = "text-{$baseColor}-700";
-                                            $inactiveText = "text-gray-500 group-hover:text-{$baseColor}-600";
-                                        @endphp
-                                        <label id="tf-label-{{ $soal->id }}-{{ $val }}"
-                                               class="group relative flex flex-col items-center justify-center p-8 rounded-3xl border-2 cursor-pointer transition-all duration-300 overflow-hidden
-                                            {{ $isChecked ? $activeClasses : $inactiveClasses }}"
-                                            
-                                            data-active-class="{{ $activeClasses }}"
-                                            data-inactive-class="{{ $inactiveClasses }}"
-                                            data-active-icon="{{ $activeIcon }}"
-                                            data-inactive-icon="{{ $inactiveIcon }}"
-                                            data-active-text="{{ $activeText }}"
-                                            data-inactive-text="{{ $inactiveText }}">
-                                            
-                                            <input type="radio" name="jawaban_{{ $soal->id }}" value="{{ $val }}" 
-                                                   class="peer sr-only" 
-                                                   onchange="updateTrueFalseStyles({{ $soal->id }}, '{{ $val }}'); saveAnswer({{ $soal->id }}, '{{ $val }}', {{ $index }})"
-                                                   {{ $isChecked ? 'checked' : '' }}>
-                                            
-                                            {{-- Background Decoration --}}
-                                            <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-{{ $baseColor }}-100 opacity-20 group-hover:scale-150 transition-transform duration-500"></div>
-                                            <div class="absolute -left-6 -bottom-6 w-20 h-20 rounded-full bg-{{ $baseColor }}-100 opacity-20 group-hover:scale-150 transition-transform duration-500 delay-75"></div>
+                                <div class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
+                                    <i class="bi bi-info-circle-fill text-blue-600 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-blue-800">Petunjuk Pengerjaan:</p>
+                                        <p class="text-xs text-blue-600">Tentukan apakah pernyataan berikut <span class="font-bold">BENAR</span> atau <span class="font-bold">SALAH</span>.</p>
+                                    </div>
+                                </div>
 
-                                            <div class="relative z-10 text-center">
-                                                <div id="tf-icon-{{ $soal->id }}-{{ $val }}" 
-                                                     class="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl mb-4 transition-all duration-300 shadow-sm
-                                                    {{ $isChecked ? $activeIcon : $inactiveIcon }}">
-                                                    <i class="bi bi-{{ $isBenar ? 'check-lg' : 'x-lg' }}"></i>
+                                <div class="space-y-4" id="tf-complex-{{ $soal->id }}">
+                                    @php
+                                        $pernyataan = $soal->data_soal['pernyataan'] ?? [];
+                                        $savedJson = $jawabanTersimpan[$soal->id] ?? '{}';
+                                        $savedAnswers = json_decode($savedJson, true);
+                                        if(!is_array($savedAnswers)) $savedAnswers = [];
+
+                                        // 1. Kunci Indeks Asli Sebelum Diacak
+                                        $pernyataanWithIndex = [];
+                                        foreach($pernyataan as $k => $v) {
+                                            $v['_original_index'] = $k;
+                                            $pernyataanWithIndex[] = $v;
+                                        }
+
+                                        // 2. Acak Array yang sudah ada Indeks Aslinya
+                                        $seedSoal = (int) $siswa->id + (int) $soal->id;
+                                        $pernyataanAcak = seededShuffle($pernyataanWithIndex, $seedSoal);
+                                    @endphp
+
+                                    @if(empty($pernyataan))
+                                        {{-- FALLBACK TO OLD SIMPLE UI IF NO STATEMENTS --}}
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            @foreach(['TRUE' => 'BENAR', 'FALSE' => 'SALAH'] as $val => $label)
+                                                @php
+                                                    $isChecked = ($savedJson == $val) || ($savedJson == 'A' && $val == 'TRUE') || ($savedJson == 'B' && $val == 'FALSE');
+                                                    $isBenar = $val == 'TRUE';
+                                                    $color = $isBenar ? 'emerald' : 'rose';
+                                                @endphp
+                                                <label class="group relative flex flex-col items-center justify-center p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 hover:bg-gray-50
+                                                    {{ $isChecked ? "bg-{$color}-50 border-{$color}-500 ring-1 ring-{$color}-500" : "bg-white border-gray-200" }}">
+                                                    <input type="radio" name="jawaban_{{ $soal->id }}" value="{{ $val }}" class="peer sr-only" 
+                                                           onchange="saveAnswer({{ $soal->id }}, '{{ $val }}', {{ $index }})" {{ $isChecked ? 'checked' : '' }}>
+                                                    <span class="font-bold text-lg {{ $isChecked ? "text-{$color}-700" : "text-gray-600" }}">{{ $label }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        {{-- NEW COMPLEX UI --}}
+                                        <input type="hidden" id="jawaban_tf_complex_{{ $soal->id }}" value="{{ htmlspecialchars($savedJson) }}">
+                                        
+                                        {{-- Loop menggunakan array yang sudah diacak --}}
+                                        @foreach($pernyataanAcak as $item)
+                                            @php 
+                                                // 3. Panggil kembali indeks aslinya untuk input name dan value
+                                                $idx = $item['_original_index']; 
+                                            @endphp
+                                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                @if(isset($item['gambar']) && $item['gambar'])
+                                                    <div class="mb-3">
+                                                        <img src="{{ asset('storage/' . $item['gambar']) }}" class="max-h-32 rounded border border-gray-200">
+                                                    </div>
+                                                @endif
+                                                <p class="text-sm font-medium text-gray-800 mb-3">{{ $item['text'] ?? '' }}</p>
+                                                <div class="flex items-center gap-4">
+                                                    @foreach(['TRUE' => 'BENAR', 'FALSE' => 'SALAH'] as $val => $label)
+                                                        @php
+                                                            $myAnswer = $savedAnswers[$idx] ?? '';
+                                                            $isChecked = ($myAnswer == $val);
+                                                            $isBenar = $val == 'TRUE';
+                                                            $color = $isBenar ? 'emerald' : 'rose';
+                                                        @endphp
+                                                        <label class="flex-1 cursor-pointer">
+                                                            <input type="radio" name="tf_{{ $soal->id }}_{{ $idx }}" value="{{ $val }}" class="peer sr-only"
+                                                                   onchange="saveAnswerComplexTF({{ $soal->id }}, {{ $index }})" {{ $isChecked ? 'checked' : '' }}>
+                                                            <div class="px-4 py-2 rounded-lg border border-gray-200 text-center text-sm font-bold text-gray-500 peer-checked:bg-{{ $color }}-600 peer-checked:text-white peer-checked:border-{{ $color }}-600 transition-all hover:bg-gray-50">
+                                                                {{ $label }}
+                                                            </div>
+                                                        </label>
+                                                    @endforeach
                                                 </div>
-                                                <span id="tf-text-{{ $soal->id }}-{{ $val }}" 
-                                                      class="text-2xl font-[Poppins-Bold] tracking-wide {{ $isChecked ? $activeText : $inactiveText }}">
-                                                    {{ $label }}
-                                                </span>
-                                                <p class="text-xs font-medium mt-1 {{ $isChecked ? "text-{$baseColor}-600" : "text-gray-400" }}">
-                                                    {{ $isBenar ? 'Pernyataan ini tepat' : 'Pernyataan ini keliru' }}
-                                                </p>
                                             </div>
-                                        </label>
-                                    @endforeach
+                                        @endforeach
+                                    @endif
                                 </div>
 
                             {{-- 3. JAWABAN GANDA (CHECKBOX) --}}
                             @elseif($soal->tipe == 'jawaban_ganda')
+                                <div class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
+                                    <i class="bi bi-info-circle-fill text-blue-600 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-blue-800">Petunjuk Pengerjaan:</p>
+                                        <p class="text-xs text-blue-600">Pilihlah <strong>satu atau lebih</strong> jawaban yang menurut anda benar.</p>
+                                    </div>
+                                </div>
                                 <div class="grid grid-cols-1 gap-3">
                                     @php
+                                        $opsiDinamic = $soal->data_soal['options'] ?? [];
+                                        if (empty($opsiDinamic)) {
+                                            $opsiDinamic = [
+                                                ['id' => 'A', 'text' => $soal->opsi_a, 'gambar' => $soal->gambar_a],
+                                                ['id' => 'B', 'text' => $soal->opsi_b, 'gambar' => $soal->gambar_b],
+                                                ['id' => 'C', 'text' => $soal->opsi_c, 'gambar' => $soal->gambar_c],
+                                                ['id' => 'D', 'text' => $soal->opsi_d, 'gambar' => $soal->gambar_d],
+                                            ];
+                                        }
+                                        
                                         // Shuffle Options Deterministically
-                                        $optionKeys = ['A', 'B', 'C', 'D'];
                                         $optSeed = $seed + $soal->id;
-                                        $shuffledOptions = seededShuffle($optionKeys, $optSeed);
+                                        $shuffledOptions = seededShuffle($opsiDinamic, $optSeed);
                                     @endphp
                                     @foreach($shuffledOptions as $opt)
                                         @php
                                             $savedAnswers = explode(',', $jawabanTersimpan[$soal->id] ?? '');
-                                            $isChecked = in_array($opt, $savedAnswers);
+                                            $isChecked = in_array($opt['id'], $savedAnswers);
                                         @endphp
                                         <label class="group relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:bg-white hover:border-blue-200 hover:shadow-sm
                                             {{ $isChecked ? 'bg-indigo-50/50 border-indigo-500 ring-1 ring-indigo-500' : 'bg-white border-gray-200' }}">
                                             
-                                            <input type="checkbox" name="jawaban_{{ $soal->id }}[]" value="{{ $opt }}" 
+                                            <input type="checkbox" name="jawaban_{{ $soal->id }}[]" value="{{ $opt['id'] }}" 
                                                    class="peer sr-only" 
                                                    onchange="saveAnswerComplex({{ $soal->id }}, {{ $index }}, 'jawaban_ganda')"
                                                    {{ $isChecked ? 'checked' : '' }}>
@@ -258,7 +342,12 @@
                                             </div>
                                             
                                             <div class="flex-1 font-medium text-gray-700 peer-checked:text-indigo-800">
-                                                {{ $soal->{'opsi_'.strtolower($opt)} }}
+                                                @if(!empty($opt['gambar']))
+                                                    <div class="mb-2">
+                                                        <img src="{{ asset('storage/' . $opt['gambar']) }}" class="max-h-32 rounded border border-gray-200">
+                                                    </div>
+                                                @endif
+                                                {{ $opt['text'] }}
                                             </div>
                                         </label>
                                     @endforeach
@@ -267,21 +356,35 @@
 
                             {{-- 4. MENJODOHKAN (Revamped) --}}
                             @elseif($soal->tipe == 'menjodohkan')
+                                <div class="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
+                                    <i class="bi bi-info-circle-fill text-blue-600 mt-0.5"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-blue-800">Petunjuk Pengerjaan:</p>
+                                        <p class="text-xs text-blue-600">Hubungkan item di sebelah <strong>Kiri</strong> dengan pasangan yang tepat di sebelah <strong>Kanan</strong>. Klik item kiri lalu klik item kanan untuk membuat garis penghubung.</p>
+                                    </div>
+                                </div>
                                 @php
                                     $matches = isset($soal->data_soal['matches']) ? $soal->data_soal['matches'] : [];
                                     $savedJson = $jawabanTersimpan[$soal->id] ?? '{}';
+
+                                    // 1. Kunci Indeks Asli untuk Kiri dan Kanan
+                                    $itemsWithIndex = collect($matches)->map(function($item, $key) {
+                                        return ['data' => $item, 'index' => $key];
+                                    })->toArray();
+
+                                    $seedSoal = (int) $siswa->id + (int) $soal->id;
+
+                                    // 2. Acak Sisi Kiri dan Kanan secara independen
+                                    $shuffledLeft = seededShuffle($itemsWithIndex, $seedSoal + 1);
+                                    $shuffledRight = seededShuffle($itemsWithIndex, $seedSoal + 2);
                                 @endphp
                                 <div class="matching-container bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative select-none" id="matching-{{ $soal->id }}" data-saved='{{ $savedJson }}'>
                                     
-                                    {{-- SVG Layer for Lines --}}
-                                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="svg-{{ $soal->id }}">
-                                        {{-- Lines will be drawn here by JS --}}
-                                    </svg>
+                                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="svg-{{ $soal->id }}"></svg>
 
                                     <div class="flex justify-between items-center mb-6">
                                         <p class="text-sm text-gray-500 font-medium flex items-center gap-2">
-                                            <i class="bi bi-info-circle text-blue-500"></i>
-                                            Hubungkan item kiri dengan kanan
+                                            <i class="bi bi-info-circle text-blue-500"></i> Hubungkan item kiri dengan kanan
                                         </p>
                                         <button type="button" onclick="resetMatching({{ $soal->id }}, {{ $index }})" class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition-colors z-20 relative">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
@@ -289,48 +392,55 @@
                                     </div>
                                     
                                     <div class="flex flex-row justify-between relative z-20 gap-12">
-                                        {{-- Left Side (Questions) --}}
+                                        {{-- SISI KIRI (PERTANYAAN) --}}
                                         <div class="flex-1 space-y-6">
-                                            @foreach($matches as $k => $match)
+                                            @foreach($shuffledLeft as $leftItem)
+                                                @php 
+                                                    $k = $leftItem['index']; 
+                                                    $match = $leftItem['data'];
+                                                @endphp
                                                 <div class="relative">
                                                     <button type="button" 
                                                             class="match-item-left w-full p-4 rounded-xl border-2 border-gray-100 bg-gray-50 text-left text-sm font-semibold text-gray-700 hover:border-blue-400 hover:shadow-md transition-all active:scale-95 flex items-center justify-between group"
                                                             data-id="L{{ $k }}" data-soal="{{ $soal->id }}"
                                                             onclick="selectMatchLeft(this, {{ $soal->id }}, {{ $index }})">
-                                                        <span>{{ $match['pertanyaan'] ?? $match['left'] ?? 'Item ' . ($k+1) }}</span>
-                                                        <div class="w-3 h-3 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors" id="dot-L{{ $k }}-{{ $soal->id }}"></div>
+                                                        <div class="flex flex-col gap-2 w-full pr-4">
+                                                            @if(isset($match['gambar_left']) && $match['gambar_left'])
+                                                                <img src="{{ asset('storage/' . $match['gambar_left']) }}" class="max-h-24 object-contain rounded border border-gray-200 bg-white">
+                                                            @endif
+                                                            <span>{{ $match['pertanyaan'] ?? $match['left'] ?? 'Item ' . ($k+1) }}</span>
+                                                        </div>
+                                                        <div class="w-3 h-3 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors shrink-0" id="dot-L{{ $k }}-{{ $soal->id }}"></div>
                                                     </button>
                                                 </div>
                                             @endforeach
                                         </div>
 
-                                        {{-- Right Side (Answers) - SHUFFLED DISPLAY --}}
+                                        {{-- SISI KANAN (JAWABAN) --}}
                                         <div class="flex-1 space-y-6">
-                                            @php
-                                                // Prepare right items with original indices
-                                                $rightItems = collect($matches)->map(function($item, $key) {
-                                                    return ['data' => $item, 'index' => $key];
-                                                })->toArray();
-                                                
-                                                // Shuffle Right Items Deterministically
-                                                $matchSeed = $seed + $soal->id + 999; // Different salt
-                                                $shuffledRight = seededShuffle($rightItems, $matchSeed);
-                                            @endphp
-                                            @foreach($shuffledRight as $item)
+                                            @foreach($shuffledRight as $rightItem)
+                                                @php 
+                                                    $k = $rightItem['index']; 
+                                                    $itemData = $rightItem['data'];
+                                                @endphp
                                                 <div class="relative">
                                                      <button type="button" 
                                                             class="match-item-right w-full p-4 rounded-xl border-2 border-gray-100 bg-white text-left text-sm font-medium text-gray-600 hover:border-purple-400 hover:shadow-md transition-all active:scale-95 flex items-center justify-between group"
-                                                            data-id="R{{ $item['index'] }}" 
+                                                            data-id="R{{ $k }}" 
                                                             onclick="selectMatchRight(this, {{ $soal->id }}, {{ $index }})">
-                                                        <div class="w-3 h-3 rounded-full bg-gray-300 group-hover:bg-purple-400 transition-colors" id="dot-R{{ $item['index'] }}-{{ $soal->id }}"></div>
-                                                        <span>{{ $item['data']['jawaban'] ?? $item['data']['right'] ?? 'Item ' . ($item['index']+1) }}</span>
+                                                        <div class="w-3 h-3 rounded-full bg-gray-300 group-hover:bg-purple-400 transition-colors shrink-0" id="dot-R{{ $k }}-{{ $soal->id }}"></div>
+                                                        <div class="flex flex-col gap-2 w-full pl-4 text-right">
+                                                            @if(isset($itemData['gambar_right']) && $itemData['gambar_right'])
+                                                                <img src="{{ asset('storage/' . $itemData['gambar_right']) }}" class="max-h-24 object-contain rounded border border-gray-200 bg-white ml-auto">
+                                                            @endif
+                                                            <span>{{ $itemData['jawaban'] ?? $itemData['right'] ?? 'Item ' . ($k+1) }}</span>
+                                                        </div>
                                                     </button>
                                                 </div>
                                             @endforeach
                                         </div>
                                     </div>
                                     
-                                    {{-- Hidden Input for Storage --}}
                                     <input type="hidden" id="jawaban_matching_{{ $soal->id }}" value="{{ $savedJson }}">
                                 </div>
                             @endif
@@ -449,6 +559,9 @@
             // Show First Question
             showQuestion(0);
             
+            // Auto Update Progress
+            updateNavProgress();
+            
             // Aktifkan Deteksi Curang (Delay dikit biar ga langsung trigger saat loading)
             setTimeout(armSecuritySystem, 1000);
         }
@@ -539,8 +652,51 @@
         }
 
         function confirmSubmit() {
-            const answered = document.querySelectorAll('input[type="radio"]:checked').length;
-            const remaining = totalQuestions - answered;
+            let answeredCount = 0;
+            
+            // Iterate over all question containers to check if answered
+            document.querySelectorAll('.question-item').forEach(item => {
+                const soalId = item.dataset.soalId;
+                let isAnswered = false;
+
+                // 1. Check Radio (Pilihan Ganda / Benar Salah)
+                if (item.querySelector(`input[type="radio"][name="jawaban_${soalId}"]:checked`)) {
+                    isAnswered = true;
+                }
+                // 2. Check Checkbox (Jawaban Ganda)
+                else if (item.querySelector(`input[type="checkbox"][name="jawaban_${soalId}[]"]:checked`)) {
+                    isAnswered = true;
+                }
+                // 3. Check Matching (Hidden Input with JSON)
+                else {
+                    const matchInput = document.getElementById(`jawaban_matching_${soalId}`);
+                    if (matchInput && matchInput.value) {
+                        try {
+                            const val = JSON.parse(matchInput.value);
+                            // Check if object is not empty (has at least one pair)
+                            if (Object.keys(val).length > 0) {
+                                isAnswered = true;
+                            }
+                        } catch (e) {
+                            // invalid json, ignore
+                        }
+                    } 
+                    // 4. Check Complex TF
+                    else {
+                        const tfInputs = item.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
+                        if (tfInputs.length > 0) {
+                             // Optional: Check if ALL are answered
+                             // const totalData = item.querySelectorAll('input[name^="tf_' + soalId + '_"][value="TRUE"]').length;
+                             // if(tfInputs.length === totalData) isAnswered = true;
+                             isAnswered = true;
+                        }
+                    }
+                }
+
+                if (isAnswered) answeredCount++;
+            });
+
+            const remaining = totalQuestions - answeredCount;
             const msg = document.getElementById('modal-status-text');
             
             if(remaining > 0) {
@@ -604,6 +760,7 @@
         function jumpToQuestion(idx) { showQuestion(idx); }
 
         // --- 5. SAVING ANSWER ---
+        // --- 5. SAVING ANSWER ---
         function saveAnswer(soalId, jawaban, index) {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             fetch("{{ route('siswa.ujian.simpan_jawaban') }}", {
@@ -615,24 +772,62 @@
             .then(data => {
                 if(data.status === 'success') {
                     const btn = document.getElementById(`nav-btn-${index}`);
-                    btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
-                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    // Update style ONLY if not marked as Ragu
+                    if(!document.getElementById('ragu-check').checked || currentQuestionIndex !== index) {
+                         // Double check ragu class just in case logic is out of sync
+                         if(!btn.classList.contains('bg-amber-400')) {
+                             btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+                             btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                         }
+                    }
+                    updateNavProgress();
                 }
             })
             .catch(err => console.error(err));
         }
 
         function toggleRagu() {
-            // Visual helper saja
             const btn = document.getElementById(`nav-btn-${currentQuestionIndex}`);
-            if(document.getElementById('ragu-check').checked) {
+            const isChecked = document.getElementById('ragu-check').checked;
+            
+            if(isChecked) {
+                // Set style RAGU (Amber)
+                btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-600', 'border-gray-200', 'border-blue-600');
                 btn.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
-                btn.classList.remove('bg-blue-600', 'bg-white');
             } else {
-                btn.classList.remove('bg-amber-400', 'text-white', 'border-amber-400');
-                // Balik ke logic saveAnswer utk warna asli (disini disederhanakan)
-                btn.classList.add('bg-white', 'text-gray-600'); 
+                // Restore style based on ANSWER STATUS
+                // Check if current question has answer
+                let isAnswered = false;
+                const qItem = document.getElementById(`question-${currentQuestionIndex}`);
+                if(qItem) {
+                    const soalId = qItem.dataset.soalId;
+                    if (qItem.querySelector(`input[name="jawaban_${soalId}"]:checked`)) isAnswered = true;
+                    else if (qItem.querySelector(`input[name="jawaban_${soalId}[]"]:checked`)) isAnswered = true;
+                    else {
+                         const matchVal = document.getElementById(`jawaban_matching_${soalId}`)?.value;
+                         if(matchVal && matchVal.length > 2 && matchVal !== '{}') isAnswered = true;
+                    }
+                    // For Complex TF
+                    if(!isAnswered && qItem.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`).length > 0) isAnswered = true;
+                }
+
+                btn.classList.remove('bg-amber-400', 'border-amber-400');
+                if(isAnswered) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                } else {
+                    btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+                }
             }
+        }
+
+        function updateNavProgress() {
+             const answered = document.querySelectorAll('.bg-blue-600.text-white[id^="nav-btn-"]').length;
+             const pct = Math.round((answered / totalQuestions) * 100);
+             const bar = document.getElementById('progress-bar-nav');
+             if(bar) {
+                 bar.style.width = `${pct}%`;
+                 document.getElementById('progress-text').innerText = `${pct}% Selesai`;
+             }
         }
 
         // --- COMPLEX ANSWER LOGIC (Restored) ---
@@ -651,6 +846,21 @@
             }
 
             saveAnswer(soalId, jawaban, index);
+        }
+
+        function saveAnswerComplexTF(soalId, index) {
+             const inputs = document.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
+             let answers = {};
+             inputs.forEach(input => {
+                 const name = input.name; // tf_123_0
+                 const parts = name.split('_');
+                 const idx = parts[2];
+                 answers[idx] = input.value;
+             });
+             
+             // Convert to JSON
+             const jsonAnswer = JSON.stringify(answers);
+             saveAnswer(soalId, jsonAnswer, index);
         }
 
         // --- MATCHING LOGIC (Restored) ---

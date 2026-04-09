@@ -11,16 +11,18 @@
         </a>
     </div>
 
-    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3 mt-4">Menu Mapel</div>
     
-    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link active">
+    <a href="{{ route('guru.mapel.dashboard', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.dashboard') ? 'active' : '' }}">
         <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
-    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link">
+    <a href="{{ route('guru.mapel.siswa', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.siswa') ? 'active' : '' }}">
         <i class="bi bi-journal-check"></i> <span>Daftar Nilai Siswa</span>
     </a>
-    <a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link">
+    <a href="{{ route('guru.mapel.bank_soal.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.bank_soal.*') ? 'active' : '' }}">
         <i class="bi bi-collection"></i> <span>Bank Soal</span>
+    </a>
+    <a href="{{ route('guru.mapel.arsip_soal_siswa.index', $mapel->id) }}" class="nav-link {{ Route::is('guru.mapel.arsip_soal_siswa.*') ? 'active' : '' }}">
+        <i class="bi bi-folder2-open"></i> <span>Arsip Soal Siswa</span>
     </a>
 @endsection
 
@@ -77,19 +79,30 @@
                         {{-- KUIS DINAMIS --}}
                         <th colspan="{{ $maxKuis + 1 }}" class="px-4 py-2 text-center border-r border-gray-100 bg-blue-50/30 text-blue-700">Kuis / Harian</th>
                         
-                        {{-- EVALUASI --}}
-                        <th colspan="2" class="px-4 py-2 text-center border-r border-gray-100 bg-purple-50/30 text-purple-700">Evaluasi</th>
+                        {{-- UTS DINAMIS (Rata-rata Dihapus, Colspan Disesuaikan) --}}
+                        <th colspan="{{ $maxUts }}" class="px-4 py-2 text-center border-r border-gray-100 bg-orange-50/30 text-orange-700">UTS</th>
+                        
+                        {{-- UAS DINAMIS (Rata-rata Dihapus, Colspan Disesuaikan) --}}
+                        <th colspan="{{ $maxUas }}" class="px-4 py-2 text-center border-r border-gray-100 bg-red-50/30 text-red-700">UAS</th>
                         
                         <th rowspan="2" class="px-6 py-4 text-center text-darkblue bg-gray-50">Nilai Akhir</th>
                     </tr>
                     <tr class="text-[10px] uppercase font-bold text-gray-400 border-b border-gray-100">
+                        {{-- Sub-header Kuis --}}
                         @for($i = 1; $i <= $maxKuis; $i++)
-                            <th class="px-3 py-2 text-center bg-blue-50/30 w-12">K{{ $i }}</th>
+                            <th class="px-3 py-2 text-center bg-blue-50/30 w-12 border-r border-white">K{{ $i }}</th>
                         @endfor
                         <th class="px-2 py-2 text-center bg-blue-100/50 text-blue-800 border-r border-gray-100 w-16">Rata</th>
                         
-                        <th class="px-4 py-2 text-center bg-purple-50/30 w-16">UTS</th>
-                        <th class="px-4 py-2 text-center bg-purple-50/30 border-r border-gray-100 w-16">UAS</th>
+                        {{-- Sub-header UTS --}}
+                        @for($i = 1; $i <= $maxUts; $i++)
+                            <th class="px-3 py-2 text-center bg-orange-50/30 w-16 border-r border-white">UTS {{ $i }}</th>
+                        @endfor
+
+                        {{-- Sub-header UAS --}}
+                        @for($i = 1; $i <= $maxUas; $i++)
+                            <th class="px-3 py-2 text-center bg-red-50/30 w-16 border-r border-white">UAS {{ $i }}</th>
+                        @endfor
                     </tr>
                 </thead>
                 <tbody id="siswaTableBody" class="divide-y divide-gray-100">
@@ -114,7 +127,7 @@
                                 <div class="text-[11px] text-gray-400 font-mono mt-0.5">NISN: {{ $siswa->nisn }}</div>
                             </td>
 
-                            {{-- Kuis --}}
+                            {{-- ================= KUIS ================= --}}
                             @for($i = 0; $i < $maxKuis; $i++)
                                 <td class="px-3 py-3 text-center text-sm border-r border-gray-50">
                                     @if(isset($siswa->list_kuis[$i]))
@@ -124,21 +137,34 @@
                                     @endif
                                 </td>
                             @endfor
-
                             {{-- Rata Kuis --}}
-                            <td class="px-2 py-3 text-center border-r border-gray-100 bg-blue-50/5">
+                            <td class="px-2 py-3 text-center border-r border-gray-100 bg-blue-50/10">
                                 <span class="{{ $getColor($siswa->rata_kuis) }}">{{ $siswa->rata_kuis }}</span>
                             </td>
 
-                            {{-- UTS & UAS --}}
-                            <td class="px-4 py-3 text-center">
-                                <span class="{{ $getColor($siswa->uts) }}">{{ $siswa->uts }}</span>
-                            </td>
-                            <td class="px-4 py-3 text-center border-r border-gray-100">
-                                <span class="{{ $getColor($siswa->uas) }}">{{ $siswa->uas }}</span>
-                            </td>
+                            {{-- ================= UTS ================= --}}
+                            @for($i = 0; $i < $maxUts; $i++)
+                                <td class="px-3 py-3 text-center text-sm border-r border-gray-50">
+                                    @if(isset($siswa->list_uts[$i]))
+                                        <span class="{{ $getColor($siswa->list_uts[$i]) }}">{{ $siswa->list_uts[$i] }}</span>
+                                    @else
+                                        <span class="text-gray-300">-</span>
+                                    @endif
+                                </td>
+                            @endfor
 
-                            {{-- Akhir --}}
+                            {{-- ================= UAS ================= --}}
+                            @for($i = 0; $i < $maxUas; $i++)
+                                <td class="px-3 py-3 text-center text-sm border-r border-gray-50">
+                                    @if(isset($siswa->list_uas[$i]))
+                                        <span class="{{ $getColor($siswa->list_uas[$i]) }}">{{ $siswa->list_uas[$i] }}</span>
+                                    @else
+                                        <span class="text-gray-300">-</span>
+                                    @endif
+                                </td>
+                            @endfor
+
+                            {{-- ================= NILAI AKHIR ================= --}}
                             <td class="px-6 py-3 text-center bg-gray-50">
                                 @php
                                     $val = floatval($siswa->grade_raw);
@@ -153,7 +179,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ 5 + $maxKuis }}" class="px-6 py-12 text-center text-gray-400 italic">
+                            {{-- Colspan disesuaikan: 4 (No, Nama, Rata Kuis, Nilai Akhir) + Kuis + UTS + UAS --}}
+                            <td colspan="{{ 4 + $maxKuis + $maxUts + $maxUas }}" class="px-6 py-12 text-center text-gray-400 italic">
                                 Belum ada siswa di kelas ini.
                             </td>
                         </tr>

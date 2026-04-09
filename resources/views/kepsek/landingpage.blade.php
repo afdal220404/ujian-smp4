@@ -9,19 +9,22 @@
 
 @section('sidebar-menu')
     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3">Menu Utama</div>
-    <a href="{{ route('kepsek.index') }}" class="nav-link active">
+    <a href="{{ route('kepsek.index') }}" class="nav-link">
         <i class="bi bi-grid-fill"></i> <span>Dashboard</span>
     </a>
     <a href="{{ route('kepsek.guru') }}" class="nav-link">
-        <i class="bi bi-person-workspace"></i> <span>Monitoring Guru</span>
+        <i class="bi bi-person-workspace"></i> <span>Data Guru</span>
     </a>
     <a href="{{ route('kepsek.siswa') }}" class="nav-link">
         <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
     </a>
+    <a href="{{ route('kepsek.alumni.index') }}" class="nav-link active">
+        <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
+    </a>
     <a href="{{ route('kepsek.nilai') }}" class="nav-link">
         <i class="bi bi-bar-chart-line-fill"></i> <span>Laporan Nilai</span>
     </a>
-@endsection
+@endsection 
 
 @section('content')
 
@@ -67,18 +70,43 @@
         </div>
     </div>
 
-    {{-- 3. ANALISIS PER KELAS --}}
-    <div class="space-y-12 mb-10">
-        <div class="flex items-center gap-3">
-            <div class="w-1.5 h-8 bg-[#00415a] rounded-full"></div>
-            <h2 class="text-xl font-[Poppins-Bold] text-[#00415a]">Analisis & Visualisasi Data Per Kelas</h2>
+    {{-- 3. ANALISIS PER KELAS DENGAN FILTER --}}
+    <div class="space-y-8 mb-10">
+        {{-- Card Judul & Filter --}}
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="flex items-center gap-4">
+                <div class="w-2 h-12 bg-gradient-to-b from-[#00415a] to-blue-500 rounded-full"></div>
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-black text-[#00415a] uppercase tracking-tight">Analisis Data Per Tingkat </h2>
+                    <p class="text-gray-500 text-sm mt-1">Pilih kelas di bawah ini untuk melihat detail visualisasi nilai siswa.</p>
+                </div>
+            </div>
+            
+            {{-- Dropdown Filter --}}
+            <div class="relative w-full md:w-56">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                    <i class="bi bi-funnel-fill text-[#00415a]"></i>
+                </div>
+                <select id="classFilter" class="w-full pl-10 pr-10 py-2.5 bg-blue-50/50 border border-blue-100/50 rounded-xl text-sm font-bold text-[#00415a] focus:ring-4 focus:ring-[#00415a]/10 focus:border-[#00415a] shadow-sm appearance-none cursor-pointer transition-all hover:bg-blue-50">
+                    @if(isset($dataKelas) && count($dataKelas) > 0)
+                        @foreach($dataKelas as $kelasData)
+                            <option value="{{ $kelasData->nama_kelas }}">Kelas {{ $kelasData->nama_kelas }}</option>
+                        @endforeach
+                    @else
+                        <option value="">Tidak ada kelas</option>
+                    @endif
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                    <i class="bi bi-chevron-down text-[#00415a] font-bold"></i>
+                </div>
+            </div>
         </div>
 
         @if(isset($dataKelas) && count($dataKelas) > 0)
             @foreach($dataKelas as $kelas)
             
             {{-- CONTAINER KELAS WRAPPER --}}
-            <div class="bg-blue-50 rounded-3xl p-6 border border-gray-200 shadow-[0_4px_20px_rgba(0,0,0,0.03)] relative overflow-hidden">
+            <div class="class-card bg-blue-50 rounded-3xl p-6 border border-gray-200 shadow-[0_4px_20px_rgba(0,0,0,0.03)] relative overflow-hidden transition-all duration-300" data-kelas="{{ $kelas->nama_kelas }}">
                 
                 {{-- Label Kelas --}}
                 <div class="absolute top-0 left-0 bg-[#00415a] text-white px-6 py-2 rounded-br-2xl font-[Poppins-Bold] text-sm shadow-md z-10">
@@ -120,7 +148,7 @@
                          style="background: linear-gradient(135deg, #00415a 0%, #447d9b 100%);">
                         <div class="absolute right-0 top-0 w-24 h-24 bg-white opacity-10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                         <div class="flex justify-between items-start relative z-10">
-                            <span class="text-[10px] font-bold uppercase text-blue-100 bg-white/10 px-2 py-0.5 rounded backdrop-blur-sm">Total</span>
+                            <span class="text-[10px] font-bold uppercase text-blue-100 bg-white/10 px-2 py-0.5 rounded backdrop-blur-sm">Rata Nilai akhir</span>
                             <div class="p-2 bg-white/20 rounded-lg text-white backdrop-blur-sm"><i class="bi bi-graph-up-arrow text-lg"></i></div>
                         </div>
                         <div class="text-4xl font-[Poppins-Bold] text-white relative z-10">{{ $kelas->akhir }}</div>
@@ -143,7 +171,7 @@
                     {{-- Grafik Sebaran --}}
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                         <h4 class="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                            <i class="bi bi-pie-chart-fill text-purple-500"></i> Sebaran Grade Nilai
+                            <i class="bi bi-pie-chart-fill text-purple-500"></i> Sebaran Nilai Siswa
                         </h4>
                         <div id="chart-sebaran-{{ $kelas->id }}" class="w-full h-[250px] flex justify-center"></div>
                     </div>
@@ -202,7 +230,7 @@
                          dataSebaran = [1]; var colorsSebaran = ['#e5e7eb']; var labelsSebaran = ['Data Kosong'];
                     } else {
                          var colorsSebaran = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'];
-                         var labelsSebaran = ['Grade A', 'Grade B', 'Grade C', 'Grade D'];
+                         var labelsSebaran = ['Sangat Baik (85-100)', 'Baik (75-84)', 'Cukup (70-74)', 'Kurang (<70)'];
                     }
 
                     var optionsSebaran = {
@@ -211,8 +239,55 @@
                         chart: { type: 'donut', height: 250, fontFamily: 'Poppins-Regular, sans-serif' },
                         colors: colorsSebaran,
                         dataLabels: { enabled: false },
-                        legend: { position: 'right', fontSize: '12px', offsetY: 50 },
-                        plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: 'Siswa', fontSize: '14px', fontWeight: 700 } } } } }
+                        legend: { position: 'right', fontSize: '12px', offsetY: 0, itemMargin: { vertical: 5 } },
+                        tooltip: {
+                            enabled: true,
+                            custom: function({series, seriesIndex, dataPointIndex, w}) {
+                                if (!dataSebaran || dataSebaran.reduce((a, b) => a + b, 0) === 0) return '<div class="px-2 py-1 text-xs">Data Kosong</div>';
+                                let val = series[seriesIndex];
+                                let total = w.globals.seriesTotals.reduce((a, b) => { return a + b }, 0);
+                                let percent = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                let label = w.globals.labels[seriesIndex];
+                                let color = w.globals.colors[seriesIndex];
+                                return '<div class="px-3 py-2 shadow-lg bg-white rounded-lg border border-gray-100 flex items-center gap-2">' +
+                                       '<span class="w-2.5 h-2.5 rounded-full" style="background-color: ' + color + '"></span>' +
+                                       '<span class="text-xs font-bold text-gray-700">' + label.split(' (')[0] + ':</span>' +
+                                       '<span class="text-xs text-gray-600">' + percent + '%</span>' +
+                                       '</div>';
+                            }
+                        },
+                        plotOptions: { 
+                            pie: { 
+                                donut: { 
+                                    size: '65%', 
+                                    labels: { 
+                                        show: true, 
+                                        name: {
+                                            show: true,
+                                            formatter: function (val) {
+                                                return val ? val.split(' (')[0] : '';
+                                            }
+                                        },
+                                        value: {
+                                            show: true,
+                                            fontSize: '16px',
+                                            formatter: function (val) {
+                                                return val + ' Siswa';
+                                            }
+                                        },
+                                        total: { 
+                                            show: true, 
+                                            label: 'Total Siswa', 
+                                            fontSize: '12px', 
+                                            fontWeight: 700,
+                                            formatter: function (w) {
+                                                return w.globals.seriesTotals.reduce((a, b) => { return a + b }, 0) + ' Siswa';
+                                            }
+                                        } 
+                                    } 
+                                } 
+                            } 
+                        }
                     };
                     var elSebaran = document.querySelector("#chart-sebaran-{{ $kelas->id }}");
                     if(elSebaran) new ApexCharts(elSebaran, optionsSebaran).render();
@@ -258,6 +333,38 @@
 
                 @endforeach
             @endif
+            
+            // ----------------------------------------------------
+            // FILTER KELAS LOGIC
+            // ----------------------------------------------------
+            var classFilter = document.getElementById('classFilter');
+            if(classFilter) {
+                // Function to apply filter
+                function applyClassFilter() {
+                    var selectedClass = classFilter.value;
+                    var classCards = document.querySelectorAll('.class-card');
+                    
+                    classCards.forEach(function(card) {
+                        if(card.getAttribute('data-kelas') === selectedClass) {
+                            card.style.display = 'block';
+                            // Trigger reflow to restart animation
+                            void card.offsetWidth;
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateY(0)';
+                        } else {
+                            card.style.display = 'none';
+                            card.style.opacity = '0';
+                            card.style.transform = 'translateY(10px)';
+                        }
+                    });
+                }
+
+                // Listen for changes
+                classFilter.addEventListener('change', applyClassFilter);
+                
+                // Apply immediately on load
+                applyClassFilter();
+            }
         });
     </script>
 @endsection

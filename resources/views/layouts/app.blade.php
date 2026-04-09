@@ -7,7 +7,7 @@
   <title>@yield('title', 'My App')</title>
   
   {{-- CDN --}}
-  <script src="https://cdn.tailwindcss.com"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -27,8 +27,7 @@
     {{-- WRAPPER UTAMA: Flex Row --}}
     <div class="flex min-h-screen relative">
 
-        {{-- 1. SIDEBAR (Include file sidebar Anda) --}}
-        @include('layouts.navbar') {{-- Sesuaikan path file navbar.blade.php Anda --}}
+      @include('layouts.navbar') 
 
         {{-- 2. KONTEN UTAMA --}}
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden h-screen overflow-y-auto scroll-smooth">

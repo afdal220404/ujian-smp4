@@ -42,7 +42,10 @@ class RekapNilaiExport implements FromView, ShouldAutoSize, WithStyles
         }
 
         $siswaIds = $siswas->pluck('id');
-        $allHasil = HasilUjian::whereIn('siswa_id', $siswaIds)->with('ujian')->get();
+        $allHasil = HasilUjian::whereIn('siswa_id', $siswaIds)
+                        ->where('kelas_id', $this->kelasId)
+                        ->with('ujian')
+                        ->get();
         $rekapNilai = [];
 
         foreach ($siswas as $siswa) {
