@@ -32,9 +32,22 @@ if ($result_check->num_rows > 0) {
         ]
     ]);
 }  else {
+    // Ambil kelas_id dari tabel siswas
+    $kelas_id = null;
+    $stmt_siswa = $conn->prepare("SELECT kelas_id FROM siswas WHERE id = ?");
+    if ($stmt_siswa) {
+        $stmt_siswa->bind_param("i", $siswa_id);
+        $stmt_siswa->execute();
+        $res_siswa = $stmt_siswa->get_result()->fetch_assoc();
+        if ($res_siswa) {
+            $kelas_id = $res_siswa['kelas_id'];
+        }
+        $stmt_siswa->close();
+    }
+
     // 2. MASUKKAN DATA BARU
-    $stmt = $conn->prepare("INSERT INTO hasil_ujians (ujian_id, siswa_id, waktu_mulai) VALUES (?, ?, ?)");
-    $stmt->bind_param("iis", $ujian_id, $siswa_id, $waktu_mulai);
+    $stmt = $conn->prepare("INSERT INTO hasil_ujians (ujian_id, siswa_id, kelas_id, waktu_mulai) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("iiis", $ujian_id, $siswa_id, $kelas_id, $waktu_mulai);
     
     if ($stmt->execute()) {
         sendResponse([

@@ -32,30 +32,43 @@ try {
     $base_url = "https://ujian.smpn4tilkam.cloud/storage/"; 
 
     while ($row = $result->fetch_assoc()) {
-        // Format URL Gambar Opsi
-        if (!empty($row['gambar'])) $row['gambar'] = $base_url . ltrim($row['gambar'], '/');
-        if (!empty($row['gambar_a'])) $row['gambar_a'] = $base_url . ltrim($row['gambar_a'], '/');
-        if (!empty($row['gambar_b'])) $row['gambar_b'] = $base_url . ltrim($row['gambar_b'], '/');
-        if (!empty($row['gambar_c'])) $row['gambar_c'] = $base_url . ltrim($row['gambar_c'], '/');
-        if (!empty($row['gambar_d'])) $row['gambar_d'] = $base_url . ltrim($row['gambar_d'], '/');
+        
+        // Buat fungsi helper kecil agar kode lebih rapi dan "Anti-Gagal"
+        $formatImageUrl = function($path) use ($base_url) {
+            if (empty($path) || $path === 'null') return null;
+            // Jika path sudah mengandung http (sudah berupa URL penuh), jangan ditimpa
+            if (strpos($path, 'http') === 0) return $path;
+            
+            // Hapus prefix 'public/' jika Laravel tidak sengaja menyimpannya di DB
+            $path = preg_replace('/^public\//', '', ltrim($path, '/'));
+            return $base_url . $path;
+        };
+
+        // Format URL Gambar Opsi dengan aman
+        $row['gambar']   = $formatImageUrl($row['gambar']);
+        $row['gambar_a'] = $formatImageUrl($row['gambar_a']);
+        $row['gambar_b'] = $formatImageUrl($row['gambar_b']);
+        $row['gambar_c'] = $formatImageUrl($row['gambar_c']);
+        $row['gambar_d'] = $formatImageUrl($row['gambar_d']);
         
         // Sanitasi JSON & Tambah URL Gambar di dalam JSON Kompleks
         if (!empty($row['data_soal'])) {
             $json_data = json_decode($row['data_soal'], true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($json_data)) {
+                
                 if ($row['tipe'] == 'benar_salah' && isset($json_data['pernyataan'])) {
                     foreach ($json_data['pernyataan'] as &$item) {
-                        if (isset($item['correct'])) unset($item['correct']); // Hapus Kunci agar tidak bocor
-                        if (!empty($item['gambar'])) $item['gambar'] = $base_url . ltrim($item['gambar'], '/');
+                        if (isset($item['correct'])) unset($item['correct']);
+                        $item['gambar'] = $formatImageUrl($item['gambar'] ?? '');
                     }
                 } else if ($row['tipe'] == 'menjodohkan' && isset($json_data['matches'])) {
                     foreach ($json_data['matches'] as &$item) {
-                        if (!empty($item['gambar_left'])) $item['gambar_left'] = $base_url . ltrim($item['gambar_left'], '/');
-                        if (!empty($item['gambar_right'])) $item['gambar_right'] = $base_url . ltrim($item['gambar_right'], '/');
+                        $item['gambar_left']  = $formatImageUrl($item['gambar_left'] ?? '');
+                        $item['gambar_right'] = $formatImageUrl($item['gambar_right'] ?? '');
                     }
                 } else if ($row['tipe'] == 'jawaban_ganda' && isset($json_data['options'])) {
                     foreach ($json_data['options'] as &$item) {
-                        if (!empty($item['gambar'])) $item['gambar'] = $base_url . ltrim($item['gambar'], '/');
+                        $item['gambar'] = $formatImageUrl($item['gambar'] ?? '');
                     }
                 }
                 $row['data_soal'] = json_encode($json_data);

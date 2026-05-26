@@ -293,53 +293,72 @@ class GuruMapelController extends Controller
         $mapel = $ujian->mapel;
         $kelas = $mapel->kelas;
         
-        // 1. Validasi Akses
         $guruId = $user->guru ? $user->guru->id : $user->id;
         if ($mapel->guru_id != $guruId) {
             abort(403, 'Akses ditolak.');
         }
 
-        $semuaSoal = $ujian->soals()->get();
-
-        // 2. Ambil Hasil Ujian (Merge dengan susulan jika ini induk)
+        // 1. Gabungkan ID Ujian Induk dan Susulan
         $allUjianIds = [$ujian->id];
         if (!$ujian->is_susulan) {
             $susulanIds = Ujian::where('ujian_induk_id', $ujian->id)->pluck('id')->toArray();
             $allUjianIds = array_merge($allUjianIds, $susulanIds);
         }
 
-        // Ambil semua hasil ujian dengan siswanya yang bersangkutan
+        // 2. Ambil soal dari SEMUA ujian terkait, deduplikasi berdasarkan bank_soal_id.
+        //    Ini memastikan soal dari susulan (yang punya ID berbeda tapi bank_soal_id sama)
+        //    tetap terdeteksi dengan benar saat mencocokkan jawaban.
+        $semuaSoalRaw = DB::table('soals')
+            ->join('bank_soal_items', 'soals.bank_soal_id', '=', 'bank_soal_items.id')
+            ->whereIn('soals.ujian_id', $allUjianIds)
+            ->select('soals.id as pivot_id', 'soals.bank_soal_id', 'bank_soal_items.*')
+            ->get();
+
+        // Deduplikasi: ambil satu soal per bank_soal_id (prioritaskan dari ujian induk)
+        $semuaSoal = $semuaSoalRaw
+            ->sortBy(function($s) use ($ujian) {
+                // Prioritaskan soal dari ujian induk (ujian->id)
+                return $s->pivot_id; // soal induk dibuat lebih dulu (ID lebih kecil)
+            })
+            ->unique('bank_soal_id')
+            ->values();
+
+        // 3. Ambil semua HasilUjian (dari induk dan susulan), prioritaskan susulan jika duplikasi
         $hasilUjians = HasilUjian::whereIn('ujian_id', $allUjianIds)
                         ->with('siswa')
                         ->get()
                         ->sortByDesc(function($h) use ($ujian) {
+                            // Prioritaskan susulan agar hasil susulan meng-override induk saat unique
                             return $h->ujian_id != $ujian->id;
                         })
                         ->unique('siswa_id')
                         ->sortBy(function($h) {
-                            return $h->siswa->nama_lengkap;
+                            return $h->siswa->nama_lengkap ?? '';
                         })
                         ->values();
         
         $hasilUjianIds = $hasilUjians->pluck('id')->toArray();
 
-        // Ambil semua jawaban siswa untuk ujian ini di tabel jawaban_siswas
-        $semuaJawaban = JawabanSiswa::whereIn('hasil_ujian_id', $hasilUjianIds)->get();
+        // 4. Tarik semua jawaban siswa, JOIN dengan soals untuk mendapat bank_soal_id
+        $semuaJawaban = DB::table('jawaban_siswas')
+            ->join('soals', 'jawaban_siswas.soal_id', '=', 'soals.id')
+            ->whereIn('jawaban_siswas.hasil_ujian_id', $hasilUjianIds)
+            ->select('jawaban_siswas.*', 'soals.bank_soal_id')
+            ->get();
 
         $analisis = [];
         foreach ($semuaSoal as $soal) {
-            $jawabanSoalDb = $semuaJawaban->where('soal_id', $soal->id);
+            
+            // Cocokkan menggunakan bank_soal_id agar induk dan susulan bisa saling cocok
+            $jawabanSoalDb = $semuaJawaban->where('bank_soal_id', $soal->bank_soal_id);
+            
             $benar = [];
             $salah = [];
-            $siswaYangMenjawabId = [];
+            $hasilSudahDiproses = []; // ID HasilUjian yang sudah diproses untuk soal ini
 
             foreach ($jawabanSoalDb as $jawabanDb) {
-                // Temukan identitas siswa melalui ID hasil ujian
                 $hasil = $hasilUjians->where('id', $jawabanDb->hasil_ujian_id)->first();
                 if ($hasil && $hasil->siswa) {
-                    
-                    // PERBAIKAN: Langsung cek status 'is_correct' dari database
-                    // Abaikan pencocokan string manual karena tidak mempan untuk format JSON
                     $isBenar = ($jawabanDb->is_correct == 1 || $jawabanDb->is_correct == true);
                     
                     if ($isBenar) {
@@ -347,16 +366,13 @@ class GuruMapelController extends Controller
                     } else {
                         $salah[] = $hasil->siswa;
                     }
-                    
-                    // Tandai siswa ini sdh ada dalam daftar yang menjawab (atau minimal terekam di DB mskipun jwb kosong)
-                    $siswaYangMenjawabId[] = $hasil->id; 
+                    $hasilSudahDiproses[] = $hasil->id;
                 }
             }
             
-            // Evaluasi siswa yang mengerjakan ujian tetapi entah bagaimana tidak ada record disitu (e.g., skip ganda atau db anomaly)
-            // Tetap harus dianggap menjawab "salah" (kosong)
+            // Siswa yang tidak punya jawaban untuk soal ini dihitung sebagai salah
             foreach ($hasilUjians as $hasil) {
-                if ($hasil->siswa && !in_array($hasil->id, $siswaYangMenjawabId)) {
+                if ($hasil->siswa && !in_array($hasil->id, $hasilSudahDiproses)) {
                     $salah[] = $hasil->siswa;
                 }
             }
@@ -373,74 +389,91 @@ class GuruMapelController extends Controller
         return view('guru.mapel.analisis_soal', compact('ujian', 'mapel', 'kelas', 'analisis'));
     }
 
+
     /**
      * Menampilkan detail jawaban spesifik per siswa.
      * UPDATE: Menggunakan relasi tabel hasil_ujians -> jawaban_siswas.
      */
     public function showSiswaUjianDetail(Ujian $ujian, Siswa $siswa)
     {
-        // 1. Verifikasi Keamanan
         $mapel = $ujian->mapel;
         if ($mapel->guru_id != Auth::id()) {
             return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
         }
-        if ($siswa->kelas_id != $mapel->kelas_id) {
-            return redirect()->route('guru.index')->with('error', 'Siswa tidak ditemukan di kelas ini.');
+
+        // === LANGKAH 1: Cari HasilUjian LEBIH DULU ===
+        // Cakup kemungkinan siswa mengerjakan di ujian induk ATAU susulan
+        $allUjianIds = [$ujian->id];
+        if (!$ujian->is_susulan) {
+            $susulanIds = Ujian::where('ujian_induk_id', $ujian->id)->pluck('id')->toArray();
+            $allUjianIds = array_merge($allUjianIds, $susulanIds);
+        } else {
+            if ($ujian->ujian_induk_id) {
+                $allUjianIds[] = $ujian->ujian_induk_id;
+            }
         }
 
-        // 2. Ambil soal
-        $semuaSoal = $ujian->soals()->get();
-        $jumlahTotalSoal = $semuaSoal->count();
-
-        // 3. AMBIL DATA HASIL & JAWABAN (SESUAI STRUKTUR DB)
-        
-        // A. Cari HasilUjian dulu untuk mendapatkan ID-nya
-        $hasilUjian = HasilUjian::where('ujian_id', $ujian->id)
+        $hasilUjian = HasilUjian::whereIn('ujian_id', $allUjianIds)
                         ->where('siswa_id', $siswa->id)
                         ->first();
 
-        // B. Ambil Jawaban berdasarkan hasil_ujian_id
-        $listJawabanSiswa = collect(); 
-        
+        // === LANGKAH 2: Tentukan ujian mana yang digunakan siswa ===
+        // Jika siswa mengerjakan susulan, hasilUjian->ujian_id = ID susulan.
+        // Soal harus diambil dari ujian yang sama agar soal_id cocok dengan jawaban_siswas.soal_id.
+        $ujianIdUntukSoal = $hasilUjian ? $hasilUjian->ujian_id : $ujian->id;
+
+        // === LANGKAH 3: Ambil soal dari ujian yang TEPAT ===
+        $semuaSoal = DB::table('soals')
+            ->join('bank_soal_items', 'soals.bank_soal_id', '=', 'bank_soal_items.id')
+            ->where('soals.ujian_id', $ujianIdUntukSoal)
+            ->select('soals.id as pivot_id', 'soals.bank_soal_id', 'bank_soal_items.*')
+            ->get();
+
+        $jumlahTotalSoal = $semuaSoal->count();
+
+        // === LANGKAH 4: Ambil jawaban siswa dan match by soal_id langsung (lebih reliable) ===
+        $listJawabanSiswa = collect();
         if ($hasilUjian) {
-            // Ambil dari tabel jawaban_siswas menggunakan hasil_ujian_id
-            $listJawabanSiswa = JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)
-                                    ->get()
-                                    ->keyBy('soal_id');
+            $listJawabanSiswa = DB::table('jawaban_siswas')
+                ->where('hasil_ujian_id', $hasilUjian->id)
+                ->get()
+                ->keyBy('soal_id'); // Key by soal_id langsung (karena soal dari ujian yang sama)
         }
 
-        // 4. Proses Data untuk View
-        $daftarSoal = []; 
-        $jumlahBenar = 0;
+        $daftarSoal = [];
+        $jumlahBenarLoop = 0;
 
         foreach ($semuaSoal as $soal) {
-            // Cari jawaban untuk soal ini
-            $jawabanDb = $listJawabanSiswa->get($soal->id);
-            
-            // Nama kolom di tabel jawaban_siswas adalah 'jawaban_dipilih' (sesuai SQL)
-            $jawabanSiswa = $jawabanDb ? $jawabanDb->jawaban_dipilih : null; 
+            // Cocokkan menggunakan pivot_id (soals.id) langsung — lebih reliable dari bank_soal_id
+            $jawabanDb = $listJawabanSiswa->get($soal->pivot_id);
 
-            // Cek kebenaran (Case insensitive)
+            $jawabanSiswa = $jawabanDb ? $jawabanDb->jawaban_dipilih : null;
+
             $isBenar = false;
-            if ($jawabanSiswa) {
-                $isBenar = (strtoupper($jawabanSiswa) == strtoupper($soal->kunci_jawaban));
+            if ($jawabanDb) {
+                $isBenar = ($jawabanDb->is_correct == 1 || $jawabanDb->is_correct == true);
             }
 
-            if ($isBenar) $jumlahBenar++;
+            if ($isBenar) $jumlahBenarLoop++;
 
-            // Inject data ke object soal
-            $soal->jawaban_siswa = $jawabanSiswa; 
-            $soal->status_jawaban = $isBenar;     
+            $soal->jawaban_siswa = $jawabanSiswa;
+            $soal->status_jawaban = $isBenar;
 
             $daftarSoal[] = $soal;
         }
 
-        // 5. Ambil Nilai Akhir (Konsisten dengan DB)
+        // === LANGKAH 5: Gunakan jumlah_benar dari DB sebagai sumber otoritatif ===
+        // Ini menjamin konsistensi dengan halaman Detail Ujian yang juga pakai kolom DB.
+        // Fallback ke hasil loop jika kolom DB null (data lama).
+        $jumlahBenar = ($hasilUjian && !is_null($hasilUjian->jumlah_benar))
+            ? (int) $hasilUjian->jumlah_benar
+            : $jumlahBenarLoop;
+
         $nilai = $hasilUjian ? $hasilUjian->nilai : 0;
 
         return view('guru.mapel.detail_jawaban_siswa', compact(
             'ujian', 'siswa', 'mapel',
-            'daftarSoal', 'jumlahBenar', 'nilai', 'jumlahTotalSoal','hasilUjian'
+            'daftarSoal', 'jumlahBenar', 'nilai', 'jumlahTotalSoal', 'hasilUjian'
         ));
     }
 
@@ -451,7 +484,7 @@ class GuruMapelController extends Controller
         if ($mapel->guru_id != Auth::id()) {
             return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
         }
-        session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+        session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
         return view('guru.mapel.create_ujian', ['mapel' => $mapel, 'ujianDetails' => null, 'jumlahSoal' => 0]);
     }
 
@@ -530,7 +563,7 @@ class GuruMapelController extends Controller
                     ]);
                 }
                 DB::commit();
-                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+                session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
 
                 return redirect()->route('guru.mapel.dashboard', $mapel->id)->with('success', 'Ujian berhasil disimpan!');
             } catch (\Exception $e) {
@@ -740,6 +773,15 @@ class GuruMapelController extends Controller
         $isOngoing = ($ujian->waktu_mulai <= $now && $ujian->waktu_selesai >= $now);
         $isFinished = ($ujian->waktu_selesai < $now);
 
+        // === FIX BUG: Cek apakah sesi saat ini milik ujian yang sama ===
+        // Jika guru berpindah dari edit ujian A ke ujian B, sesi lama harus di-reset
+        // agar tidak menampilkan data soal/detail dari ujian yang salah.
+        $sessionUjianId = session('editing_ujian_id');
+        if ($sessionUjianId !== $ujian->id) {
+            // Ujian berbeda atau sesi baru — reset semua sesi terkait
+            session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
+        }
+
         if (!session('ujian_temp_details')) {
             $ujianDetails = [
                 'nama_ujian' => $ujian->nama_ujian,
@@ -778,6 +820,9 @@ class GuruMapelController extends Controller
             })->toArray();
             session(['ujian_temp_soals' => $tempSoals]);
         }
+
+        // Tandai ujian mana yang sedang diedit di sesi
+        session(['editing_ujian_id' => $ujian->id]);
 
         $tempSoals = session('ujian_temp_soals');
         $jumlahSoal = count($tempSoals);
@@ -890,7 +935,7 @@ class GuruMapelController extends Controller
                     }
                 }
                 DB::commit();
-                session()->forget(['ujian_temp_details', 'ujian_temp_soals']);
+                session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
                 return redirect()->route('guru.mapel.dashboard', $mapel->id)->with('success', 'Perubahan disimpan.');
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -937,18 +982,64 @@ class GuruMapelController extends Controller
     }
 
     public function showSoalForm(Ujian $ujian = null)
-{
-    $ujianDetails = session('ujian_temp_details');
-    if (!$ujianDetails) return redirect()->route('guru.index');
+    {
+        $ujianDetails = session('ujian_temp_details');
+        if (!$ujianDetails) return redirect()->route('guru.index');
 
-    // AMBIL DATA MAPEL BERDASARKAN ID DI SESSION
-    $mapel = Mapel::findOrFail($ujianDetails['mapel_id']);
+        // === FIX BUG: Verifikasi sesi cocok dengan ujian yang sedang dibuka ===
+        // Jika guru langsung mengakses /ujian/{ujian}/soal tanpa melewati editUjian(),
+        // sesi bisa berisi soal dari ujian lain (kelas berbeda pada guru yang sama).
+        if ($ujian && session('editing_ujian_id') !== $ujian->id) {
+            // Sesi tidak cocok — reload soal dari DB untuk ujian yang benar
+            session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
 
-    $tempSoals = session('ujian_temp_soals', []);
+            $ujianDetails = [
+                'nama_ujian'    => $ujian->nama_ujian,
+                'jenis_ujian'   => $ujian->jenis_ujian,
+                'tanggal_ujian' => $ujian->tanggal_ujian,
+                'waktu_mulai'   => Carbon::parse($ujian->waktu_mulai)->format('H:i'),
+                'waktu_selesai' => Carbon::parse($ujian->waktu_selesai)->format('H:i'),
+                'durasi_menit'  => $ujian->durasi_menit,
+                'mapel_id'      => $ujian->mapel_id,
+            ];
 
-    // Kirim $mapel ke view
-    return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian', 'mapel'));
-}
+            $tempSoals = $ujian->soals->map(function ($soal) {
+                return [
+                    'bank_soal_id'  => $soal->bank_soal_id,
+                    'tipe'          => $soal->tipe,
+                    'pertanyaan'    => $soal->pertanyaan,
+                    'gambar_path'   => $soal->gambar,
+                    'opsi_a'        => $soal->opsi_a,
+                    'opsi_b'        => $soal->opsi_b,
+                    'opsi_c'        => $soal->opsi_c,
+                    'opsi_d'        => $soal->opsi_d,
+                    'gambar_a_path' => $soal->gambar_a,
+                    'gambar_b_path' => $soal->gambar_b,
+                    'gambar_c_path' => $soal->gambar_c,
+                    'gambar_d_path' => $soal->gambar_d,
+                    'gambar_a'      => $soal->gambar_a,
+                    'gambar_b'      => $soal->gambar_b,
+                    'gambar_c'      => $soal->gambar_c,
+                    'gambar_d'      => $soal->gambar_d,
+                    'kunci_jawaban' => $soal->kunci_jawaban,
+                    'data_soal'     => $soal->data_soal,
+                ];
+            })->toArray();
+
+            session([
+                'ujian_temp_details'  => $ujianDetails,
+                'ujian_temp_soals'    => $tempSoals,
+                'editing_ujian_id'    => $ujian->id,
+            ]);
+        }
+
+        // Ambil data mapel dari sesi (sudah dipastikan benar di atas)
+        $ujianDetails = session('ujian_temp_details');
+        $mapel = Mapel::findOrFail($ujianDetails['mapel_id']);
+        $tempSoals = session('ujian_temp_soals', []);
+
+        return view('guru.mapel.tambah_soal', compact('tempSoals', 'ujian', 'mapel'));
+    }
 
     public function destroyUjian(Ujian $ujian)
     {

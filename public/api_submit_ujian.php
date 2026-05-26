@@ -151,8 +151,11 @@ try {
     // 5. HITUNG NILAI AKHIR
     $nilai = ($total_soal > 0) ? round(($jumlah_benar / $total_soal) * 100, 2) : 0;
 
-    // 6. UPDATE HASIL UJIAN
-    $q_update = "UPDATE hasil_ujians SET nilai = ?, jumlah_benar = ?, waktu_selesai = ? WHERE id = ?";
+    // 6. UPDATE HASIL UJIAN (sertakan kelas_id jika belum terisi)
+    $q_update = "UPDATE hasil_ujians h 
+                 JOIN siswas s ON h.siswa_id = s.id 
+                 SET h.nilai = ?, h.jumlah_benar = ?, h.waktu_selesai = ?, h.kelas_id = COALESCE(h.kelas_id, s.kelas_id) 
+                 WHERE h.id = ?";
     $stmt_update = $conn->prepare($q_update);
     if (!$stmt_update) {
         throw new Exception("Error Query Update Hasil: " . $conn->error);

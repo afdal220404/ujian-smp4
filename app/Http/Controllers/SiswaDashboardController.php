@@ -741,26 +741,32 @@ class SiswaDashboardController extends Controller
                 );
 
                 // Mirror JawabanSiswa
+                // PENTING: Refresh dari DB agar is_correct yang sudah di-update terbaca dengan benar.
+                // Tanpa refresh, $jawabanSiswa masih memegang objek lama dari memori (is_correct belum ter-update).
+                $jawabanSiswaFresh = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)
+                                        ->get()
+                                        ->keyBy('soal_id');
+
                 $parentUjian = Ujian::with('soals')->find($ujian->ujian_induk_id);
                 if ($parentUjian) {
                     $parentSoalMap = $parentUjian->soals->pluck('id', 'bank_soal_id');
-                    
-                    foreach ($jawabanSiswa as $susulanSoalId => $jsRecord) {
+
+                    foreach ($jawabanSiswaFresh as $susulanSoalId => $jsRecord) {
                         // Ambil bank_soal_id dari soal susulan
                         $susulanSoalRecord = $ujian->soals->where('id', $susulanSoalId)->first();
                         $bankSoalId = $susulanSoalRecord ? $susulanSoalRecord->bank_soal_id : null;
-                        
+
                         $parentSoalId = $parentSoalMap[$bankSoalId] ?? null;
-                        
+
                         if ($parentSoalId) {
                             \App\Models\JawabanSiswa::updateOrCreate(
                                 [
                                     'hasil_ujian_id' => $hasilInduk->id,
-                                    'soal_id' => $parentSoalId
+                                    'soal_id'        => $parentSoalId
                                 ],
                                 [
                                     'jawaban_dipilih' => $jsRecord->jawaban_dipilih,
-                                    'is_correct' => $jsRecord->is_correct,
+                                    'is_correct'      => $jsRecord->is_correct, // Sekarang sudah benar
                                 ]
                             );
                         }

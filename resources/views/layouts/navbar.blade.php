@@ -41,6 +41,18 @@
                 } elseif (str_starts_with($routeName, 'guru.mapel.')) {
                     $mapel = request()->route('mapel');
                     if (is_numeric($mapel)) $mapel = \App\Models\Mapel::with('kelas')->find($mapel);
+
+                    // Fallback: beberapa route pakai {ujian} bukan {mapel} (misal detail, analisis, edit soal)
+                    if (!$mapel) {
+                        $ujian = request()->route('ujian');
+                        if ($ujian instanceof \App\Models\Ujian) {
+                            $mapel = $ujian->mapel()->with('kelas')->first();
+                        } elseif (is_numeric($ujian)) {
+                            $ujianModel = \App\Models\Ujian::with('mapel.kelas')->find($ujian);
+                            $mapel = $ujianModel ? $ujianModel->mapel : null;
+                        }
+                    }
+
                     if ($mapel) {
                         $namaMapel = $mapel->nama_mapel ?? '';
                         $namaKelas = $mapel->kelas->nama_kelas ?? $mapel->kelas->kelas ?? '';
