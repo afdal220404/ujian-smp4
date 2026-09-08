@@ -10,10 +10,10 @@
     <a href="{{ route('kepsek.guru') }}" class="nav-link">
         <i class="bi bi-person-workspace"></i> <span>Data Guru</span>
     </a>
-    <a href="{{ route('kepsek.siswa') }}" class="nav-link">
+    <a href="{{ route('kepsek.siswa') }}" class="nav-link active">
         <i class="bi bi-people-fill"></i> <span>Data Siswa</span>
     </a>
-    <a href="{{ route('kepsek.alumni.index') }}" class="nav-link active">
+    <a href="{{ route('kepsek.alumni.index') }}" class="nav-link">
         <i class="bi bi-mortarboard-fill"></i> <span>Data Alumni</span>
     </a>
     <a href="{{ route('kepsek.nilai') }}" class="nav-link">

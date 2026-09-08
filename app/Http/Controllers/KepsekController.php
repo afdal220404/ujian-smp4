@@ -262,18 +262,21 @@ class KepsekController extends Controller
 
     public function monitorSiswa(Request $request)
     {
-        // 1. Ambil daftar kelas untuk Dropdown Filter
-        $kelasList = Kelas::all();
+        // 1. Ambil daftar kelas aktif untuk Dropdown Filter (Tanpa Alumni)
+        $kelasList = Kelas::whereRaw("LOWER(kelas) != 'alumni'")->where('id', '!=', 4)->orderBy('kelas')->get();
 
-        // 2. Mulai Query Siswa
-        $query = Siswa::with('kelas');
+        // 2. Mulai Query Siswa Aktif (Eksklusif Bukan Alumni)
+        $query = Siswa::with('kelas')
+            ->whereHas('kelas', function ($q) {
+                $q->whereRaw("LOWER(kelas) != 'alumni'");
+            })
+            ->where('kelas_id', '!=', 4);
 
         // Logika Pencarian (Nama / NISN)
         if ($request->has('search') && $request->search != null) {
             $keyword = $request->search;
             $query->where(function($q) use ($keyword) {
                 $q->where('nama_lengkap', 'LIKE', "%{$keyword}%")
-                  // ->orWhere('nis', 'LIKE', "%{$keyword}%")  <-- INI PENYEBAB ERROR (HAPUS)
                   ->orWhere('nisn', 'LIKE', "%{$keyword}%");
             });
         }
@@ -297,11 +300,15 @@ class KepsekController extends Controller
     
     public function laporanNilai(Request $request)
     {
-        // 1. Data Kelas untuk Filter
-        $kelasList = Kelas::all();
+        // 1. Data Kelas untuk Filter (Tanpa Alumni)
+        $kelasList = Kelas::whereRaw("LOWER(kelas) != 'alumni'")->where('id', '!=', 4)->orderBy('kelas')->get();
 
-        // 2. Query Siswa (Eager Load hasil ujian & mapel agar performa cepat)
-        $query = Siswa::with(['kelas', 'hasilUjians.ujian']);
+        // 2. Query Siswa (Eager Load hasil ujian & mapel agar performa cepat, tanpa Alumni)
+        $query = Siswa::whereHas('kelas', function ($q) {
+                $q->whereRaw("LOWER(kelas) != 'alumni'");
+            })
+            ->where('kelas_id', '!=', 4)
+            ->with(['kelas', 'hasilUjians.ujian']);
 
         // --- Filter Kelas ---
         if ($request->has('kelas_id') && $request->kelas_id != null) {

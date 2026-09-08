@@ -15,20 +15,20 @@ class SiswaController extends Controller
 {
     public function index()
     {
-        $kelasList = Kelas::orderBy('kelas')->get();
+        $kelasList = Kelas::whereRaw("LOWER(kelas) != 'alumni'")->where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.daftar_siswa', compact('kelasList'));
     }
 
     public function create()
     {
-        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
+        $kelasList = Kelas::whereRaw("LOWER(kelas) != 'alumni'")->where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.tambah_siswa', compact('kelasList'));
     }
 
     public function edit($id)
     {
         $siswa = Siswa::findOrFail($id);
-        $kelasList = Kelas::where('id', '!=', 4)->orderBy('kelas')->get();
+        $kelasList = Kelas::whereRaw("LOWER(kelas) != 'alumni'")->where('id', '!=', 4)->orderBy('kelas')->get();
         return view('operator.tambah_siswa', compact('siswa', 'kelasList'));
     }
 
@@ -137,7 +137,11 @@ class SiswaController extends Controller
 
     public function filterByKelas(Request $request)
     {
-        $query = Siswa::with('kelas');
+        $query = Siswa::with('kelas')
+            ->whereHas('kelas', function ($q) {
+                $q->whereRaw("LOWER(kelas) != 'alumni'");
+            })
+            ->where('kelas_id', '!=', 4);
 
         if ($request->filled('kelas')) {
             $query->where('kelas_id', $request->kelas);
