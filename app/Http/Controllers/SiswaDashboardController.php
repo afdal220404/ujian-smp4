@@ -15,9 +15,10 @@ class SiswaDashboardController extends Controller
     {
         $siswa = Auth::guard('siswa')->user()->load('kelas');
         
-        // Hitung Statistik Nilai (filter ke kelas aktif saja)
+        // Hitung Statistik Nilai (filter ke kelas aktif saja dan hanya ujian yang SUDAH SELESAI)
         $mapelIdsKelas = Mapel::where('kelas_id', $siswa->kelas_id)->pluck('id');
         $nilaiSemua = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+            ->whereNotNull('waktu_selesai')
             ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
                 $q->whereIn('mapel_id', $mapelIdsKelas);
             })->get();
@@ -31,10 +32,10 @@ class SiswaDashboardController extends Controller
         foreach($mapels as $mapel) {
             $ujian_selesai = Ujian::where('mapel_id', $mapel->id)
                 ->whereHas('hasilUjians', function($q) use ($siswa) {
-                    $q->where('siswa_id', $siswa->id);
+                    $q->where('siswa_id', $siswa->id)->whereNotNull('waktu_selesai');
                 })
                 ->with(['hasilUjians' => function($q) use ($siswa) {
-                    $q->where('siswa_id', $siswa->id);
+                    $q->where('siswa_id', $siswa->id)->whereNotNull('waktu_selesai');
                 }])
                 ->get();
                 
@@ -75,6 +76,7 @@ class SiswaDashboardController extends Controller
         $countKuisMapel = 0;
         foreach($mapels as $mapel) {
             $kuisNilais = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                ->whereNotNull('waktu_selesai')
                 ->whereHas('ujian', function($q) use ($mapel) {
                     $q->where('mapel_id', $mapel->id)
                       ->where(function($q2) { $q2->whereRaw("LOWER(jenis_ujian) LIKE '%kuis%'"); });
@@ -87,20 +89,21 @@ class SiswaDashboardController extends Controller
         $rataRataKuis = $countKuisMapel > 0 ? ($totalKuisGlobal / $countKuisMapel) : 0;
 
         $ujianTerakhir = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                            ->whereNotNull('waktu_selesai')
                             ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
                                 $q->whereIn('mapel_id', $mapelIdsKelas);
                             })
-                            ->latest()
+                            ->latest('waktu_selesai')
                             ->with('ujian')
                             ->first();
 
         // Ambil Daftar Ujian Berdasarkan Kategori
-        // 1. Sedang Berlangsung (Sekarang ada di antara waktu_mulai dan selesai, BELUM diselesaikan siswa)
-        $sedangBerlangsung = Ujian::whereIn('mapel_id', $siswa->kelas->mapels->pluck('id')) // Fix: whereIn
+        // 1. Sedang Berlangsung (Sekarang ada di antara waktu_mulai dan selesai, BELUM diselesaikan siswa / waktu_selesai is null)
+        $sedangBerlangsung = Ujian::whereIn('mapel_id', $siswa->kelas->mapels->pluck('id'))
             ->where('waktu_mulai', '<=', now())
             ->where('waktu_selesai', '>', now())
             ->whereDoesntHave('hasilUjians', function($q) use ($siswa) {
-                $q->where('siswa_id', $siswa->id);
+                $q->where('siswa_id', $siswa->id)->whereNotNull('waktu_selesai');
             })
             ->where(function($q) use ($siswa) {
                 $q->where('is_susulan', false)
@@ -108,11 +111,13 @@ class SiswaDashboardController extends Controller
                   ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
                   ->orWhereJsonContains('peserta_susulan', $siswa->id);
             })
-            ->with(['mapel.guru']) // Fix: mapel.guru
+            ->with(['mapel.guru', 'hasilUjians' => function($q) use ($siswa) {
+                $q->where('siswa_id', $siswa->id);
+            }])
             ->get();
 
         // 2. Akan Datang (Waktu mulai > sekarang)
-        $akanDatang = Ujian::whereIn('mapel_id', $siswa->kelas->mapels->pluck('id')) // Fix: whereIn
+        $akanDatang = Ujian::whereIn('mapel_id', $siswa->kelas->mapels->pluck('id'))
             ->where('waktu_mulai', '>', now())
             ->where(function($q) use ($siswa) {
                 $q->where('is_susulan', false)
@@ -120,20 +125,105 @@ class SiswaDashboardController extends Controller
                   ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
                   ->orWhereJsonContains('peserta_susulan', $siswa->id);
             })
-            ->with(['mapel.guru']) // Fix: mapel.guru
+            ->with(['mapel.guru'])
             ->get();
 
-        // 3. Telah Berlalu — hanya ujian dari kelas aktif
+        // 3. Telah Berlalu — hanya ujian dari kelas aktif yang SUDAH SELESAI
         $telahBerlalu = \App\Models\HasilUjian::where('siswa_id', $siswa->id)
+                            ->whereNotNull('waktu_selesai')
                             ->whereHas('ujian', function($q) use ($mapelIdsKelas) {
                                 $q->whereIn('mapel_id', $mapelIdsKelas);
                             })
                             ->with(['ujian.mapel.guru'])
-                            ->latest()
+                            ->latest('waktu_selesai')
                             ->get();
 
         return view('siswa.dashboard', compact('siswa', 'rataRata', 'rataRataKuis', 'totalUjian', 'ujianTerakhir', 
             'sedangBerlangsung', 'akanDatang', 'telahBerlalu'));
+    }
+
+    /**
+     * Endpoint API JSON Live Polling untuk Realtime Auto-Sync Ujian & Kuis Baru di Dashboard Siswa
+     */
+    public function getLiveExams()
+    {
+        $siswa = Auth::guard('siswa')->user();
+        if (!$siswa) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+        $siswa->load('kelas.mapels');
+
+        $mapelIds = $siswa->kelas ? $siswa->kelas->mapels->pluck('id') : collect();
+
+        // 1. Ujian Sedang Berlangsung
+        $sedangBerlangsung = Ujian::whereIn('mapel_id', $mapelIds)
+            ->where('waktu_mulai', '<=', now())
+            ->where('waktu_selesai', '>', now())
+            ->whereDoesntHave('hasilUjians', function($q) use ($siswa) {
+                $q->where('siswa_id', $siswa->id)->whereNotNull('waktu_selesai');
+            })
+            ->where(function($q) use ($siswa) {
+                $q->where('is_susulan', false)
+                  ->orWhereNull('is_susulan')
+                  ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
+                  ->orWhereJsonContains('peserta_susulan', $siswa->id);
+            })
+            ->with(['mapel.guru', 'hasilUjians' => function($q) use ($siswa) {
+                $q->where('siswa_id', $siswa->id);
+            }])
+            ->get();
+
+        // 2. Ujian Akan Datang
+        $akanDatang = Ujian::whereIn('mapel_id', $mapelIds)
+            ->where('waktu_mulai', '>', now())
+            ->where(function($q) use ($siswa) {
+                $q->where('is_susulan', false)
+                  ->orWhereNull('is_susulan')
+                  ->orWhereJsonContains('peserta_susulan', (string)$siswa->id)
+                  ->orWhereJsonContains('peserta_susulan', $siswa->id);
+            })
+            ->with(['mapel.guru'])
+            ->get();
+
+        $dataSedang = $sedangBerlangsung->map(function($ujian) use ($siswa) {
+            $hasilSiswa = $ujian->hasilUjians ? $ujian->hasilUjians->first() : null;
+            $isResume = $hasilSiswa && is_null($hasilSiswa->waktu_selesai) && !is_null($hasilSiswa->waktu_mulai);
+
+            return [
+                'id' => $ujian->id,
+                'nama_ujian' => $ujian->nama_ujian,
+                'nama_mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+                'guru' => $ujian->mapel->guru->nama_lengkap ?? 'Guru Pengampu',
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'is_susulan' => (bool)$ujian->is_susulan,
+                'waktu_mulai' => $ujian->waktu_mulai,
+                'waktu_selesai' => $ujian->waktu_selesai,
+                'waktu_selesai_iso' => \Carbon\Carbon::parse($ujian->waktu_selesai)->format('Y-m-d H:i:s'),
+                'durasi_menit' => $ujian->durasi_menit,
+                'is_resume' => (bool)$isResume,
+                'konfirmasi_url' => route('siswa.ujian.konfirmasi', $ujian->id),
+            ];
+        });
+
+        $dataAkanDatang = $akanDatang->map(function($ujian) {
+            return [
+                'id' => $ujian->id,
+                'nama_ujian' => $ujian->nama_ujian,
+                'nama_mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+                'guru' => $ujian->mapel->guru->nama_lengkap ?? 'Guru Pengampu',
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'waktu_mulai' => $ujian->waktu_mulai,
+                'waktu_mulai_formatted' => \Carbon\Carbon::parse($ujian->waktu_mulai)->locale('id')->isoFormat('D MMM Y, HH:mm') . ' WIB',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'count_ongoing' => $dataSedang->count(),
+            'count_upcoming' => $dataAkanDatang->count(),
+            'sedang_berlangsung' => $dataSedang,
+            'akan_datang' => $dataAkanDatang,
+        ]);
     }
 
     public function indexNilai(Request $request)
@@ -237,70 +327,55 @@ class SiswaDashboardController extends Controller
             }
         }
 
-        // --- Semua Tingkat Kelas (VII, VIII, IX) ---
-        // $siswa->kelas adalah relasi ke model Kelas
-        // Kolom tingkat di tabel kelas bernama 'kelas' (VII/VIII/IX)
+        // --- Semua Tingkat Kelas (VII, VIII, IX) & Validasi Hak Akses Siswa ---
         $tingkatList = ['VII', 'VIII', 'IX'];
-        $kelasAktif  = $siswa->kelas->kelas ?? null; // e.g. 'VIII'
+        $kelasAktif  = $siswa->kelas->kelas ?? 'VII';
 
-        $riwayatKelas = collect();
+        $currentRank = match(strtoupper(trim($kelasAktif))) {
+            'VII' => 7,
+            'VIII' => 8,
+            'IX' => 9,
+            default => 7
+        };
+
+        $allKelasShared = collect();
         foreach ($tingkatList as $tingkat) {
-            // Skip tingkat yang sama dengan kelas aktif siswa
-            if ($tingkat === $kelasAktif) continue;
+            $rank = match(strtoupper(trim($tingkat))) {
+                'VII' => 7,
+                'VIII' => 8,
+                'IX' => 9,
+                default => 7
+            };
+            $isUnlocked = ($rank <= $currentRank);
+            $isCurrent  = ($tingkat === $kelasAktif);
 
-            // Ambil semua kelas rows untuk tingkat ini (e.g. semua kelas IX: 9A, 9B, ...)
-            $kelasIds = \App\Models\Kelas::where('kelas', $tingkat)->pluck('id');
-
-            // Ambil mapels yang kelas_id-nya termasuk tingkat ini
-            $mapelsTingkat = Mapel::whereIn('kelas_id', $kelasIds)->with('guru')->get();
-
-            $totalKelas = 0;
-            $countKelas = 0;
-
-            foreach ($mapelsTingkat as $mapel) {
-                $ujianSelesai = Ujian::where('mapel_id', $mapel->id)
-                    ->whereHas('hasilUjians', function($q) use ($siswa) {
-                        $q->where('siswa_id', $siswa->id);
-                    })
-                    ->with(['hasilUjians' => function($q) use ($siswa) {
-                        $q->where('siswa_id', $siswa->id);
-                    }])
-                    ->get();
-
-                $kuisColl = collect(); $utsColl = collect(); $uasColl = collect();
-                foreach ($ujianSelesai as $ujian) {
-                    $hasil = $ujian->hasilUjians->first();
-                    if ($hasil) {
-                        if (stripos($ujian->jenis_ujian ?? '', 'Kuis') !== false) $kuisColl->push($hasil->nilai);
-                        elseif (stripos($ujian->jenis_ujian ?? '', 'UTS') !== false) $utsColl->push($hasil->nilai);
-                        elseif (stripos($ujian->jenis_ujian ?? '', 'UAS') !== false) $uasColl->push($hasil->nilai);
-                    }
+            $mapelsTingkat = collect();
+            if ($isCurrent) {
+                $mapelsTingkat = $mapels;
+            } elseif ($isUnlocked) {
+                $kelasIds = \App\Models\Kelas::where('kelas', $tingkat)->pluck('id');
+                $rawMapels = Mapel::whereIn('kelas_id', $kelasIds)->with('guru')->get();
+                foreach ($rawMapels as $mp) {
+                    $ujianSelesai = Ujian::where('mapel_id', $mp->id)
+                        ->whereHas('hasilUjians', fn($q) => $q->where('siswa_id', $siswa->id))
+                        ->with(['hasilUjians' => fn($q) => $q->where('siswa_id', $siswa->id)])
+                        ->latest()->get();
+                    $mp->ujian_selesai = $ujianSelesai;
                 }
-                $k = $kuisColl->isNotEmpty() ? $kuisColl->avg() : null;
-                $u = $utsColl->isNotEmpty() ? $utsColl->avg() : null;
-                $a = $uasColl->isNotEmpty() ? $uasColl->avg() : null;
-                $komponen = array_filter([$k, $u, $a], fn($v) => $v !== null);
-                $akhir = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
-
-                $mapel->rata_rata     = $akhir ?? 0;
-                $mapel->ujian_selesai = $ujianSelesai;
-                if ($akhir !== null) { $totalKelas += $akhir; $countKelas++; }
+                $mapelsTingkat = $rawMapels;
             }
 
-            $riwayatKelas->push([
-                'tingkat'    => $tingkat,
-                'kelas'      => (object)['nama_kelas' => 'Kelas ' . $tingkat],
-                'mapels'     => $mapelsTingkat,
-                'rata_rata'  => $countKelas > 0 ? ($totalKelas / $countKelas) : 0,
-                'ada_nilai'  => $countKelas > 0,
-                'is_current' => false,
+            $allKelasShared->push([
+                'tingkat'     => $tingkat,
+                'kelas'       => (object)['nama_kelas' => 'Kelas ' . $tingkat],
+                'mapels'      => $mapelsTingkat,
+                'is_current'  => $isCurrent,
+                'is_unlocked' => $isUnlocked,
+                'ada_nilai'   => $mapelsTingkat->isNotEmpty(),
             ]);
         }
 
-        // Nama kelas aktif untuk label tab (e.g. "Kelas VIII")
-        $namaKelasAktif = $kelasAktif ? 'Kelas ' . $kelasAktif : 'Kelas Aktif';
-
-        return view('siswa.nilai', compact('siswa', 'mapels', 'allMapels', 'rataRataKeseluruhan', 'keyword', 'riwayatKelas', 'namaKelasAktif', 'kelasAktif'));
+        return view('siswa.nilai', compact('siswa', 'mapels', 'allMapels', 'rataRataKeseluruhan', 'keyword', 'allKelasShared', 'kelasAktif'));
     }
 
     public function showUjian($id)
@@ -409,6 +484,18 @@ class SiswaDashboardController extends Controller
         $siswa = Auth::guard('siswa')->user();
         $ujian = Ujian::with(['mapel.guru', 'soals'])->findOrFail($id);
 
+        // Cek Keamanan Akses: Wajib Melalui Aplikasi Mobile Ujian Digital (Kecuali Diizinkan Pengawas)
+        $userAgent = request()->header('User-Agent', '');
+        $isExamApp = str_contains($userAgent, 'SMPN4-ExamBrowser');
+
+        if (!$ujian->isSiswaAllowedWeb($siswa->id) && !$isExamApp) {
+            return redirect()->route('siswa.dashboard')->with('blocked_web_access', [
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
+        }
+
         // Cek Akses Ujian Susulan
         if ($ujian->is_susulan) {
             $peserta = $ujian->peserta_susulan ?? [];
@@ -436,13 +523,42 @@ class SiswaDashboardController extends Controller
              return redirect()->route('siswa.dashboard')->with('error', 'Waktu ujian telah berakhir.');
         }
 
-        return view('siswa.ujian.konfirmasi', compact('siswa', 'ujian'));
+        // Cek apakah siswa sedang melanjutkan (pernah klik mulai sebelumnya)
+        $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
+                        ->where('siswa_id', $siswa->id)
+                        ->whereNull('waktu_selesai')
+                        ->first();
+        $isResume = ($hasilUjian !== null && $hasilUjian->waktu_mulai !== null);
+
+        // Cek jika sesi ujian siswa sedang terkunci masuk ulang (Re-Entry Lock)
+        if ($hasilUjian && $hasilUjian->is_locked_reentry) {
+            return redirect()->route('siswa.dashboard')->with('reentry_locked', [
+                'ujian_id' => $ujian->id,
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
+        }
+
+        return view('siswa.ujian.konfirmasi', compact('siswa', 'ujian', 'isResume'));
     }
 
     public function mulaiUjian($id)
     {
         $siswa = Auth::guard('siswa')->user();
         $ujian = Ujian::with('soals.bankSoal')->findOrFail($id); // Eager load soals dengan bankSoal
+
+        // Cek Keamanan Akses: Wajib Melalui Aplikasi Mobile Ujian Digital (Kecuali Diizinkan Pengawas)
+        $userAgent = request()->header('User-Agent', '');
+        $isExamApp = str_contains($userAgent, 'SMPN4-ExamBrowser');
+
+        if (!$ujian->isSiswaAllowedWeb($siswa->id) && !$isExamApp) {
+            return redirect()->route('siswa.dashboard')->with('blocked_web_access', [
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
+        }
 
         // Cek Akses Ujian Susulan
         if ($ujian->is_susulan) {
@@ -464,6 +580,26 @@ class SiswaDashboardController extends Controller
                 'nilai'       => 0
             ]
         );
+
+        // Jika ujian sebelumnya di-restart oleh pengawas, waktu_mulai bernilai null.
+        // Set waktu_mulai menjadi now() saat siswa mengklik Mulai Ujian.
+        if ($hasilUjian->waktu_mulai === null) {
+            $hasilUjian->update([
+                'waktu_mulai' => now(),
+                'is_paused' => false,
+                'is_locked_reentry' => false,
+            ]);
+        }
+
+        // Jika sesi sudah ada dan sedang terkunci masuk ulang
+        if ($hasilUjian->is_locked_reentry && !$hasilUjian->waktu_selesai) {
+            return redirect()->route('siswa.dashboard')->with('reentry_locked', [
+                'ujian_id' => $ujian->id,
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
+        }
 
         // --- RANDOMISASI SOAL ---
         // Cek jika belum ada jawaban tersimpan (artinya baru mulai), generate urutan acak
@@ -494,18 +630,41 @@ class SiswaDashboardController extends Controller
     public function kerjakanUjian($id)
     {
         $siswa = Auth::guard('siswa')->user();
+        $ujian = Ujian::findOrFail($id);
+
+        // Cek Keamanan Akses: Wajib Melalui Aplikasi Mobile Ujian Digital (Kecuali Diizinkan Pengawas)
+        $userAgent = request()->header('User-Agent', '');
+        $isExamApp = str_contains($userAgent, 'SMPN4-ExamBrowser');
+
+        if (!$ujian->isSiswaAllowedWeb($siswa->id) && !$isExamApp) {
+            return redirect()->route('siswa.dashboard')->with('blocked_web_access', [
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
+        }
         
         // Validasi Akses & Ambil Hasil Ujian
         $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
                         ->where('siswa_id', $siswa->id)
                         ->first();
 
-        if (!$hasilUjian) {
+        if (!$hasilUjian || $hasilUjian->waktu_mulai === null) {
             return redirect()->route('siswa.ujian.konfirmasi', $id);
         }
 
         if ($hasilUjian->waktu_selesai) {
              return redirect()->route('siswa.ujian.detail', $id);
+        }
+
+        // Cek jika sesi ujian siswa sedang terkunci masuk ulang (Re-Entry Lock)
+        if ($hasilUjian->is_locked_reentry) {
+            return redirect()->route('siswa.dashboard')->with('reentry_locked', [
+                'ujian_id' => $ujian->id,
+                'nama_ujian' => $ujian->nama_ujian,
+                'jenis_ujian' => $ujian->jenis_ujian,
+                'mapel' => $ujian->mapel->nama_mapel ?? 'Mata Pelajaran',
+            ]);
         }
 
         // --- LOAD SOAL BERDASARKAN URUTAN JAWABAN SISWA (Step 2 Randomized) ---
@@ -554,6 +713,15 @@ class SiswaDashboardController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Sesi ujian tidak valid or sudah selesai.'], 400);
         }
 
+        // Cek jika ujian sedang dijeda oleh pengawas
+        if ($hasilUjian->is_paused) {
+            return response()->json([
+                'status' => 'paused',
+                'is_paused' => true,
+                'message' => 'Ujian sedang dijeda oleh Pengawas. Jawaban tidak dapat disimpan saat ini.'
+            ], 403);
+        }
+
         // Simpan/Update Jawaban
         \App\Models\JawabanSiswa::updateOrCreate(
             [
@@ -576,8 +744,11 @@ class SiswaDashboardController extends Controller
                         ->where('siswa_id', $siswa->id)
                         ->firstOrFail();
 
-        // 1. Set Waktu Selesai
+        // 1. Set Waktu Selesai & Status Penyelesaian
         $hasilUjian->waktu_selesai = now();
+        $hasilUjian->status_penyelesaian = $request->input('status_penyelesaian', 'normal');
+        $hasilUjian->keterangan_pelanggaran = $request->input('keterangan_pelanggaran', null);
+        $hasilUjian->is_locked_reentry = false;
         
         // 2. Hitung Nilai Otomatis
         $ujian = Ujian::with('soals.bankSoal')->findOrFail($id);
@@ -732,11 +903,13 @@ class SiswaDashboardController extends Controller
                         'siswa_id' => $siswa->id
                     ],
                     [
-                        'kelas_id'      => $siswa->kelas_id,
-                        'waktu_mulai'   => $hasilUjian->waktu_mulai,
-                        'waktu_selesai' => $hasilUjian->waktu_selesai,
-                        'nilai'         => $hasilUjian->nilai,
-                        'jumlah_benar'  => $hasilUjian->jumlah_benar,
+                        'kelas_id'               => $siswa->kelas_id,
+                        'waktu_mulai'            => $hasilUjian->waktu_mulai,
+                        'waktu_selesai'          => $hasilUjian->waktu_selesai,
+                        'nilai'                  => $hasilUjian->nilai,
+                        'jumlah_benar'           => $hasilUjian->jumlah_benar,
+                        'status_penyelesaian'    => $hasilUjian->status_penyelesaian,
+                        'keterangan_pelanggaran' => $hasilUjian->keterangan_pelanggaran,
                     ]
                 );
 
@@ -801,5 +974,121 @@ class SiswaDashboardController extends Controller
         $jumlahSalah = $totalSoal - $hasilUjian->jumlah_benar;
 
         return view('siswa.ujian.hasil', compact('siswa', 'ujian', 'hasilUjian', 'jumlahSalah', 'totalSoal'));
+    }
+
+    public function indexProfil()
+    {
+        $siswa = Auth::guard('siswa')->user()->load('kelas');
+        $mapels = Mapel::where('kelas_id', $siswa->kelas_id)->with('guru')->get();
+
+        return view('siswa.profil', compact('siswa', 'mapels'));
+    }
+
+    public function gantiPassword(Request $request)
+    {
+        $siswa = Auth::guard('siswa')->user();
+        
+        $request->validate([
+            'password_lama' => 'required',
+            'password_baru' => 'required|min:6|confirmed',
+        ], [
+            'password_lama.required' => 'Password lama wajib diisi.',
+            'password_baru.required' => 'Password baru wajib diisi.',
+            'password_baru.min' => 'Password baru minimal 6 karakter.',
+            'password_baru.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->password_lama, $siswa->password)) {
+            return back()->with('error', 'Password lama tidak sesuai.');
+        }
+
+        $siswa->password = \Illuminate\Support\Facades\Hash::make($request->password_baru);
+        $siswa->save();
+
+        return back()->with('success', 'Password berhasil diperbarui.');
+    }
+
+    /**
+     * Kunci Sesi Masuk Ulang (Re-Entry Lock) saat sesi terputus / halaman ditinggalkan
+     */
+    public function lockReentry(Request $request, $id)
+    {
+        $siswa = Auth::guard('siswa')->user();
+        $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
+                        ->where('siswa_id', $siswa->id)
+                        ->whereNull('waktu_selesai')
+                        ->first();
+
+        if ($hasilUjian) {
+            $hasilUjian->is_locked_reentry = true;
+            $hasilUjian->last_heartbeat = now();
+            $hasilUjian->save();
+            return response()->json(['status' => 'success', 'locked' => true]);
+        }
+
+        return response()->json(['status' => 'ignored']);
+    }
+
+    /**
+     * Cek apakah kunci masuk ulang sudah dibuka oleh pengawas
+     */
+    public function checkReentryStatus($id)
+    {
+        $siswa = Auth::guard('siswa')->user();
+        $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
+                        ->where('siswa_id', $siswa->id)
+                        ->first();
+
+        if (!$hasilUjian) {
+            return response()->json(['status' => 'not_started', 'unlocked' => true]);
+        }
+
+        if ($hasilUjian->waktu_selesai) {
+            return response()->json(['status' => 'finished', 'unlocked' => false, 'finished' => true]);
+        }
+
+        return response()->json([
+            'status' => 'ongoing',
+            'unlocked' => !$hasilUjian->is_locked_reentry,
+            'locked' => (bool) $hasilUjian->is_locked_reentry
+        ]);
+    }
+
+    /**
+     * Cek Status Pengerjaan Ujian Realtime (Jeda/Pause, Kunci Masuk Ulang, Selesai)
+     */
+    public function cekStatusUjian($id)
+    {
+        $siswa = Auth::guard('siswa')->user();
+        if (!$siswa) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
+                        ->where('siswa_id', $siswa->id)
+                        ->first();
+
+        if (!$hasilUjian) {
+            return response()->json([
+                'status' => 'not_found',
+                'is_paused' => false,
+                'is_locked_reentry' => false,
+                'is_finished' => false,
+            ]);
+        }
+
+        // Update heartbeat pengerjaan aktif jika tidak sedang dijeda
+        if (!$hasilUjian->is_paused && !$hasilUjian->waktu_selesai) {
+            $hasilUjian->update(['last_heartbeat' => now()]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'success' => true,
+            'is_paused' => (bool) $hasilUjian->is_paused,
+            'is_locked_reentry' => (bool) $hasilUjian->is_locked_reentry,
+            'is_finished' => ($hasilUjian->waktu_selesai !== null),
+            'waktu_selesai' => $hasilUjian->waktu_selesai ? $hasilUjian->waktu_selesai->toDateTimeString() : null,
+        ]);
     }
 }

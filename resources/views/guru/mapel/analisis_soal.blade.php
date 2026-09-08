@@ -90,11 +90,10 @@
                                 </div>
                             @endif
 
-                            <div class="text-gray-800 text-sm font-medium leading-relaxed mb-4">
-                                {!! nl2br(e($item['soal']->pertanyaan)) !!}
+                            <div class="text-gray-800 text-sm font-medium leading-relaxed mb-4 prose max-w-none">
+                                {!! format_soal($item['soal']->pertanyaan) !!}
                             </div>
                             
-                            {{-- Tampilkan Semua Opsi & Highlight Kunci --}}
                             {{-- Tampilkan Semua Opsi & Highlight Kunci --}}
                             <div class="grid grid-cols-1 gap-2 mt-auto">
                                 
@@ -134,7 +133,7 @@
                                                 @if(!empty($imgOpsi)) 
                                                     <img src="{{ asset('storage/' . $imgOpsi) }}" alt="Opsi {{ $opt }}" class="max-h-16 rounded object-contain mb-1 bg-white border border-gray-100"> 
                                                 @endif
-                                                @if(!empty($textOpsi)) <span>{{ $textOpsi }}</span> @else @if(empty($imgOpsi)) <span>-</span> @endif @endif
+                                                @if(!empty($textOpsi)) <span>{!! format_soal($textOpsi) !!}</span> @else @if(empty($imgOpsi)) <span>-</span> @endif @endif
                                             </div>
                                             @if($isKunci)
                                                 <i class="bi bi-check-circle-fill text-green-600 text-sm ml-auto"></i>
@@ -207,7 +206,7 @@
                                                     <img src="{{ asset('storage/' . $opt['gambar']) }}" alt="Opsi" class="max-h-16 rounded object-contain mb-1 bg-white border border-gray-100"> 
                                                 @endif
                                                 @if(!empty($opt['text'])) 
-                                                    <span>{{ $opt['text'] }}</span> 
+                                                    <span>{!! format_soal($opt['text']) !!}</span> 
                                                 @else 
                                                     @if(empty($opt['gambar'])) <span>-</span> @endif 
                                                 @endif
@@ -239,7 +238,7 @@
                                                             @if(!empty($stmt['gambar'])) 
                                                                 <img src="{{ asset('storage/' . $stmt['gambar']) }}" class="max-h-12 w-auto rounded object-contain mb-1"> 
                                                             @endif
-                                                            <span class="text-gray-700">{{ $stmt['text'] ?? '-' }}</span>
+                                                            <span class="text-gray-700">{!! format_soal($stmt['text'] ?? '-') !!}</span>
                                                         </div>
                                                         <div class="shrink-0">
                                                             @if($isBenar)
@@ -271,7 +270,7 @@
                                                         {{-- Kotak Kiri --}}
                                                         <div class="bg-white border border-green-200 rounded px-2 py-1.5 flex-1 flex flex-col shadow-sm">
                                                             @if(!empty($match['gambar_left'])) <img src="{{ asset('storage/' . $match['gambar_left']) }}" class="max-h-10 mb-1 object-contain"> @endif
-                                                            @if(!empty($match['left'])) <span>{{ $match['left'] }}</span> @endif
+                                                            @if(!empty($match['left'])) <span>{!! format_soal($match['left']) !!}</span> @endif
                                                         </div>
                                                         
                                                         <i class="bi bi-link text-green-600 font-bold text-lg px-1"></i>
@@ -279,7 +278,7 @@
                                                         {{-- Kotak Kanan --}}
                                                         <div class="bg-white border border-green-200 rounded px-2 py-1.5 flex-1 flex flex-col shadow-sm">
                                                             @if(!empty($match['gambar_right'])) <img src="{{ asset('storage/' . $match['gambar_right']) }}" class="max-h-10 mb-1 object-contain ml-auto"> @endif
-                                                            @if(!empty($match['right'])) <span class="text-right">{{ $match['right'] }}</span> @endif
+                                                            @if(!empty($match['right'])) <span class="text-right">{!! format_soal($match['right']) !!}</span> @endif
                                                         </div>
                                                     </div>
                                                 @endforeach

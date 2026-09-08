@@ -147,6 +147,29 @@
                 <input type="text" id="durasi" class="bg-transparent border-none text-right font-bold text-xl text-blue-700 focus:ring-0 w-40" 
                        value="{{ $ujianDetails['durasi_menit'] ?? '0' }} Menit" readonly>
             </div>
+
+            {{-- Guru Pengawas Ruangan --}}
+            <div class="col-span-1 md:col-span-2 group">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    Guru Pengawas Ruangan <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <select name="pengawas_id" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none font-medium text-gray-700 cursor-pointer" required>
+                        <option value="" disabled {{ !old('pengawas_id', $ujianDetails['pengawas_id'] ?? ($ujian->pengawas_id ?? '')) ? 'selected' : '' }}> Pilih Guru Pengawas Ujian</option>
+                        @if(isset($daftarGuru))
+                            @foreach($daftarGuru as $g)
+                                <option value="{{ $g->id }}" {{ (old('pengawas_id', $ujianDetails['pengawas_id'] ?? ($ujian->pengawas_id ?? '')) == $g->id) ? 'selected' : '' }}>
+                                    {{ $g->nama_lengkap }} ({{ $g->nip ?: 'Tanpa NIP' }})
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400">
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1.5 ml-1">Pilih guru yang bertugas mengawasi di ruangan. Jika Anda sendiri yang mengawasi ujian ini, silakan pilih nama Anda.</p>
+            </div>
             
         </div>
 

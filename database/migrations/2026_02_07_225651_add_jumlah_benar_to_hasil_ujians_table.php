@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('hasil_ujians', function (Blueprint $table) {
-            $table->integer('jumlah_benar')->nullable()->after('waktu_selesai');
-            $table->integer('jumlah_salah')->nullable()->after('jumlah_benar');
+            if (!Schema::hasColumn('hasil_ujians', 'jumlah_benar')) {
+                $table->integer('jumlah_benar')->nullable()->after('waktu_selesai');
+            }
+            if (!Schema::hasColumn('hasil_ujians', 'jumlah_salah')) {
+                $table->integer('jumlah_salah')->nullable()->after('jumlah_benar');
+            }
         });
     }
 

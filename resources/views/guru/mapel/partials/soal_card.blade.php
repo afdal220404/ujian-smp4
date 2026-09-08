@@ -24,9 +24,23 @@
     <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {{-- Kiri: Pertanyaan & Konten --}}
         <div class="lg:col-span-8 space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pertanyaan</label>
-                <textarea name="soal[{{ $index }}][pertanyaan]" class="soal-textarea w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800" rows="3" placeholder="Tulis pertanyaan disini...">{{ $soal['pertanyaan'] ?? '' }}</textarea>
+            <div class="pertanyaan-container">
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                            <b>B</b>
+                        </button>
+                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                            <i>I</i>
+                        </button>
+                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                            <u>U</u>
+                        </button>
+                    </div>
+                </div>
+                <div contenteditable="true" class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800" data-placeholder="Tulis pertanyaan disini...">{!! $soal['pertanyaan'] ?? '' !!}</div>
+                <textarea name="soal[{{ $index }}][pertanyaan]" class="soal-textarea hidden">{{ $soal['pertanyaan'] ?? '' }}</textarea>
             </div>
 
             {{-- Container Jawaban Dinamis --}}

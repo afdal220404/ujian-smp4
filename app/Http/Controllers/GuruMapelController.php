@@ -16,6 +16,7 @@ use App\Models\BankSoal;
 use App\Models\ArsipSoalSiswa;
 use App\Models\HasilUjian;
 use App\Models\JawabanSiswa; 
+use App\Models\Guru;
 use Carbon\Carbon;
 
 function getTahunAjaran() {
@@ -485,7 +486,8 @@ class GuruMapelController extends Controller
             return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
         }
         session()->forget(['ujian_temp_details', 'ujian_temp_soals', 'editing_ujian_id']);
-        return view('guru.mapel.create_ujian', ['mapel' => $mapel, 'ujianDetails' => null, 'jumlahSoal' => 0]);
+        $daftarGuru = Guru::orderBy('nama_lengkap')->get();
+        return view('guru.mapel.create_ujian', ['mapel' => $mapel, 'ujianDetails' => null, 'jumlahSoal' => 0, 'daftarGuru' => $daftarGuru]);
     }
 
     public function showCreateUjianPage(Mapel $mapel)
@@ -500,8 +502,9 @@ class GuruMapelController extends Controller
 
         $jumlahSoal = count($tempSoals);
         $ujian = null; 
+        $daftarGuru = Guru::orderBy('nama_lengkap')->get();
 
-        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian'));
+        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian', 'daftarGuru'));
     }
 
     public function storeUjian(Request $request, Mapel $mapel)
@@ -512,6 +515,9 @@ class GuruMapelController extends Controller
             'tanggal_ujian' => 'required|date',
             'waktu_mulai' => 'required|date_format:H:i',
             'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
+            'pengawas_id' => 'required|exists:gurus,id',
+        ], [
+            'pengawas_id.required' => 'Guru Pengawas Ruangan wajib dipilih.',
         ]);
 
         $start = new \DateTime($validated['waktu_mulai']);
@@ -526,6 +532,7 @@ class GuruMapelController extends Controller
             'durasi_menit' => $durasi_menit,
             'mapel_id' => $mapel->id,
             'guru_id' => Auth::id(),
+            'pengawas_id' => $validated['pengawas_id'] ?? null,
         ];
         session(['ujian_temp_details' => $ujianData]);
 
@@ -544,6 +551,7 @@ class GuruMapelController extends Controller
                 $ujian = Ujian::create([
                     'mapel_id' => $mapel->id,
                     'guru_id' => Auth::id(),
+                    'pengawas_id' => $validated['pengawas_id'] ?? null,
                     'nama_ujian' => $validated['nama_ujian'],
                     'jenis_ujian' => $validated['jenis_ujian'],
                     'tanggal_ujian' => $validated['tanggal_ujian'],
@@ -790,7 +798,8 @@ class GuruMapelController extends Controller
                 'waktu_mulai' => Carbon::parse($ujian->waktu_mulai)->format('H:i'),
                 'waktu_selesai' => Carbon::parse($ujian->waktu_selesai)->format('H:i'),
                 'durasi_menit' => $ujian->durasi_menit,
-                'mapel_id' => $ujian->mapel_id
+                'mapel_id' => $ujian->mapel_id,
+                'pengawas_id' => $ujian->pengawas_id,
             ];
             session(['ujian_temp_details' => $ujianDetails]);
         }
@@ -828,8 +837,9 @@ class GuruMapelController extends Controller
         $jumlahSoal = count($tempSoals);
         $mapel = $ujian->mapel;
         $ujianDetails = session('ujian_temp_details');
+        $daftarGuru = Guru::orderBy('nama_lengkap')->get();
 
-        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian', 'isOngoing', 'isFinished'));
+        return view('guru.mapel.create_ujian', compact('mapel', 'ujianDetails', 'jumlahSoal', 'ujian', 'isOngoing', 'isFinished', 'daftarGuru'));
     }
 
     public function updateUjian(Request $request, Mapel $mapel, ?Ujian $ujian = null)
@@ -840,7 +850,10 @@ class GuruMapelController extends Controller
 
         if ($isFinished) return back()->with('error', 'Ujian selesai, tidak bisa diedit.');
 
-        $rules = ['waktu_selesai' => 'required|date_format:H:i'];
+        $rules = [
+            'waktu_selesai' => 'required|date_format:H:i',
+            'pengawas_id' => 'required|exists:gurus,id',
+        ];
         if (!$isOngoing) {
             $rules += [
                 'nama_ujian' => 'required|string',
@@ -849,7 +862,9 @@ class GuruMapelController extends Controller
                 'waktu_mulai' => 'required|date_format:H:i',
             ];
         }
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'pengawas_id.required' => 'Guru Pengawas Ruangan wajib dipilih.',
+        ]);
 
         if ($isOngoing) {
             if ($request->input('action') == 'tambah_soal') return back()->with('error', 'Tidak bisa edit soal saat ujian berlangsung.');
@@ -862,6 +877,7 @@ class GuruMapelController extends Controller
             $ujianDataDB = [
                 'waktu_selesai' => $ujian->tanggal_ujian . ' ' . $validated['waktu_selesai'] . ':00',
                 'durasi_menit' => $durasi,
+                'pengawas_id' => $validated['pengawas_id'] ?? null,
             ];
         } else {
             $start = new \DateTime($validated['waktu_mulai']);
@@ -876,6 +892,7 @@ class GuruMapelController extends Controller
                 'waktu_mulai' => $validated['tanggal_ujian'] . ' ' . $validated['waktu_mulai'] . ':00',
                 'waktu_selesai' => $validated['tanggal_ujian'] . ' ' . $validated['waktu_selesai'] . ':00',
                 'durasi_menit' => $durasi,
+                'pengawas_id' => $validated['pengawas_id'] ?? null,
             ];
         }
 
@@ -1411,7 +1428,8 @@ class GuruMapelController extends Controller
                         ->whereNotIn('id', $idSiswaSudah)
                         ->get();
 
-        return view('guru.mapel.create_susulan', compact('ujian', 'mapel', 'siswaBelum'));
+        $daftarGuru = Guru::orderBy('nama_lengkap')->get();
+        return view('guru.mapel.create_susulan', compact('ujian', 'mapel', 'siswaBelum', 'daftarGuru'));
     }
 
     /**
@@ -1440,8 +1458,11 @@ class GuruMapelController extends Controller
             'tanggal_ujian' => 'required|date',
             'waktu_mulai' => 'required|date_format:H:i',
             'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
+            'pengawas_id' => 'required|exists:gurus,id',
             'peserta_ids' => 'required|array',
             'peserta_ids.*' => 'exists:siswas,id',
+        ], [
+            'pengawas_id.required' => 'Guru Pengawas Ruangan wajib dipilih.',
         ]);
 
         $start = new \DateTime($validated['waktu_mulai']);
@@ -1454,6 +1475,7 @@ class GuruMapelController extends Controller
             $susulan = Ujian::create([
                 'mapel_id' => $mapel->id,
                 'guru_id' => Auth::id(),
+                'pengawas_id' => $validated['pengawas_id'] ?? null,
                 'nama_ujian' => $validated['nama_ujian'],
                 'jenis_ujian' => $ujian->jenis_ujian,
                 'tanggal_ujian' => $validated['tanggal_ujian'],

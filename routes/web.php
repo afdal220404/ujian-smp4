@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GuruIndexController;
 use App\Http\Controllers\GuruWaliKelasController;
 use App\Http\Controllers\GuruMapelController;
+use App\Http\Controllers\GuruPengawasController;
 use App\Http\Controllers\KepsekController;
 
 Route::get('/', function () {
@@ -75,6 +76,7 @@ Route::middleware('auth')->group(function () {
 // ROUTE KHUSUS SISWA
 Route::middleware(['auth:siswa'])->prefix('siswa')->name('siswa.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\SiswaDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/live-exams', [App\Http\Controllers\SiswaDashboardController::class, 'getLiveExams'])->name('dashboard.live_exams');
     Route::get('/nilai', [App\Http\Controllers\SiswaDashboardController::class, 'indexNilai'])->name('nilai');
     Route::get('/bank-soal', [App\Http\Controllers\SiswaDashboardController::class, 'indexBankSoal'])->name('bank_soal');
     Route::get('/ujian/{id}', [App\Http\Controllers\SiswaDashboardController::class, 'showUjian'])->name('ujian.detail');
@@ -84,8 +86,15 @@ Route::middleware(['auth:siswa'])->prefix('siswa')->name('siswa.')->group(functi
     Route::post('/ujian/{id}/mulai', [App\Http\Controllers\SiswaDashboardController::class, 'mulaiUjian'])->name('ujian.mulai');
     Route::get('/ujian/{id}/kerjakan', [App\Http\Controllers\SiswaDashboardController::class, 'kerjakanUjian'])->name('ujian.kerjakan');
     Route::post('/ujian/simpan-jawaban', [App\Http\Controllers\SiswaDashboardController::class, 'simpanJawaban'])->name('ujian.simpan_jawaban');
+    Route::post('/ujian/{id}/lock-reentry', [App\Http\Controllers\SiswaDashboardController::class, 'lockReentry'])->name('ujian.lock_reentry');
+    Route::get('/ujian/{id}/check-reentry', [App\Http\Controllers\SiswaDashboardController::class, 'checkReentryStatus'])->name('ujian.check_reentry');
+    Route::get('/ujian/{id}/status-ujian', [App\Http\Controllers\SiswaDashboardController::class, 'cekStatusUjian'])->name('ujian.status_pengerjaan');
     Route::post('/ujian/{id}/selesai', [App\Http\Controllers\SiswaDashboardController::class, 'selesaiUjian'])->name('ujian.selesai');
     Route::get('/ujian/{id}/hasil', [App\Http\Controllers\SiswaDashboardController::class, 'hasilUjian'])->name('ujian.hasil');
+    
+    // PROFILE & PASSWORD
+    Route::get('/profil', [App\Http\Controllers\SiswaDashboardController::class, 'indexProfil'])->name('profil');
+    Route::post('/ganti-password', [App\Http\Controllers\SiswaDashboardController::class, 'gantiPassword'])->name('ganti_password');
 });
 
 
@@ -111,10 +120,6 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     
     // Halaman 1 (Review): Untuk KEMBALI ke form (MEMBACA SESI)
     Route::get('/mapel/{mapel}/ujian/review', [GuruMapelController::class, 'showCreateUjianPage'])->name('mapel.ujian.review');
-    
-    // Update Waktu Ujian (Modal)
-    Route::post('/ujian/{ujian}/update-waktu', [GuruMapelController::class, 'updateWaktu'])->name('mapel.ujian.update_waktu');
-    // ▲▲▲ AKHIR RUTE BARU ▲▲▲
 
     // Halaman 2: Tampilkan Form Tambah Soal (GET)
     Route::get('/ujian/soal/create', [GuruMapelController::class, 'createSoal'])->name('mapel.soal.create');
@@ -155,11 +160,16 @@ Route::middleware(['auth'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/ujian/{ujian}/susulan/create', [GuruMapelController::class, 'createSusulan'])->name('mapel.ujian.susulan.create');
     Route::post('/ujian/{ujian}/susulan/store', [GuruMapelController::class, 'storeSusulan'])->name('mapel.ujian.susulan.store');
 
-    // Force Finish Ujian
-    Route::post('/ujian/{ujian}/force-finish', [GuruMapelController::class, 'forceFinish'])->name('mapel.ujian.force_finish');
-    
-    // Restart ujian siswa
-    Route::post('/ujian/{ujian}/siswa/{siswa}/restart', [GuruMapelController::class, 'restartUjianSiswa'])->name('mapel.ujian.siswa.restart');
+    // --- PENGAWAS UJIAN ---
+    Route::get('/pengawas/ujian/{ujian}', [GuruPengawasController::class, 'ruangPengawas'])->name('pengawas.ruang');
+    Route::get('/pengawas/ujian/{ujian}/live-data', [GuruPengawasController::class, 'liveData'])->name('pengawas.live_data');
+    Route::post('/pengawas/ujian/{ujian}/siswa/{siswa}/restart', [GuruPengawasController::class, 'restartUjianSiswa'])->name('pengawas.restart');
+    Route::post('/pengawas/ujian/{ujian}/update-waktu', [GuruPengawasController::class, 'updateWaktu'])->name('pengawas.update_waktu');
+    Route::post('/pengawas/ujian/{ujian}/selesaikan', [GuruPengawasController::class, 'forceFinish'])->name('pengawas.force_finish');
+    Route::post('/pengawas/ujian/{ujian}/toggle-web-access', [GuruPengawasController::class, 'toggleWebAccess'])->name('pengawas.toggle_web_access');
+    Route::post('/pengawas/ujian/{ujian}/siswa/{siswa}/toggle-web-access', [GuruPengawasController::class, 'toggleSiswaWebAccess'])->name('pengawas.toggle_siswa_web_access');
+    Route::post('/pengawas/ujian/{ujian}/siswa/{siswa}/toggle-pause', [GuruPengawasController::class, 'togglePauseSiswa'])->name('pengawas.toggle_pause_siswa');
+    Route::post('/pengawas/ujian/{ujian}/siswa/{siswa}/unlock-reentry', [GuruPengawasController::class, 'unlockSiswaReentry'])->name('pengawas.unlock_reentry');
 });
     
 // ---------------------------------------------------------------------

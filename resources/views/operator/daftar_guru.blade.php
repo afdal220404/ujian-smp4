@@ -190,7 +190,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap align-middle">
                                         <span class="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                            ${guru.nip}
+                                            ${guru.nip ? guru.nip : '<span class="text-xs text-gray-400 italic font-sans">Tanpa NIP</span>'}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap align-middle">

@@ -27,6 +27,31 @@
 
 @section('content')
 
+<style>
+.soal-editor {
+    min-height: 85px;
+    max-height: 250px;
+    overflow-y: auto;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.soal-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+    display: block;
+}
+.soal-editor b, .soal-editor strong {
+    font-weight: 700 !important;
+}
+.soal-editor i, .soal-editor em {
+    font-style: italic !important;
+}
+.soal-editor u {
+    text-decoration: underline !important;
+}
+</style>
+
 @php
     $tipeLabels = [
         'pilihan_ganda' => ['label' => 'Pilihan Ganda', 'color' => 'blue'],
@@ -215,9 +240,9 @@
                         </span>
                     @endif
                 </div>
-                <p class="text-gray-800 font-medium text-sm leading-relaxed">
-                    {{ $soal->pertanyaan }}
-                </p>
+                <div class="text-gray-800 font-medium text-sm leading-relaxed prose max-w-none">
+                    {!! format_soal($soal->pertanyaan) !!}
+                </div>
                 @if($soal->gambar)
                     <div class="mt-2">
                         <img src="{{ asset('storage/' . $soal->gambar) }}" class="h-16 rounded-lg border border-gray-200 object-cover">
@@ -242,7 +267,6 @@
                     title="Edit Soal">
                     <i class="bi bi-pencil-fill text-xs"></i>
                 </button>
-                {{-- Hapus: juga hanya tampil jika soal BELUM digunakan di ujian manapun --}}
                 {{-- Hapus: juga hanya tampil jika soal BELUM digunakan di ujian manapun --}}
                 <button type="button"
                     onclick="openDeleteModal({{ $soal->id }})"
@@ -290,7 +314,7 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <span class="{{ $isKey ? 'text-green-800 font-semibold' : 'text-gray-700' }}">
-                                        {{ $teksOpsi }}
+                                        {!! format_soal($teksOpsi) !!}
                                     </span>
                                     @if($gambarOpsi)
                                         <img src="{{ asset('storage/'.$gambarOpsi) }}"
@@ -317,7 +341,7 @@
                         <div class="flex items-start gap-2 p-2 rounded-lg border bg-gray-50 border-gray-100 text-xs">
                             <span class="shrink-0 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold text-[10px]">{{ $i+1 }}</span>
                             <div class="flex-1 min-w-0">
-                                <span class="text-gray-700">{{ $stmt['text'] ?? '-' }}</span>
+                                <span class="text-gray-700">{!! format_soal($stmt['text'] ?? '-') !!}</span>
                                 @if(!empty($stmt['gambar']))
                                     <img src="{{ asset('storage/'.$stmt['gambar']) }}" class="mt-1 h-10 rounded border border-gray-200 object-contain bg-white">
                                 @endif
@@ -340,14 +364,14 @@
                         @endphp
                         <div class="flex items-center gap-2 text-xs">
                             <div class="flex-1 p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 min-w-0">
-                                {{ $left }}
+                                {!! format_soal($left) !!}
                                 @if(!empty($match['gambar_left']))
                                     <img src="{{ asset('storage/'.$match['gambar_left']) }}" class="mt-1 h-10 rounded border object-contain">
                                 @endif
                             </div>
                             <i class="bi bi-arrow-right text-gray-400 shrink-0"></i>
                             <div class="flex-1 p-2 rounded-lg bg-green-50 border border-green-200 text-green-800 font-medium min-w-0">
-                                {{ $right }}
+                                {!! format_soal($right) !!}
                                 @if(!empty($match['gambar_right']))
                                     <img src="{{ asset('storage/'.$match['gambar_right']) }}" class="mt-1 h-10 rounded border object-contain">
                                 @endif
@@ -413,11 +437,25 @@
                         <div class="lg:col-span-8 space-y-4">
 
                             {{-- Pertanyaan --}}
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pertanyaan</label>
-                                <textarea name="pertanyaan" id="modal-pertanyaan"
-                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
-                                    rows="3" placeholder="Tulis pertanyaan di sini..."></textarea>
+                            <div class="pertanyaan-container">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                                    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                                            <b>B</b>
+                                        </button>
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                                            <i>I</i>
+                                        </button>
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                                            <u>U</u>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div contenteditable="true" id="modal-pertanyaan-editor"
+                                    class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
+                                    data-placeholder="Tulis pertanyaan di sini..."></div>
+                                <textarea name="pertanyaan" id="modal-pertanyaan" class="hidden"></textarea>
                             </div>
 
                             {{-- Container Jawaban Dinamis --}}
@@ -651,11 +689,25 @@
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {{-- Kiri --}}
                         <div class="lg:col-span-8 space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pertanyaan</label>
-                                <textarea name="pertanyaan" id="edit-pertanyaan"
-                                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
-                                    rows="3"></textarea>
+                            <div class="pertanyaan-container">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                                    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                                            <b>B</b>
+                                        </button>
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                                            <i>I</i>
+                                        </button>
+                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                                            <u>U</u>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div contenteditable="true" id="edit-pertanyaan-editor"
+                                    class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
+                                    data-placeholder="Tulis pertanyaan di sini..."></div>
+                                <textarea name="pertanyaan" id="edit-pertanyaan" class="hidden"></textarea>
                             </div>
 
                             <div id="edit-answers-container" class="space-y-4">
@@ -747,6 +799,32 @@
 
 @section('scripts')
 <script>
+window.formatDoc = function(button, cmd) {
+    const container = button.closest('.pertanyaan-container') || button.closest('form') || button.closest('.modal-content') || document;
+    const editor = container ? container.querySelector('.soal-editor, [contenteditable="true"]') : null;
+    if (!editor) return;
+
+    editor.focus();
+    document.execCommand(cmd, false, null);
+
+    const textarea = container.querySelector('.soal-textarea, textarea[name*="pertanyaan"], #modal-pertanyaan, #edit-pertanyaan');
+    if (textarea) {
+        textarea.value = editor.innerHTML;
+    }
+};
+
+// Sync contenteditable with hidden textarea on typing
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.classList.contains('soal-editor')) {
+        const container = e.target.closest('.pertanyaan-container') || e.target.parentElement;
+        const textarea = container ? container.querySelector('.soal-textarea, textarea[name*="pertanyaan"], #modal-pertanyaan, #edit-pertanyaan') : null;
+        if (textarea) {
+            textarea.value = e.target.innerHTML;
+        }
+    }
+});
+
+
 // =========================================================================
 // FUNGSI PENGENDALI MODAL CUSTOM UNIVERSAL
 // =========================================================================
@@ -846,6 +924,9 @@ function openTambahSoalModal() {
     document.getElementById('modal-tambah-soal').classList.remove('hidden');
     // Reset form
     document.getElementById('form-bank-soal').reset();
+    const edTambah = document.getElementById('modal-pertanyaan-editor');
+    if (edTambah) edTambah.innerHTML = '';
+    document.getElementById('modal-pertanyaan').value = '';
     document.getElementById('modal-tf-container').innerHTML = '';
     document.getElementById('modal-matches-container').innerHTML = '';
     document.getElementById('modal-gambar-preview').style.display = 'none';
@@ -1002,72 +1083,103 @@ function reindexJgLabels(containerId) {
 // ── VALIDASI & SUBMIT ─────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('form-bank-soal');
-    form.addEventListener('submit', function(e) {
-        const tipe = document.getElementById('modal-tipe-soal').value;
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const edTambah = document.getElementById('modal-pertanyaan-editor');
+            const txTambah = document.getElementById('modal-pertanyaan');
+            if (edTambah && txTambah) {
+                txTambah.value = edTambah.innerHTML;
+                const plainText = edTambah.innerText.trim();
+                if (!plainText && !edTambah.querySelector('img')) {
+                    e.preventDefault();
+                    showNotificationModal('Teks pertanyaan tidak boleh kosong!');
+                    return;
+                }
+            }
 
-        // PG: harus ada kunci
-        if (tipe === 'pilihan_ganda') {
-            const kunci = document.getElementById('modal-kunci').value;
-            if (!kunci) {
-                e.preventDefault();
-                showNotificationModal('Pilih Kunci Jawaban terlebih dahulu!');
-                return;
+            const tipe = document.getElementById('modal-tipe-soal').value;
+
+            // PG: harus ada kunci
+            if (tipe === 'pilihan_ganda') {
+                const kunci = document.getElementById('modal-kunci').value;
+                if (!kunci) {
+                    e.preventDefault();
+                    showNotificationModal('Pilih Kunci Jawaban terlebih dahulu!');
+                    return;
+                }
             }
-        }
-        // Jawaban Ganda: minimal 1 centang form
-        if (tipe === 'jawaban_ganda') {
-            const checked = form.querySelectorAll('input[type="checkbox"]:checked');
-            // karena ada input hidden bernilai 0 dan checked bernilai 1.
-            let checkedCount = 0;
-            checked.forEach((c) => {
-                if(c.value == '1') checkedCount++;
-            });
-            const totalOptions = form.querySelectorAll('.modal-jg-item').length;
-            
-            if (totalOptions < 2) {
-                e.preventDefault();
-                showNotificationModal('Minimal harus ada 2 opsi jawaban!');
-                return;
+            // Jawaban Ganda: minimal 1 centang form
+            if (tipe === 'jawaban_ganda') {
+                const checked = form.querySelectorAll('input[type="checkbox"]:checked');
+                // karena ada input hidden bernilai 0 dan checked bernilai 1.
+                let checkedCount = 0;
+                checked.forEach((c) => {
+                    if(c.value == '1') checkedCount++;
+                });
+                const totalOptions = form.querySelectorAll('.modal-jg-item').length;
+                
+                if (totalOptions < 2) {
+                    e.preventDefault();
+                    showNotificationModal('Minimal harus ada 2 opsi jawaban!');
+                    return;
+                }
+                if (checkedCount === 0) {
+                    e.preventDefault();
+                    showNotificationModal('Centang minimal satu jawaban benar!');
+                    return;
+                }
+                
+                // Validasi teks/gambar
+                let anyEmpty = false;
+                form.querySelectorAll('.modal-jg-item').forEach(item => {
+                    const text = item.querySelector('input[type="text"]').value.trim();
+                    const fileInp = item.querySelector('input[type="file"]').files.length;
+                    const existing = item.querySelector('.modal-existing-img')?.value;
+                    if (!text && fileInp === 0 && !existing) anyEmpty = true;
+                });
+                if (anyEmpty) {
+                    e.preventDefault();
+                    showNotificationModal('Semua opsi jawaban dinamis harus diisi teks atau gambarnya!');
+                    return;
+                }
             }
-            if (checkedCount === 0) {
-                e.preventDefault();
-                showNotificationModal('Centang minimal satu jawaban benar!');
-                return;
+            // Benar Salah: minimal 1 pernyataan
+            if (tipe === 'benar_salah') {
+                const items = document.getElementById('modal-tf-container').querySelectorAll('.modal-tf-item').length;
+                if (items === 0) {
+                    e.preventDefault();
+                    showNotificationModal('Tambahkan minimal satu pernyataan Benar/Salah!');
+                    return;
+                }
             }
-            
-            // Validasi teks/gambar
-            let anyEmpty = false;
-            form.querySelectorAll('.modal-jg-item').forEach(item => {
-                const text = item.querySelector('input[type="text"]').value.trim();
-                const fileInp = item.querySelector('input[type="file"]').files.length;
-                const existing = item.querySelector('.modal-existing-img')?.value;
-                if (!text && fileInp === 0 && !existing) anyEmpty = true;
-            });
-            if (anyEmpty) {
-                e.preventDefault();
-                showNotificationModal('Semua opsi jawaban dinamis harus diisi teks atau gambarnya!');
-                return;
+            // Mencocokkan: minimal 1 pasangan
+            if (tipe === 'menjodohkan') {
+                const items = document.getElementById('modal-matches-container').querySelectorAll('.modal-match-item').length;
+                if (items === 0) {
+                    e.preventDefault();
+                    showNotificationModal('Tambahkan minimal satu pasangan!');
+                    return;
+                }
             }
-        }
-        // Benar Salah: minimal 1 pernyataan
-        if (tipe === 'benar_salah') {
-            const items = document.getElementById('modal-tf-container').querySelectorAll('.modal-tf-item').length;
-            if (items === 0) {
-                e.preventDefault();
-                showNotificationModal('Tambahkan minimal satu pernyataan Benar/Salah!');
-                return;
+        });
+    }
+
+    const formEdit = document.getElementById('form-edit-soal');
+    if (formEdit) {
+        formEdit.addEventListener('submit', function(e) {
+            const edEdit = document.getElementById('edit-pertanyaan-editor');
+            const txEdit = document.getElementById('edit-pertanyaan');
+            if (edEdit && txEdit) {
+                txEdit.value = edEdit.innerHTML;
+                const plainText = edEdit.innerText.trim();
+                if (!plainText && !edEdit.querySelector('img')) {
+                    e.preventDefault();
+                    showNotificationModal('Teks pertanyaan tidak boleh kosong!');
+                    return;
+                }
             }
-        }
-        // Mencocokkan: minimal 1 pasangan
-        if (tipe === 'menjodohkan') {
-            const items = document.getElementById('modal-matches-container').querySelectorAll('.modal-match-item').length;
-            if (items === 0) {
-                e.preventDefault();
-                showNotificationModal('Tambahkan minimal satu pasangan!');
-                return;
-            }
-        }
-    });
+        });
+    }
 
     // Init UI
     modalUpdateUI('pilihan_ganda');
@@ -1199,7 +1311,9 @@ function openEditModal(soalId) {
 
     // Set tipe & pertanyaan
     document.getElementById('edit-tipe-soal').value  = soalData.tipe;
-    document.getElementById('edit-pertanyaan').value = soalData.pertanyaan;
+    const edEdit = document.getElementById('edit-pertanyaan-editor');
+    if (edEdit) edEdit.innerHTML = soalData.pertanyaan || '';
+    document.getElementById('edit-pertanyaan').value = soalData.pertanyaan || '';
 
     // Gambar soal
     const prev = document.getElementById('edit-gambar-preview');

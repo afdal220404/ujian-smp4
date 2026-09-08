@@ -27,6 +27,31 @@
 
 @section('content')
 
+<style>
+.soal-editor {
+    min-height: 85px;
+    max-height: 250px;
+    overflow-y: auto;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.soal-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+    display: block;
+}
+.soal-editor b, .soal-editor strong {
+    font-weight: 700 !important;
+}
+.soal-editor i, .soal-editor em {
+    font-style: italic !important;
+}
+.soal-editor u {
+    text-decoration: underline !important;
+}
+</style>
+
 {{-- STEPPER --}}
 <div class="max-w-3xl mx-auto mb-8">
     <div class="flex items-center justify-center">
@@ -128,9 +153,23 @@
         <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
             {{-- Kiri: Pertanyaan & Konten --}}
             <div class="lg:col-span-8 space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pertanyaan</label>
-                    <textarea name="soal[idx][pertanyaan]" class="soal-textarea w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800" rows="3" placeholder="Tulis pertanyaan disini..." required></textarea>
+                <div class="pertanyaan-container">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                        <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                            <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                                <b>B</b>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                                <i>I</i>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                                <u>U</u>
+                            </button>
+                        </div>
+                    </div>
+                    <div contenteditable="true" class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800" data-placeholder="Tulis pertanyaan disini..."></div>
+                    <textarea name="soal[idx][pertanyaan]" class="soal-textarea hidden"></textarea>
                 </div>
 
                 {{-- Container Jawaban Dinamis --}}
@@ -440,6 +479,31 @@
 
 @section('scripts')
 <script>
+    window.formatDoc = function(button, cmd) {
+        const container = button.closest('.pertanyaan-container') || button.closest('.soal-card') || button.closest('form');
+        const editor = container ? container.querySelector('.soal-editor, [contenteditable="true"]') : null;
+        if (!editor) return;
+
+        editor.focus();
+        document.execCommand(cmd, false, null);
+
+        const textarea = container.querySelector('.soal-textarea, textarea[name*="pertanyaan"], textarea');
+        if (textarea) {
+            textarea.value = editor.innerHTML;
+        }
+    };
+
+    // Sync contenteditable with hidden textarea on typing
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.classList.contains('soal-editor')) {
+            const container = e.target.closest('.pertanyaan-container') || e.target.parentElement;
+            const textarea = container ? container.querySelector('.soal-textarea, textarea[name*="pertanyaan"], textarea') : null;
+            if (textarea) {
+                textarea.value = e.target.innerHTML;
+            }
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('soal-list-container');
         const template = document.getElementById('soal-card-template');
@@ -489,7 +553,14 @@
                 const card = cards[i];
                 const nomor = card.querySelector('.soal-nomor').textContent.trim();
                 const type = card.querySelector('.soal-tipe-select').value;
-                const pertanyaan = card.querySelector('.soal-textarea').value.trim();
+                const editor = card.querySelector('.soal-editor');
+                const textarea = card.querySelector('.soal-textarea');
+
+                if (editor && textarea) {
+                    textarea.value = editor.innerHTML;
+                }
+
+                const pertanyaanText = editor ? editor.innerText.trim() : (textarea ? textarea.value.trim() : '');
 
                 let namaTipe = '';
                 if(type === 'pilihan_ganda') namaTipe = 'Pilihan Ganda';
@@ -498,7 +569,7 @@
                 if(type === 'benar_salah') namaTipe = 'Benar / Salah';
 
                 // VALIDASI UMUM: Pertanyaan kosong
-                if (!pertanyaan) {
+                if (!pertanyaanText && (!editor || !editor.querySelector('img'))) {
                     showValidationModal(`Soal No. ${nomor} (${namaTipe}): Teks pertanyaan tidak boleh kosong.`);
                     return false;
                 }
@@ -1000,7 +1071,10 @@
 
             selectedSoals.forEach(soal => {
                 const card = addSoalCard();
-                card.querySelector('textarea').value = soal.pertanyaan;
+                const ed = card.querySelector('.soal-editor');
+                if (ed) ed.innerHTML = soal.pertanyaan || '';
+                const tx = card.querySelector('.soal-textarea') || card.querySelector('textarea');
+                if (tx) tx.value = soal.pertanyaan || '';
                 const typeSelect = card.querySelector('.soal-tipe-select');
                 typeSelect.value = soal.tipe;
                 updateCardUI(card, soal.tipe);

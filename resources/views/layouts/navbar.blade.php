@@ -1,17 +1,23 @@
+@php
+    $isSiswa = Auth::guard('siswa')->check();
+@endphp
+
 {{-- 
     ID: sidebar
-    Mobile: fixed, hidden (pindah ke kiri layar -translate-x-full), z-index tinggi.
-    Desktop (md): relative, translate-x-0 (selalu muncul), sticky.
+    Siswa: Hidden di mobile (diganti Bottom Navigation Bar), muncul di desktop (md:flex).
+    Guru/Operator: Fixed & slide-in di mobile, sticky di desktop.
 --}}
 <aside id="sidebar" 
-     class="fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#00415a] text-white transition-transform transform -translate-x-full md:translate-x-0 md:sticky md:top-0 flex flex-col p-4 shadow-xl md:shadow-none">
+     class="{{ $isSiswa ? 'hidden md:flex' : 'fixed inset-y-0 left-0 z-50 transition-transform transform -translate-x-full md:translate-x-0' }} w-64 h-screen bg-[#00415a] text-white md:sticky md:top-0 flex-col p-4 shadow-xl md:shadow-none">
     
-    {{-- TOMBOL CLOSE (HANYA DI HP) --}}
+    {{-- TOMBOL CLOSE (HANYA DI HP UNTUK NON-SISWA) --}}
+    @if(!$isSiswa)
     <div class="flex justify-end md:hidden mb-2">
         <button onclick="toggleSidebar()" class="text-white hover:text-red-400">
             <i class="bi bi-x-lg text-2xl"></i>
         </button>
     </div>
+    @endif
 
     @php
         $user = Auth::user();
@@ -26,7 +32,7 @@
             $nip_nisn = $user->nisn;
         } elseif ($user) {
             $foto = $user->foto;
-            $nip_nisn = $user->nip ?? '020517';
+            $nip_nisn = $user->nip ?: '-';
             if(isset($user->role)) $role = $user->role;
 
             // Context Role Khusus Guru

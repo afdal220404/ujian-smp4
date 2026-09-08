@@ -66,41 +66,139 @@
         </div>
     </div>
 
-    {{-- TOP BAR --}}
-    <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-blue-200">
-                <i class="bi bi-journal-text text-xl"></i>
+    {{-- OVERLAY JEDA UJIAN (STOP & CONTINUE / LIVE PAUSE) --}}
+    <div id="pause-exam-overlay" class="fixed inset-0 z-[9998] {{ ($hasilUjian->is_paused ?? false) ? 'flex' : 'hidden' }} flex-col items-center justify-center text-center p-6 bg-slate-900/90 backdrop-blur-md transition-all duration-300">
+        <div class="max-w-md w-full bg-white rounded-3xl p-7 md:p-8 shadow-2xl border border-amber-200/60 relative overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            
+            {{-- Top Accent Ribbon --}}
+            <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500"></div>
+
+            {{-- Pulsing Pause Icon --}}
+            <div class="relative w-20 h-20 mx-auto mb-5 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-3xl bg-amber-400/20 animate-ping"></div>
+                <div class="relative w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-300 text-amber-600 flex items-center justify-center text-4xl shadow-md">
+                    <i class="bi bi-pause-fill animate-pulse"></i>
+                </div>
             </div>
-            <div>
-                <h1 class="text-sm font-bold text-gray-800 uppercase tracking-wide">{{ $ujian->nama_ujian }}</h1>
-                <p class="text-xs text-gray-500 font-medium">{{ $ujian->mapel->nama_mapel }}</p>
+
+            {{-- Title & Information --}}
+            <h2 class="text-2xl font-[Poppins-Bold] text-gray-900 mb-2">Sesi Ujian Sedang Dijeda</h2>
+            <p class="text-xs sm:text-sm text-gray-600 leading-relaxed mb-5">
+                Pengawas ruangan telah menjeda sesi ujian Anda sementara waktu (Izin keluar ruangan / keperluan pengawas).
+            </p>
+
+            {{-- Reassurance Box --}}
+            <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 mb-5 text-left flex items-start gap-3">
+                <div class="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shrink-0 shadow-xs mt-0.5">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div class="text-xs text-amber-900 leading-relaxed">
+                    <strong class="font-bold block mb-0.5 text-amber-950">Seluruh Jawaban Tersimpan Aman!</strong>
+                    Jawaban yang sudah Anda pilih tetap tersimpan utuh di sistem. Layar terkunci sementara dan akan otomatis terbuka kembali.
+                </div>
+            </div>
+
+            {{-- Live Indicator Footer --}}
+            <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                <span>Menunggu Pengawas Melanjutkan...</span>
+            </div>
+
+            <p class="text-[11px] text-gray-400 mt-4">
+                * Pop-up ini akan otomatis hilang seketika saat pengawas menekan tombol <b>Lanjutkan</b>. Jangan refresh halaman.
+            </p>
+        </div>
+    </div>
+
+    {{-- TOP BAR --}}
+    <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-3 sm:px-6 shrink-0 z-20 shadow-xs relative">
+        {{-- Left Info --}}
+        <div class="flex items-center gap-2.5 sm:gap-3.5 max-w-[40%] sm:max-w-none">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm shrink-0">
+                <i class="bi bi-journal-text text-lg sm:text-xl"></i>
+            </div>
+            <div class="min-w-0">
+                <h1 class="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wide truncate">{{ $ujian->nama_ujian }}</h1>
+                <p class="text-[10px] sm:text-xs text-gray-400 font-medium truncate">{{ $ujian->mapel->nama_mapel }}</p>
             </div>
         </div>
 
         {{-- Timer Center --}}
         <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div class="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full border border-blue-100 shadow-sm">
-                <i class="bi bi-stopwatch-fill animate-pulse"></i>
-                <span id="exam-timer" class="font-mono font-bold text-lg tracking-widest">--:--:--</span>
+            <div class="flex items-center gap-1.5 sm:gap-2 bg-blue-50 text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-blue-200 shadow-2xs">
+                <i class="bi bi-stopwatch-fill animate-pulse text-xs sm:text-sm text-blue-600"></i>
+                <span id="exam-timer" class="font-mono font-bold text-xs sm:text-base tracking-wider">--:--:--</span>
             </div>
         </div>
 
-        <div class="flex items-center gap-3">
-             <div class="hidden md:block text-right">
-                <p class="text-xs font-bold text-gray-700">{{ $siswa->nama_lengkap }}</p>
-                <p class="text-[10px] text-gray-500">{{ $siswa->kelas->kelas }}</p>
-            </div>
-            <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                <i class="bi bi-person-fill"></i>
+        {{-- Right: Mobile Button Daftar Soal / Desktop Profile --}}
+        <div class="flex items-center gap-2.5">
+            {{-- Tombol Buka Daftar Soal di HP --}}
+            <button type="button" onclick="openMobileNavDrawer()" 
+                    class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-sm transition-all" 
+                    title="Buka Daftar Nomor Soal">
+                <i class="bi bi-grid-3x3-gap-fill text-sm"></i>
+                <span id="mob-progress-btn">Soal</span>
+            </button>
+
+            {{-- Desktop Profile --}}
+            <div class="hidden md:flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-xs font-bold text-gray-700 leading-tight">{{ $siswa->nama_lengkap }}</p>
+                    <p class="text-[10px] text-gray-400 font-medium">{{ $siswa->kelas->kelas }}</p>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                    <i class="bi bi-person-fill"></i>
+                </div>
             </div>
         </div>
     </header>
 
+    {{-- MOBILE NAVIGATION DRAWER (BOTTOM SHEET UNTUK HP) --}}
+    <div id="mobile-nav-drawer" class="fixed inset-0 z-50 hidden md:hidden" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onclick="closeMobileNavDrawer()"></div>
+        <div class="fixed inset-x-0 bottom-0 z-10 bg-white rounded-t-3xl p-5 max-h-[82vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+                <div>
+                    <h3 class="font-[Poppins-Bold] text-gray-800 text-base leading-tight">Daftar Nomor Soal</h3>
+                    <p class="text-[11px] text-gray-400">Total {{ $ujian->soals->count() }} butir soal</p>
+                </div>
+                <button onclick="closeMobileNavDrawer()" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-all">
+                    <i class="bi bi-x-lg text-sm"></i>
+                </button>
+            </div>
+            
+            {{-- Grid nomor soal mobile --}}
+            <div class="flex-1 overflow-y-auto py-2">
+                <div class="grid grid-cols-5 gap-2.5">
+                    @foreach($shuffledSoals as $index => $soal)
+                        @php $isAnswered = isset($jawabanTersimpan[$soal->id]); @endphp
+                        <button onclick="jumpToQuestion({{ $index }}); closeMobileNavDrawer();" 
+                                id="mob-nav-btn-{{ $index }}"
+                                class="w-full aspect-square rounded-xl text-sm font-bold flex items-center justify-center transition-all border
+                                {{ $isAnswered ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
+                            {{ $index + 1 }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Legend Footer di drawer --}}
+            <div class="pt-3 border-t border-gray-100 flex items-center justify-around text-[11px] text-gray-600 font-medium">
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-600 shadow-2xs"></span> <span>Dijawab</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-400 shadow-2xs"></span> <span>Ragu</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-white border border-gray-300 shadow-2xs"></span> <span>Belum</span></div>
+            </div>
+        </div>
+    </div>
+
     {{-- MAIN CONTENT --}}
     <main class="flex-1 flex overflow-hidden">
         
-        {{-- LEFT SIDEBAR: NAVIGASI SOAL --}}
+        {{-- LEFT SIDEBAR: NAVIGASI SOAL (DESKTOP) --}}
         <aside class="w-72 bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 hidden md:flex" id="sidebar-nav">
             <div class="p-4 border-b border-gray-100 bg-gray-50">
                 <div class="flex items-center justify-between mb-2">
@@ -164,7 +262,7 @@
                             </div>
                             <div class="flex-1 pt-1">
                                 <div class="prose max-w-none text-gray-800 font-medium text-lg leading-relaxed">
-                                    {!! nl2br(e($soal->pertanyaan)) !!}
+                                    {!! format_soal($soal->pertanyaan) !!}
                                 </div>
                                 @if($soal->gambar)
                                     <div class="mt-4">
@@ -208,7 +306,7 @@
                                                     <img src="{{ asset('storage/' . $soal->{'gambar_'.strtolower($opt)}) }}" class="max-h-32 rounded border border-gray-200">
                                                 </div>
                                             @endif
-                                            {{ $soal->{'opsi_'.strtolower($opt)} }}
+                                            {!! format_soal($soal->{'opsi_'.strtolower($opt)}) !!}
                                         </div>
                                     </label>
                                 @endforeach
@@ -276,7 +374,7 @@
                                                         <img src="{{ asset('storage/' . $item['gambar']) }}" class="max-h-32 rounded border border-gray-200">
                                                     </div>
                                                 @endif
-                                                <p class="text-sm font-medium text-gray-800 mb-3">{{ $item['text'] ?? '' }}</p>
+                                                <div class="text-sm font-medium text-gray-800 mb-3">{!! format_soal($item['text'] ?? '') !!}</div>
                                                 <div class="flex items-center gap-4">
                                                     @foreach(['TRUE' => 'BENAR', 'FALSE' => 'SALAH'] as $val => $label)
                                                         @php
@@ -347,7 +445,7 @@
                                                         <img src="{{ asset('storage/' . $opt['gambar']) }}" class="max-h-32 rounded border border-gray-200">
                                                     </div>
                                                 @endif
-                                                {{ $opt['text'] }}
+                                                {!! format_soal($opt['text']) !!}
                                             </div>
                                         </label>
                                     @endforeach
@@ -408,7 +506,7 @@
                                                             @if(isset($match['gambar_left']) && $match['gambar_left'])
                                                                 <img src="{{ asset('storage/' . $match['gambar_left']) }}" class="max-h-24 object-contain rounded border border-gray-200 bg-white">
                                                             @endif
-                                                            <span>{{ $match['pertanyaan'] ?? $match['left'] ?? 'Item ' . ($k+1) }}</span>
+                                                            <span>{!! format_soal($match['pertanyaan'] ?? $match['left'] ?? 'Item ' . ($k+1)) !!}</span>
                                                         </div>
                                                         <div class="w-3 h-3 rounded-full bg-gray-300 group-hover:bg-blue-400 transition-colors shrink-0" id="dot-L{{ $k }}-{{ $soal->id }}"></div>
                                                     </button>
@@ -433,7 +531,7 @@
                                                             @if(isset($itemData['gambar_right']) && $itemData['gambar_right'])
                                                                 <img src="{{ asset('storage/' . $itemData['gambar_right']) }}" class="max-h-24 object-contain rounded border border-gray-200 bg-white ml-auto">
                                                             @endif
-                                                            <span>{{ $itemData['jawaban'] ?? $itemData['right'] ?? 'Item ' . ($k+1) }}</span>
+                                                            <span>{!! format_soal($itemData['jawaban'] ?? $itemData['right'] ?? 'Item ' . ($k+1)) !!}</span>
                                                         </div>
                                                     </button>
                                                 </div>
@@ -450,22 +548,24 @@
             </div>
 
             {{-- Bottom Toolbar --}}
-            <div class="h-20 bg-white border-t border-gray-200 px-6 md:px-10 flex items-center justify-between shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 w-full">
-                <button onclick="prevQuestion()" id="btn-prev" class="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold transition-all disabled:opacity-50">
-                    <i class="bi bi-arrow-left"></i> Sebelumnya
+            <div class="h-16 sm:h-20 bg-white border-t border-gray-200 px-3 sm:px-6 md:px-10 flex items-center justify-between shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 w-full">
+                <button onclick="prevQuestion()" id="btn-prev" class="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm font-bold transition-all disabled:opacity-40">
+                    <i class="bi bi-arrow-left"></i> <span class="hidden xs:inline">Sebelumnya</span>
                 </button>
-                <div class="flex items-center gap-3">
-                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors select-none">
-                        <input type="checkbox" id="ragu-check" class="w-4 h-4 rounded border-amber-400 text-amber-500" onchange="toggleRagu()">
-                        <span class="text-sm font-bold">Ragu-ragu</span>
+
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-1.5 sm:gap-2 cursor-pointer px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-50/80 hover:bg-amber-100 text-amber-700 border border-amber-200/80 transition-colors select-none">
+                        <input type="checkbox" id="ragu-check" class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-amber-400 text-amber-500" onchange="toggleRagu()">
+                        <span class="text-xs sm:text-sm font-bold">Ragu-ragu</span>
                     </label>
                 </div>
+
                 <div>
-                     <button onclick="nextQuestion()" id="btn-next" class="flex items-center gap-2 px-8 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition-all">
-                        Selanjutnya <i class="bi bi-arrow-right"></i>
+                     <button onclick="nextQuestion()" id="btn-next" class="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs sm:text-sm font-bold shadow-md shadow-blue-200 transition-all">
+                        <span>Selanjutnya</span> <i class="bi bi-arrow-right"></i>
                     </button>
-                    <button onclick="confirmSubmit()" id="btn-submit" class="hidden flex items-center gap-2 px-8 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-200 transition-all animate-pulse">
-                        <i class="bi bi-check-circle-fill"></i> Kumpulkan Ujian
+                    <button onclick="confirmSubmit()" id="btn-submit" class="hidden flex items-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-xs sm:text-sm font-bold shadow-md shadow-emerald-200 transition-all animate-pulse">
+                        <i class="bi bi-check-circle-fill"></i> <span>Kumpulkan</span>
                     </button>
                 </div>
             </div>
@@ -473,7 +573,7 @@
     </main>
 
     {{-- Submit Confirmation Modal --}}
-    <dialog id="confirm-modal" class="rounded-2xl shadow-2xl p-0 w-full max-w-md backdrop:bg-black/50">
+    <dialog id="confirm-modal" class="rounded-2xl shadow-2xl p-0 w-full max-w-md backdrop:bg-black/50 m-auto">
         <div class="p-6 text-center">
             <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
                 <i class="bi bi-question-lg text-3xl"></i>
@@ -527,7 +627,17 @@
         // --- STATE ---
         let currentQuestionIndex = 0;
         let isExamActive = false; // Status Ujian
+        let isExamPaused = {{ ($hasilUjian->is_paused ?? false) ? 'true' : 'false' }};
         let timerInterval;
+
+        // --- DRAWER FUNCTIONS FOR MOBILE ---
+        function openMobileNavDrawer() {
+            document.getElementById('mobile-nav-drawer').classList.remove('hidden');
+        }
+
+        function closeMobileNavDrawer() {
+            document.getElementById('mobile-nav-drawer').classList.add('hidden');
+        }
 
         // --- 1. CORE: START EXAM LOGIC ---
         function startSafeExam() {
@@ -540,7 +650,6 @@
                     initExamSystem();
                 }).catch(err => {
                     alert("Browser memblokir fullscreen. Harap izinkan fullscreen untuk memulai.");
-                    // Fallback jika gagal (opsional, tapi sebaiknya dipaksa)
                     initExamSystem();
                 });
             } else {
@@ -570,17 +679,15 @@
         function armSecuritySystem() {
             // A. Deteksi Pindah Tab (Visibility Change)
             document.addEventListener("visibilitychange", function() {
-                if (document.hidden && isExamActive) {
+                if (document.hidden && isExamActive && !isExamPaused) {
                     handleViolation("Meninggalkan halaman / Minimize Browser");
                 }
             });
 
             // B. Deteksi Klik di luar browser (Blur)
             window.addEventListener("blur", function() {
-                if (isExamActive) {
-                    // Cek lagi apakah benar2 pindah window (kadang alert bikin blur)
-                    // Tapi untuk ujian ketat, blur = violation
-                     handleViolation("Membuka aplikasi lain (Kehilangan Fokus)");
+                if (isExamActive && !isExamPaused) {
+                     handleViolation("Membuka aplikasi lain atau klik di luar layar ujian");
                 }
             });
 
@@ -588,7 +695,7 @@
             const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'msfullscreenchange'];
             fsEvents.forEach(evt => {
                 document.addEventListener(evt, function() {
-                    if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive) {
+                    if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive && !isExamPaused) {
                         handleViolation("Keluar dari Mode Fullscreen");
                     }
                 });
@@ -611,29 +718,34 @@
             });
         }
 
+        let violationTimeout = null;
+
         function handleViolation(reason) {
-            if (!isExamActive) return; // Supaya tidak double submit
+            if (!isExamActive || isExamPaused) return; // Supaya tidak double submit atau terpicu saat ujian dijeda
             isExamActive = false; // Stop monitoring
 
             // Show Modal
             const modal = document.getElementById('violation-modal');
-            document.getElementById('modal-violation-reason').innerText = reason;
-            modal.showModal();
-            
-            // Start Countdown Animation
-            // Small delay to ensure transition triggers
-            setTimeout(() => {
-                document.getElementById('violation-progress').style.width = '0%';
-            }, 100);
+            if (modal) {
+                document.getElementById('modal-violation-reason').innerText = reason;
+                modal.showModal();
+                
+                // Start Countdown Animation
+                setTimeout(() => {
+                    const prog = document.getElementById('violation-progress');
+                    if (prog) prog.style.width = '0%';
+                }, 100);
+            }
 
             // Auto Submit after 5 seconds
-            setTimeout(() => {
-                submitExamForce();
+            if (violationTimeout) clearTimeout(violationTimeout);
+            violationTimeout = setTimeout(() => {
+                submitExamForce('pelanggaran', reason);
             }, 5000);
         }
 
         // --- 3. SUBMIT FUNCTION ---
-        function submitExamForce() {
+        function submitExamForce(statusPenyelesaian = 'normal', keteranganPelanggaran = null) {
             isExamActive = false; // Matikan security
             
             // Buat Form Submit POST secara dinamis
@@ -645,11 +757,38 @@
             csrfInput.type = 'hidden';
             csrfInput.name = '_token';
             csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
             form.appendChild(csrfInput);
+
+            const statusInput = document.createElement('input');
+            statusInput.type = 'hidden';
+            statusInput.name = 'status_penyelesaian';
+            statusInput.value = statusPenyelesaian;
+            form.appendChild(statusInput);
+
+            if (keteranganPelanggaran) {
+                const ketInput = document.createElement('input');
+                ketInput.type = 'hidden';
+                ketInput.name = 'keterangan_pelanggaran';
+                ketInput.value = keteranganPelanggaran;
+                form.appendChild(ketInput);
+            }
+            
             document.body.appendChild(form);
             form.submit();
         }
+
+        // Kirim sinyal Lock Re-Entry saat browser/aplikasi ditutup atau refresh
+        window.addEventListener('beforeunload', function() {
+            if (isExamActive && !isExamPaused) {
+                const url = "{{ route('siswa.ujian.lock_reentry', $ujian->id) }}";
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                if (navigator.sendBeacon) {
+                    const formData = new FormData();
+                    formData.append('_token', token);
+                    navigator.sendBeacon(url, formData);
+                }
+            }
+        });
 
         function confirmSubmit() {
             let answeredCount = 0;
@@ -685,9 +824,6 @@
                     else {
                         const tfInputs = item.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
                         if (tfInputs.length > 0) {
-                             // Optional: Check if ALL are answered
-                             // const totalData = item.querySelectorAll('input[name^="tf_' + soalId + '_"][value="TRUE"]').length;
-                             // if(tfInputs.length === totalData) isAnswered = true;
                              isAnswered = true;
                         }
                     }
@@ -709,7 +845,7 @@
 
         // --- 4. TIMER & NAVIGATION ---
         function updateTimer() {
-            if (!isExamActive) return;
+            if (!isExamActive || isExamPaused) return;
             
             const now = new Date().getTime();
             const distance = examEndTime - now;
@@ -718,7 +854,7 @@
                 clearInterval(timerInterval);
                 document.getElementById("exam-timer").innerHTML = "00:00:00";
                 alert("WAKTU HABIS!");
-                submitExamForce();
+                submitExamForce('waktu_habis');
                 return;
             }
 
@@ -736,9 +872,12 @@
             // Show target
             document.getElementById(`question-${index}`).classList.remove('hidden');
             
-            // Nav Button Styles
-            document.querySelectorAll('[id^="nav-btn-"]').forEach(btn => btn.classList.remove('ring-2', 'ring-blue-400'));
-            document.getElementById(`nav-btn-${index}`).classList.add('ring-2', 'ring-blue-400');
+            // Nav Button Styles for both Desktop & Mobile Drawer
+            document.querySelectorAll('[id^="nav-btn-"], [id^="mob-nav-btn-"]').forEach(btn => btn.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-1'));
+            const dBtn = document.getElementById(`nav-btn-${index}`);
+            const mBtn = document.getElementById(`mob-nav-btn-${index}`);
+            if(dBtn) dBtn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
+            if(mBtn) mBtn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
             
             // Prev/Next/Submit visibility
             document.getElementById('btn-prev').disabled = (index === 0);
@@ -760,8 +899,10 @@
         function jumpToQuestion(idx) { showQuestion(idx); }
 
         // --- 5. SAVING ANSWER ---
-        // --- 5. SAVING ANSWER ---
         function saveAnswer(soalId, jawaban, index) {
+            if (isExamPaused) {
+                return;
+            }
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             fetch("{{ route('siswa.ujian.simpan_jawaban') }}", {
                 method: "POST",
@@ -771,15 +912,18 @@
             .then(res => res.json())
             .then(data => {
                 if(data.status === 'success') {
-                    const btn = document.getElementById(`nav-btn-${index}`);
-                    // Update style ONLY if not marked as Ragu
-                    if(!document.getElementById('ragu-check').checked || currentQuestionIndex !== index) {
-                         // Double check ragu class just in case logic is out of sync
-                         if(!btn.classList.contains('bg-amber-400')) {
-                             btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
-                             btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                         }
-                    }
+                    const dBtn = document.getElementById(`nav-btn-${index}`);
+                    const mBtn = document.getElementById(`mob-nav-btn-${index}`);
+                    [dBtn, mBtn].forEach(btn => {
+                        if(!btn) return;
+                        // Update style ONLY if not marked as Ragu
+                        if(!document.getElementById('ragu-check').checked || currentQuestionIndex !== index) {
+                             if(!btn.classList.contains('bg-amber-400')) {
+                                 btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+                                 btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                             }
+                        }
+                    });
                     updateNavProgress();
                 }
             })
@@ -787,16 +931,19 @@
         }
 
         function toggleRagu() {
-            const btn = document.getElementById(`nav-btn-${currentQuestionIndex}`);
+            const dBtn = document.getElementById(`nav-btn-${currentQuestionIndex}`);
+            const mBtn = document.getElementById(`mob-nav-btn-${currentQuestionIndex}`);
             const isChecked = document.getElementById('ragu-check').checked;
             
             if(isChecked) {
                 // Set style RAGU (Amber)
-                btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-600', 'border-gray-200', 'border-blue-600');
-                btn.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
+                [dBtn, mBtn].forEach(btn => {
+                    if(!btn) return;
+                    btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-700', 'border-gray-200', 'border-blue-600');
+                    btn.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
+                });
             } else {
                 // Restore style based on ANSWER STATUS
-                // Check if current question has answer
                 let isAnswered = false;
                 const qItem = document.getElementById(`question-${currentQuestionIndex}`);
                 if(qItem) {
@@ -807,16 +954,18 @@
                          const matchVal = document.getElementById(`jawaban_matching_${soalId}`)?.value;
                          if(matchVal && matchVal.length > 2 && matchVal !== '{}') isAnswered = true;
                     }
-                    // For Complex TF
                     if(!isAnswered && qItem.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`).length > 0) isAnswered = true;
                 }
 
-                btn.classList.remove('bg-amber-400', 'border-amber-400');
-                if(isAnswered) {
-                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                } else {
-                    btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
-                }
+                [dBtn, mBtn].forEach(btn => {
+                    if(!btn) return;
+                    btn.classList.remove('bg-amber-400', 'border-amber-400');
+                    if(isAnswered) {
+                        btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    } else {
+                        btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+                    }
+                });
             }
         }
 
@@ -827,6 +976,10 @@
              if(bar) {
                  bar.style.width = `${pct}%`;
                  document.getElementById('progress-text').innerText = `${pct}% Selesai`;
+             }
+             const mobBtn = document.getElementById('mob-progress-btn');
+             if(mobBtn) {
+                 mobBtn.innerText = `Soal (${answered}/${totalQuestions})`;
              }
         }
 
@@ -1031,6 +1184,67 @@
                 setTimeout(() => drawMatchingLines(soalId), 100); 
             }
         };
+
+        // --- 6. REALTIME STATUS POLLING (STOP & CONTINUE / LIVE PAUSE) ---
+        function checkExamLiveStatus() {
+            fetch("{{ route('siswa.ujian.status_pengerjaan', $ujian->id) }}", {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' || data.status === 'active' || data.success === true) {
+                    // 1. Handle Forced Finish by Proctor
+                    if (data.is_finished && isExamActive) {
+                        isExamActive = false;
+                        alert("Ujian telah diselesaikan oleh Pengawas Ruangan.");
+                        window.location.href = "{{ route('siswa.dashboard') }}";
+                        return;
+                    }
+
+                    // 2. Handle Stop & Continue (Pause/Resume) Realtime Tanpa Reload
+                    const pauseOverlay = document.getElementById('pause-exam-overlay');
+                    if (data.is_paused) {
+                        if (!isExamPaused) {
+                            // Status baru saja dijeda oleh pengawas
+                            isExamPaused = true;
+
+                            // Batalkan jika ada modal pelanggaran yang sempat muncul saat jeda
+                            const violModal = document.getElementById('violation-modal');
+                            if (violModal && violModal.open) {
+                                if (violationTimeout) clearTimeout(violationTimeout);
+                                violModal.close();
+                                isExamActive = true;
+                            }
+
+                            if (pauseOverlay) {
+                                pauseOverlay.classList.remove('hidden');
+                                pauseOverlay.classList.add('flex');
+                            }
+                        }
+                    } else {
+                        if (isExamPaused) {
+                            // Status baru saja dilanjutkan oleh pengawas
+                            isExamPaused = false;
+                            if (pauseOverlay) {
+                                pauseOverlay.classList.add('hidden');
+                                pauseOverlay.classList.remove('flex');
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(err => {
+                console.warn('Live status polling warning:', err);
+            });
+        }
+
+        // Jalankan pengecekan langsung saat load & polling setiap 2 detik
+        checkExamLiveStatus();
+        setInterval(checkExamLiveStatus, 2000);
     </script>
 </body>
 </html>

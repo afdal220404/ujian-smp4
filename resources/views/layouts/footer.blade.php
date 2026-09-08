@@ -1,4 +1,4 @@
-<footer class="relative z-10 w-full py-6 text-center border-t border-white/10 bg-cyan-900">
+<footer class="relative z-10 w-full py-6 text-center border-t border-white/10 bg-cyan-900 {{ Auth::guard('siswa')->check() ? 'mb-14 md:mb-0' : '' }}">
     <div class="max-w-7xl mx-auto px-4">
         {{-- Copyright --}}
         <p class="font-bold tracking-wide text-white text-sm">

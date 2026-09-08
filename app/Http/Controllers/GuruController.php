@@ -30,7 +30,7 @@ class GuruController extends Controller
     {
         $rules = [
             'nama_lengkap' => 'required|string|max:255',
-            'nip' => 'required|string|unique:gurus,nip',
+            'nip' => 'nullable|string|max:50|unique:gurus,nip',
             'username' => 'required|string|unique:gurus,username',
             'password' => 'required|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
@@ -40,7 +40,6 @@ class GuruController extends Controller
         // ✅ PESAN ERROR KUSTOM DIKEMBALIKAN
         $messages = [
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
-            'nip.required' => 'NIP wajib diisi.',
             'nip.unique' => 'NIP ini sudah terdaftar. Silakan gunakan NIP yang lain.',
             'username.required' => 'Username wajib diisi.',
             'username.unique' => 'Username ini sudah digunakan. Silakan pilih username lain.',
@@ -63,7 +62,7 @@ class GuruController extends Controller
             
             Guru::create([
                 'nama_lengkap' => $validatedData['nama_lengkap'],
-                'nip' => $validatedData['nip'],
+                'nip' => $validatedData['nip'] ?? null,
                 'username' => $validatedData['username'],
                 'password' => Hash::make($validatedData['password']),
                 'role' => $validatedData['role'],
@@ -83,7 +82,7 @@ class GuruController extends Controller
 
         $rules = [
             'nama_lengkap' => 'required|string|max:255',
-            'nip' => 'required|string|unique:gurus,nip,' . $guru->id,
+            'nip' => 'nullable|string|max:50|unique:gurus,nip,' . $guru->id,
             'username' => 'required|string|unique:gurus,username,' . $guru->id,
             'password' => 'nullable|string|min:6|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
@@ -93,7 +92,6 @@ class GuruController extends Controller
         // ✅ PESAN ERROR KUSTOM DIKEMBALIKAN
         $messages = [
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
-            'nip.required' => 'NIP wajib diisi.',
             'nip.unique' => 'NIP ini sudah terdaftar. Silakan gunakan NIP yang lain.',
             'username.required' => 'Username wajib diisi.',
             'username.unique' => 'Username ini sudah digunakan. Silakan pilih username lain.',
@@ -110,7 +108,7 @@ class GuruController extends Controller
         try {
             $updateData = [
                 'nama_lengkap' => $validatedData['nama_lengkap'],
-                'nip' => $validatedData['nip'],
+                'nip' => $validatedData['nip'] ?? null,
                 'username' => $validatedData['username'],
                 'role' => $validatedData['role'],
             ];

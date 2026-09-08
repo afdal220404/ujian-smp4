@@ -9,9 +9,11 @@ return new class extends Migration
    
     public function up(): void
     {
-        Schema::table('soals', function (Blueprint $table) {
-            $table->text('data_soal')->nullable()->change();
-        });
+        if (Schema::hasColumn('soals', 'data_soal')) {
+            Schema::table('soals', function (Blueprint $table) {
+                $table->text('data_soal')->nullable()->change();
+            });
+        }
     }
 
  

@@ -115,15 +115,17 @@
 
                     {{-- NIP --}}
                     <div class="group">
-                        <label class="block text-xs font-bold text-gray-700 mb-1 group-focus-within:text-blue-600 transition-colors">NIP</label>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 group-focus-within:text-blue-600 transition-colors">
+                            NIP <span class="text-gray-400 font-normal text-[11px]"></span>
+                        </label>
                         <div class="relative transition-all duration-300 transform group-focus-within:-translate-y-0.5">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-400 group-focus-within:text-blue-600">
                                 <i class="bi bi-postcard"></i>
                             </span>
-                            <input type="number" name="nip" 
+                            <input type="text" name="nip" 
                                    value="{{ old('nip', $guru->nip ?? '') }}" 
                                    class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all font-mono font-medium text-sm text-gray-700 placeholder-slate-400 shadow-sm"
-                                   placeholder="Nomor Induk Pegawai..." required>
+                                   placeholder="Nomor Induk Pegawai (opsional)...">
                         </div>
                         @error('nip') <p class="text-[10px] text-red-500 mt-0.5 ml-1 font-bold">{{ $message }}</p> @enderror
                     </div>

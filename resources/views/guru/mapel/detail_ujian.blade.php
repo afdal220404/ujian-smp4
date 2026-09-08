@@ -236,16 +236,6 @@
                                     title="Lihat Detail Jawaban">
                                         <i class="bi bi-eye-fill"></i>
                                     </a>
-
-                                    {{-- TOMBOL RESTART BARU (Hanya Muncul Jika Waktu Ujian Belum Habis) --}}
-                                    @if(\Carbon\Carbon::now('Asia/Jakarta') <= \Carbon\Carbon::parse($ujian->waktu_selesai))
-                                    <button type="button" 
-                                            onclick="event.stopPropagation(); confirmRestart('{{ $hasil->siswa_id }}', '{{ str_replace("'", "\'", $namaSiswa) }}')"
-                                            class="relative z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white transition-all shadow-sm"
-                                            title="Restart Ujian (Izinkan Mengulang)">
-                                        <i class="bi bi-arrow-counterclockwise"></i>
-                                    </button>
-                                    @endif
                                 </div>
                             </td>
                             </tr>
@@ -509,32 +499,6 @@
             }
         });
     });
-</script>
-{{-- Hidden Form untuk Restart --}}
-<form id="form-restart-ujian" method="POST" style="display: none;">
-    @csrf
-</form>
-
-<script>
-    function confirmRestart(siswaId, namaSiswa) {
-        // Menggunakan modal konfirmasi custom yang profesional
-        showConfirmModal(
-            'Restart Ujian Siswa?',
-            'Seluruh pengerjaan "' + namaSiswa + '" akan dihapus secara permanen. Siswa akan diizinkan untuk masuk dan mengerjakan ulang ujian ini dari awal.',
-            function() {
-                const form = document.getElementById('form-restart-ujian');
-                // Set action route secara dinamis
-                let url = "{{ route('guru.mapel.ujian.siswa.restart', ['ujian' => $ujian->id, 'siswa' => ':siswa_id']) }}";
-                form.action = url.replace(':siswa_id', siswaId);
-                
-                showLoadingModal(); // Tampilkan loading saat proses hapus
-                form.submit();
-            },
-            'Ya, Izinkan Mengulang',
-            'bg-orange-600',
-            'hover:bg-orange-700'
-        );
-    }
 </script>
 
 {{-- =========================================================

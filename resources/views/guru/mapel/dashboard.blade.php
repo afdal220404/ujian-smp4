@@ -240,23 +240,6 @@
                                          class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-xs font-bold shadow-sm">
                                      <i class="bi bi-eye-fill"></i> Pantau
                                  </button>
-                                 <button onclick="openTimeModal({{ $ujian->id }}, '{{ str_replace("'", "\'", $ujian->nama_ujian) }}', '{{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('H:i') }}')"
-                                         class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-emerald-200 text-emerald-600 rounded-xl hover:bg-emerald-50 transition-all text-xs font-bold shadow-sm"
-                                         title="Tambah Waktu / Edit Durasi">
-                                     <i class="bi bi-clock-history"></i> Atur Waktu
-                                 </button>
-                                 {{-- Tombol Selesaikan --}}
-                                <form id="form-finish-{{ $ujian->id }}" action="{{ route('guru.mapel.ujian.force_finish', $ujian->id) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('POST')
-                                    <button type="button" 
-                                            onclick="confirmForceFinish('{{ $ujian->id }}', '{{ $ujian->nama_ujian }}')" 
-                                            class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm text-xs font-bold" 
-                                            title="Selesaikan Paksa Sekarang">
-                                        <i class="bi bi-stop-circle-fill"></i>
-                                        <span>Selesaikan</span>
-                                    </button>
-                                </form>
                              </div>
                         </td>
                     </tr>
@@ -499,59 +482,6 @@
     @endforeach
 
 
-    {{-- Modal Update Waktu --}}
-    <div id="timeModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onclick="closeTimeModal()"></div>
-        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-xl border border-gray-100">
-                    <form id="timeForm" action="" method="POST">
-                        @csrf
-                        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                            <div class="sm:flex sm:items-start">
-                                <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                                    <i class="bi bi-clock-history text-blue-600 text-lg"></i>
-                                </div>
-                                <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                    <h3 class="text-lg font-[Poppins-Bold] leading-6 text-gray-900">Atur Waktu Ujian</h3>
-                                    <div class="mt-2">
-                                        <p class="text-sm text-gray-500 mb-4">
-                                            Sesuaikan waktu selesai untuk ujian <b id="timeModalNama" class="text-gray-800"></b>.
-                                        </p>
-                                        
-                                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
-                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Waktu Selesai Saat Ini</label>
-                                            <div class="text-xl font-mono font-bold text-gray-800" id="timeModalCurrent">--:--</div>
-                                        </div>
-
-                                        <div class="mb-4">
-                                            <label class="block text-sm font-bold text-gray-700 mb-2">Tambahan Waktu (Menit)</label>
-                                            <div class="flex items-center gap-2">
-                                                <button type="button" onclick="adjustTimeInput(-10)" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold border border-red-100">-10m</button>
-                                                <input type="number" name="tambahan_menit" id="timeInput" value="0" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-center font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                                <button type="button" onclick="adjustTimeInput(10)" class="px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 font-bold border border-green-100">+10m</button>
-                                                <button type="button" onclick="adjustTimeInput(30)" class="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold border border-blue-100">+30m</button>
-                                            </div>
-                                            <p class="text-xs text-gray-400 mt-2">* Masukkan nilai negatif untuk mengurangi waktu.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-2">
-                            <button type="submit" class="inline-flex w-full justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-500 sm:w-auto transition-colors">
-                                Simpan Perubahan
-                            </button>
-                            <button type="button" onclick="closeTimeModal()" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">
-                                Batal
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     {{-- =========================================================
          3 MODAL CUSTOM UNIVERSAL (NOTIFIKASI, KONFIRMASI, LOADING)
     ========================================================== --}}
@@ -631,30 +561,6 @@
         );
     }
 
-    // --- MODAL TIME SCRIPT ---
-    function openTimeModal(id, nama, selesai) {
-        document.getElementById("timeModalNama").innerText = nama;
-        document.getElementById("timeModalCurrent").innerText = selesai + " WIB";
-        document.getElementById("timeInput").value = 0;
-        
-        // Set Action URL
-        // Route: /ujian/{id}/update-waktu
-        const url = "{{ route('guru.mapel.ujian.update_waktu', ':id') }}".replace(':id', id);
-        document.getElementById("timeForm").action = url;
-
-        document.getElementById("timeModal").classList.remove('hidden');
-    }
-
-    function closeTimeModal() {
-        document.getElementById("timeModal").classList.add('hidden');
-    }
-
-    function adjustTimeInput(min) {
-        const input = document.getElementById("timeInput");
-        let val = parseInt(input.value) || 0;
-        input.value = val + min;
-    }
-
     // --- TOGGLE HISTORY SCRIPT ---
     function toggleHistory(tahunSafe) {
         const wrapper = document.getElementById(`wrapper-${tahunSafe}`);
@@ -674,23 +580,6 @@
             text.innerText = 'Lihat Ujian Tahun Ini';
             icon.classList.remove('rotate-180');
         }
-    }
-
-    // --- FORCE FINISH SCRIPT ---
-    function confirmForceFinish(ujianId, namaUjian) {
-        showConfirmModal(
-            'Selesaikan Ujian Paksa?',
-            'Anda yakin ingin mengakhiri ujian "' + namaUjian + '" sekarang? Waktu akan langsung dihentikan dan siswa tidak dapat lagi mengirim jawaban.',
-            function() {
-                // Submit form spesifik berdasarkan ID
-                const form = document.getElementById('form-finish-' + ujianId);
-                showLoadingModal(); // Tampilkan animasi loading
-                form.submit();
-            },
-            'Ya, Selesaikan Sekarang',
-            'bg-red-600',
-            'hover:bg-red-700'
-        );
     }
 
     // Auto Close Alerts

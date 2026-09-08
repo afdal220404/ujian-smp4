@@ -29,7 +29,24 @@ class Ujian extends Model
 
     protected $casts = [
         'peserta_susulan' => 'array',
+        'allow_web_access' => 'boolean',
+        'siswa_izin_web' => 'array',
     ];
+
+    /**
+     * Cek apakah siswa tertentu diizinkan mengakses ujian dari web browser
+     */
+    public function isSiswaAllowedWeb($siswaId): bool
+    {
+        // Jika ujian secara global diizinkan web, semua siswa boleh
+        if ($this->allow_web_access) {
+            return true;
+        }
+
+        // Cek daftar izin perorangan
+        $allowedList = $this->siswa_izin_web ?? [];
+        return in_array($siswaId, $allowedList) || in_array((string)$siswaId, $allowedList) || in_array((int)$siswaId, $allowedList);
+    }
 
     public function mapel()
     {
@@ -63,5 +80,10 @@ class Ujian extends Model
     public function ujianSusulans()
     {
         return $this->hasMany(Ujian::class, 'ujian_induk_id');
+    }
+
+    public function pengawas()
+    {
+        return $this->belongsTo(Guru::class, 'pengawas_id');
     }
 }

@@ -140,7 +140,103 @@
             </div>
         </div>
 
-        {{-- B. DASHBOARD GRID --}}
+        {{-- B. TUGAS PENGAWAS UJIAN (Hanya tampil jika ada penugasan pengawas) --}}
+        @if(isset($tugasPengawas) && $tugasPengawas->isNotEmpty())
+        <div class="space-y-4">
+            <div class="flex items-center justify-between px-1">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-8 bg-emerald-500 rounded-full shadow-sm"></div>
+                    <div>
+                        <h3 class="text-xl font-bold-custom text-darkblue">Tugas Pengawas Ujian</h3>
+                        <p class="text-xs text-gray-500">Ruangan pengawasan ujian digital yang ditugaskan kepada Anda</p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full">
+                    <i class="bi bi-shield-check mr-1"></i> {{ $tugasPengawas->count() }} Penugasan
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach($tugasPengawas as $tp)
+                    <div class="relative bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border {{ $tp->can_enter ? 'border-emerald-200 hover:border-emerald-400 hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)]' : 'border-gray-200 bg-gray-50/70' }} transition-all duration-300 overflow-hidden flex flex-col justify-between">
+                        
+                        {{-- Top Accent --}}
+                        <div class="absolute top-0 left-0 right-0 h-1.5 {{ $tp->can_enter ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-300' }}"></div>
+
+                        <div class="space-y-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="w-12 h-12 rounded-xl {{ $tp->can_enter ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400' }} flex items-center justify-center text-2xl shadow-sm">
+                                    <i class="bi bi-person-video3"></i>
+                                </div>
+                                <div>
+                                    @if($tp->is_ongoing)
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 animate-pulse">
+                                            <span class="w-2 h-2 rounded-full bg-green-500"></span> Sedang Berlangsung
+                                        </span>
+                                    @elseif($tp->can_enter)
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Ruang Dibuka (Pra-Ujian)
+                                        </span>
+                                    @elseif($tp->is_finished)
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600">
+                                            <i class="bi bi-check-circle"></i> Selesai
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                            <i class="bi bi-clock"></i> Belum Dimulai
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="font-bold-custom text-gray-800 text-lg leading-snug">
+                                    {{ $tp->ujian->nama_ujian }}
+                                </h4>
+                                <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                    <span><i class="bi bi-book mr-1"></i> {{ $tp->ujian->mapel->nama_mapel ?? '-' }}</span>
+                                    <span>&bull;</span>
+                                    <span><i class="bi bi-building mr-1"></i> Kelas {{ $tp->ujian->mapel->kelas->kelas ?? '-' }}</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-100 space-y-1.5 text-xs">
+                                <div class="flex justify-between items-center text-gray-600">
+                                    <span><i class="bi bi-calendar3 mr-1 text-gray-400"></i> Tanggal:</span>
+                                    <span class="font-bold text-gray-800">{{ \Carbon\Carbon::parse($tp->ujian->tanggal_ujian)->translatedFormat('d M Y') }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-600">
+                                    <span><i class="bi bi-clock mr-1 text-gray-400"></i> Waktu Ujian:</span>
+                                    <span class="font-mono font-bold text-gray-800">{{ $tp->start->format('H:i') }} - {{ $tp->end->format('H:i') }} WIB</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Action Button --}}
+                        <div class="mt-5 pt-3 border-t border-gray-100">
+                            @if($tp->can_enter)
+                                <a href="{{ route('guru.pengawas.ruang', $tp->ujian->id) }}" 
+                                   class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all transform active:scale-95">
+                                    <i class="bi bi-box-arrow-in-right text-sm"></i>
+                                    <span>Masuk Halaman Pengawas</span>
+                                </a>
+                            @else
+                                <button type="button" disabled 
+                                        class="w-full py-2.5 px-4 bg-gray-200 text-gray-400 rounded-xl font-bold text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                                        title="Dapat diakses 30 menit sebelum ujian dimulai">
+                                    <i class="bi bi-lock-fill text-sm"></i>
+                                    <span>Dapat diakses pukul {{ $tp->accessible_time->format('H:i') }} WIB</span>
+                                </button>
+                            @endif
+                        </div>
+
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        {{-- C. DASHBOARD GRID --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {{-- LOGIKA BARU: Jika Guru ADALAH Wali Kelas, tampilkan kolom ini --}}

@@ -163,8 +163,8 @@
                 @endif
 
                 {{-- Teks Pertanyaan --}}
-                <div class="text-gray-800 text-sm font-medium leading-relaxed">
-                    {!! nl2br(e($soal->pertanyaan)) !!}
+                <div class="text-gray-800 text-sm font-medium leading-relaxed prose max-w-none">
+                    {!! format_soal($soal->pertanyaan) !!}
                 </div>
             </div>
 
@@ -213,7 +213,7 @@
                                 @if(!empty($imgOpsi)) 
                                     <img src="{{ asset('storage/' . $imgOpsi) }}" class="max-h-16 w-auto rounded object-contain bg-white border border-gray-100"> 
                                 @endif
-                                @if(!empty($textOpsi)) <span>{{ $textOpsi }}</span> @else @if(empty($imgOpsi)) <span>-</span> @endif @endif
+                                @if(!empty($textOpsi)) <span>{!! format_soal($textOpsi) !!}</span> @else @if(empty($imgOpsi)) <span>-</span> @endif @endif
                             </div>
                             {!! $icon !!}
                         </div>
@@ -270,7 +270,7 @@
                                 @if(!empty($opt['gambar'])) 
                                     <img src="{{ asset('storage/' . $opt['gambar']) }}" class="max-h-16 w-auto rounded object-contain bg-white border border-gray-100"> 
                                 @endif
-                                @if(!empty($opt['text'])) <span>{{ $opt['text'] }}</span> @else @if(empty($opt['gambar'])) <span>-</span> @endif @endif
+                                @if(!empty($opt['text'])) <span>{!! format_soal($opt['text']) !!}</span> @else @if(empty($opt['gambar'])) <span>-</span> @endif @endif
                             </div>
                             {!! $icon !!}
                         </div>
@@ -303,7 +303,7 @@
                                         @if(!empty($stmt['gambar'])) 
                                             <img src="{{ asset('storage/' . $stmt['gambar']) }}" class="max-h-12 w-auto rounded object-contain mb-1 border border-gray-100"> 
                                         @endif
-                                        <span>{{ $stmt['text'] ?? '-' }}</span>
+                                        <span>{!! format_soal($stmt['text'] ?? '-') !!}</span>
                                     </div>
                                     <div class="flex items-center justify-between mt-1 pt-2 border-t border-gray-100">
                                         <div class="flex items-center gap-2">
@@ -367,7 +367,7 @@
                                         {{-- Kotak Kiri (Pertanyaan) --}}
                                         <div class="bg-white border border-gray-200 rounded px-2 py-2 flex-1 flex flex-col shadow-sm">
                                             @if(!empty($matchL['gambar_left'])) <img src="{{ asset('storage/' . $matchL['gambar_left']) }}" class="max-h-12 w-auto mb-1 object-contain border border-gray-100"> @endif
-                                            <span class="font-medium text-gray-700">{{ $matchL['left'] ?? '-' }}</span>
+                                            <span class="font-medium text-gray-700">{!! format_soal($matchL['left'] ?? '-') !!}</span>
                                         </div>
                                         
                                         <div class="flex flex-col items-center justify-center px-1 shrink-0">
@@ -377,7 +377,7 @@
                                         {{-- Kotak Kanan (Pilihan Siswa) --}}
                                         <div class="bg-white border {{ $rightKeySiswa ? ($isBenar ? 'border-green-400 bg-green-50 ring-1 ring-green-300' : 'border-red-400 bg-red-50 ring-1 ring-red-300') : 'border-gray-200' }} rounded px-2 py-2 flex-1 flex flex-col shadow-sm relative">
                                             @if(!empty($studentRightImg)) <img src="{{ asset('storage/' . $studentRightImg) }}" class="max-h-12 w-auto mb-1 object-contain ml-auto border border-gray-100"> @endif
-                                            <span class="text-right font-medium {{ !$rightKeySiswa ? 'text-gray-400 italic' : 'text-gray-700' }}">{{ $studentRightText }}</span>
+                                            <span class="text-right font-medium {{ !$rightKeySiswa ? 'text-gray-400 italic' : 'text-gray-700' }}">{!! format_soal($studentRightText) !!}</span>
                                             
                                             {{-- Icon Bulat Benar/Salah --}}
                                             @if($rightKeySiswa)
@@ -395,7 +395,7 @@
                                     {{-- Tampilkan Kunci Jika Siswa Salah/Kosong --}}
                                     @if(!$isBenar)
                                         <div class="text-[10px] text-green-600 text-right pr-2 mt-0.5 flex items-center justify-end gap-1">
-                                            <i class="bi bi-info-circle"></i> Kunci Benar: <strong>{{ $matchL['right'] ?? '-' }}</strong>
+                                            <i class="bi bi-info-circle"></i> Kunci Benar: <strong>{!! format_soal($matchL['right'] ?? '-') !!}</strong>
                                         </div>
                                     @endif
                                 </div>
