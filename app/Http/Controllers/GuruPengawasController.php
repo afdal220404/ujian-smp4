@@ -350,6 +350,15 @@ class GuruPengawasController extends Controller
                 'durasi_menit' => $newDurasi > 0 ? $newDurasi : 1,
             ]);
 
+            // Finalisasi otomatis seluruh sesi ujian siswa yang belum selesai
+            $unfinishedHasil = HasilUjian::where('ujian_id', $ujian->id)
+                ->whereNull('waktu_selesai')
+                ->get();
+
+            foreach ($unfinishedHasil as $hasil) {
+                $hasil->finalizeExam('diakhiri_pengawas', 'Ujian diselesaikan oleh Pengawas Ruangan');
+            }
+
             DB::commit();
             return back()->with('success', 'Pelaksanaan ujian di ruangan telah berhasil diselesaikan.');
         } catch (\Exception $e) {

@@ -572,17 +572,35 @@
         </section>
     </main>
 
-    {{-- Submit Confirmation Modal --}}
-    <dialog id="confirm-modal" class="rounded-2xl shadow-2xl p-0 w-full max-w-md backdrop:bg-black/50 m-auto">
-        <div class="p-6 text-center">
-            <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-                <i class="bi bi-question-lg text-3xl"></i>
+    {{-- Block / Warning Modal (Untuk Peringatan Soal Kosong, Ragu-ragu, & Batas Minimal Waktu 50%) --}}
+    <dialog id="block-modal" class="rounded-3xl shadow-2xl p-0 w-full max-w-md backdrop:bg-slate-900/60 m-auto border border-gray-100 overflow-hidden">
+        <div class="p-6 sm:p-7 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i class="bi bi-exclamation-triangle-fill text-3xl animate-pulse"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Yakin Ingin Mengumpulkan?</h3>
-            <p class="text-gray-500 text-sm" id="modal-status-text">Periksa kembali jawaban Anda.</p>
-            <div class="grid grid-cols-2 gap-3 mt-8">
-                <button onclick="document.getElementById('confirm-modal').close()" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors">Periksa Lagi</button>
-                <button onclick="submitExamForce()" class="w-full px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-lg">Ya, Kumpulkan</button>
+            <h3 class="text-xl font-[Poppins-Bold] text-gray-800 mb-2" id="block-modal-title">Perhatian</h3>
+            <div class="text-gray-600 text-sm leading-relaxed mb-6" id="block-modal-content">
+                ...
+            </div>
+            <div class="flex justify-center">
+                <button type="button" onclick="document.getElementById('block-modal').close()" class="w-full sm:w-auto px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm transition-all shadow-md shadow-blue-200">
+                    <i class="bi bi-arrow-left-circle me-1.5"></i> Periksa Kembali Jawaban
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    {{-- Submit Confirmation Modal --}}
+    <dialog id="confirm-modal" class="rounded-3xl shadow-2xl p-0 w-full max-w-md backdrop:bg-slate-900/60 m-auto border border-gray-100 overflow-hidden">
+        <div class="p-6 sm:p-7 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i class="bi bi-check-circle-fill text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-[Poppins-Bold] text-gray-800 mb-2">Konfirmasi Pengumpulan Ujian</h3>
+            <p class="text-gray-600 text-sm leading-relaxed" id="modal-status-text">Seluruh soal telah dijawab dengan lengkap dan tidak ada tanda ragu-ragu. Yakin ingin mengumpulkan?</p>
+            <div class="grid grid-cols-2 gap-3 mt-7">
+                <button type="button" onclick="document.getElementById('confirm-modal').close()" class="px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors text-sm">Periksa Lagi</button>
+                <button type="button" onclick="submitExamForce('normal')" class="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 text-sm">Ya, Kumpulkan</button>
             </div>
         </div>
     </dialog>
@@ -610,7 +628,7 @@
                 Sesuai peraturan, ujian Anda akan <span class="text-red-600 font-bold">OTOMATIS DIKUMPULKAN</span> dalam 5 detik.
             </p>
 
-            <button onclick="submitExamForce()" class="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 hover:-translate-y-1">
+            <button onclick="submitExamForce('pelanggaran')" class="w-full px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 hover:-translate-y-1">
                 Kumpulkan Sekarang
             </button>
         </div>
@@ -623,12 +641,15 @@
         const examId = {{ $ujian->id }};
         const endTimeStr = "{{ \Carbon\Carbon::parse($ujian->waktu_selesai)->format('Y-m-d H:i:s') }}";
         const examEndTime = new Date(endTimeStr).getTime();
+        const examStartTime = {{ $hasilUjian->waktu_mulai ? \Carbon\Carbon::parse($hasilUjian->waktu_mulai)->getTimestamp() * 1000 : 'new Date().getTime()' }};
+        const totalDurationMs = {{ ($ujian->durasi_menit ?? 60) * 60 * 1000 }};
         
         // --- STATE ---
         let currentQuestionIndex = 0;
         let isExamActive = false; // Status Ujian
         let isExamPaused = {{ ($hasilUjian->is_paused ?? false) ? 'true' : 'false' }};
         let timerInterval;
+        let raguState = {}; // { questionIndex: boolean }
 
         // --- DRAWER FUNCTIONS FOR MOBILE ---
         function openMobileNavDrawer() {
@@ -639,10 +660,15 @@
             document.getElementById('mobile-nav-drawer').classList.add('hidden');
         }
 
+        function showBlockModal(title, contentHtml) {
+            document.getElementById('block-modal-title').innerText = title;
+            document.getElementById('block-modal-content').innerHTML = contentHtml;
+            document.getElementById('block-modal').showModal();
+        }
+
         // --- 1. CORE: START EXAM LOGIC ---
         function startSafeExam() {
             const elem = document.documentElement;
-            // Coba masuk Fullscreen
             const reqFS = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
 
             if (reqFS) {
@@ -671,27 +697,24 @@
             // Auto Update Progress
             updateNavProgress();
             
-            // Aktifkan Deteksi Curang (Delay dikit biar ga langsung trigger saat loading)
+            // Aktifkan Deteksi Curang
             setTimeout(armSecuritySystem, 1000);
         }
 
         // --- 2. SECURITY SYSTEM (ANTI-CHEAT) ---
         function armSecuritySystem() {
-            // A. Deteksi Pindah Tab (Visibility Change)
             document.addEventListener("visibilitychange", function() {
                 if (document.hidden && isExamActive && !isExamPaused) {
                     handleViolation("Meninggalkan halaman / Minimize Browser");
                 }
             });
 
-            // B. Deteksi Klik di luar browser (Blur)
             window.addEventListener("blur", function() {
                 if (isExamActive && !isExamPaused) {
                      handleViolation("Membuka aplikasi lain atau klik di luar layar ujian");
                 }
             });
 
-            // C. Deteksi Keluar Fullscreen
             const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'msfullscreenchange'];
             fsEvents.forEach(evt => {
                 document.addEventListener(evt, function() {
@@ -701,10 +724,8 @@
                 });
             });
 
-            // D. Blokir Klik Kanan & Keyboard shortcuts
             document.addEventListener('contextmenu', event => event.preventDefault());
             window.addEventListener('keydown', function(e) {
-                // Blokir F12, F5, Ctrl+R, Ctrl+U, Alt+Tab (sebisa mungkin)
                 if (
                     e.key === 'F12' || 
                     e.key === 'F5' ||
@@ -721,23 +742,20 @@
         let violationTimeout = null;
 
         function handleViolation(reason) {
-            if (!isExamActive || isExamPaused) return; // Supaya tidak double submit atau terpicu saat ujian dijeda
-            isExamActive = false; // Stop monitoring
+            if (!isExamActive || isExamPaused) return;
+            isExamActive = false;
 
-            // Show Modal
             const modal = document.getElementById('violation-modal');
             if (modal) {
                 document.getElementById('modal-violation-reason').innerText = reason;
                 modal.showModal();
                 
-                // Start Countdown Animation
                 setTimeout(() => {
                     const prog = document.getElementById('violation-progress');
                     if (prog) prog.style.width = '0%';
                 }, 100);
             }
 
-            // Auto Submit after 5 seconds
             if (violationTimeout) clearTimeout(violationTimeout);
             violationTimeout = setTimeout(() => {
                 submitExamForce('pelanggaran', reason);
@@ -746,9 +764,8 @@
 
         // --- 3. SUBMIT FUNCTION ---
         function submitExamForce(statusPenyelesaian = 'normal', keteranganPelanggaran = null) {
-            isExamActive = false; // Matikan security
+            isExamActive = false;
             
-            // Buat Form Submit POST secara dinamis
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = "{{ route('siswa.ujian.selesai', $ujian->id) }}";
@@ -777,7 +794,6 @@
             form.submit();
         }
 
-        // Kirim sinyal Lock Re-Entry saat browser/aplikasi ditutup atau refresh
         window.addEventListener('beforeunload', function() {
             if (isExamActive && !isExamPaused) {
                 const url = "{{ route('siswa.ujian.lock_reentry', $ujian->id) }}";
@@ -790,55 +806,107 @@
             }
         });
 
-        function confirmSubmit() {
-            let answeredCount = 0;
-            
-            // Iterate over all question containers to check if answered
-            document.querySelectorAll('.question-item').forEach(item => {
-                const soalId = item.dataset.soalId;
-                let isAnswered = false;
+        // --- CHECK IF SPECIFIC QUESTION IS FULLY ANSWERED ---
+        function checkIsQuestionAnswered(item) {
+            if (!item) return false;
+            const soalId = item.dataset.soalId;
 
-                // 1. Check Radio (Pilihan Ganda / Benar Salah)
-                if (item.querySelector(`input[type="radio"][name="jawaban_${soalId}"]:checked`)) {
-                    isAnswered = true;
-                }
-                // 2. Check Checkbox (Jawaban Ganda)
-                else if (item.querySelector(`input[type="checkbox"][name="jawaban_${soalId}[]"]:checked`)) {
-                    isAnswered = true;
-                }
-                // 3. Check Matching (Hidden Input with JSON)
-                else {
-                    const matchInput = document.getElementById(`jawaban_matching_${soalId}`);
-                    if (matchInput && matchInput.value) {
-                        try {
-                            const val = JSON.parse(matchInput.value);
-                            // Check if object is not empty (has at least one pair)
-                            if (Object.keys(val).length > 0) {
-                                isAnswered = true;
-                            }
-                        } catch (e) {
-                            // invalid json, ignore
-                        }
-                    } 
-                    // 4. Check Complex TF
-                    else {
-                        const tfInputs = item.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
-                        if (tfInputs.length > 0) {
-                             isAnswered = true;
-                        }
+            // 1. Radio (Pilihan Ganda / Benar Salah Simple)
+            if (item.querySelector(`input[type="radio"][name="jawaban_${soalId}"]:checked`)) {
+                return true;
+            }
+            // 2. Checkbox (Jawaban Ganda)
+            if (item.querySelector(`input[type="checkbox"][name="jawaban_${soalId}[]"]:checked`)) {
+                return true;
+            }
+            // 3. Matching (Menjodohkan)
+            const matchInput = document.getElementById(`jawaban_matching_${soalId}`);
+            if (matchInput && matchInput.value && matchInput.value !== '{}') {
+                try {
+                    const val = JSON.parse(matchInput.value);
+                    const totalLeft = item.querySelectorAll('.match-item-left').length;
+                    if (totalLeft > 0 && Object.keys(val).length >= totalLeft) {
+                        return true;
                     }
-                }
+                } catch(e) {}
+            }
+            // 4. Complex TF
+            const tfRows = item.querySelectorAll('tr[data-tf-row]');
+            if (tfRows.length > 0) {
+                let allTfChecked = true;
+                tfRows.forEach(row => {
+                    if (!row.querySelector('input[type="radio"]:checked')) {
+                        allTfChecked = false;
+                    }
+                });
+                return allTfChecked;
+            } else {
+                const tfInputs = item.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
+                if (tfInputs.length > 0) return true;
+            }
+            return false;
+        }
 
-                if (isAnswered) answeredCount++;
+        // --- CONFIRM SUBMIT WITH VALIDATION ---
+        function confirmSubmit() {
+            // 1. Batas Minimal Waktu Pengumpulan (50% Total Durasi)
+            const now = new Date().getTime();
+            const elapsedMs = now - examStartTime;
+            const minRequiredMs = totalDurationMs * 0.5;
+
+            if (elapsedMs < minRequiredMs) {
+                const sisaDetik = Math.ceil((minRequiredMs - elapsedMs) / 1000);
+                const sisaMenit = Math.ceil(sisaDetik / 60);
+                showBlockModal(
+                    'Waktu Ujian Masih Berjalan',
+                    `Anda baru dapat mengumpulkan ujian setelah melewati minimal <strong>50% dari total alokasi waktu ujian</strong> (kurang lebih ${sisaMenit} menit lagi).<br><br>Manfaatkan waktu yang ada untuk memeriksa kembali jawaban Anda dengan teliti.`
+                );
+                return;
+            }
+
+            // 2. Cek Soal Belum Dijawab & Ragu-ragu
+            let unansweredList = [];
+            let raguList = [];
+
+            document.querySelectorAll('.question-item').forEach((item, idx) => {
+                const isAnswered = checkIsQuestionAnswered(item);
+                const isRagu = !!raguState[idx];
+
+                if (!isAnswered) {
+                    unansweredList.push(idx + 1);
+                }
+                if (isRagu) {
+                    raguList.push(idx + 1);
+                }
             });
 
-            const remaining = totalQuestions - answeredCount;
-            const msg = document.getElementById('modal-status-text');
-            
-            if(remaining > 0) {
-                msg.innerHTML = `<span class="text-red-500 font-bold">Peringatan:</span> Masih ada ${remaining} soal belum dijawab.`;
-            } else {
-                msg.innerHTML = "Anda sudah menjawab semua soal.";
+            if (unansweredList.length > 0 || raguList.length > 0) {
+                let pesan = '<div class="space-y-3 text-left">';
+                pesan += '<p class="text-xs text-gray-500">Pastikan seluruh soal sudah dijawab dan tidak ada soal yang masih bertanda ragu-ragu:</p>';
+                
+                if (unansweredList.length > 0) {
+                    pesan += `<div class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                        <strong class="font-bold flex items-center gap-1 mb-1"><i class="bi bi-x-circle-fill"></i> Soal Belum Dijawab (${unansweredList.length}):</strong>
+                        Nomor: ${unansweredList.join(', ')}
+                    </div>`;
+                }
+
+                if (raguList.length > 0) {
+                    pesan += `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                        <strong class="font-bold flex items-center gap-1 mb-1"><i class="bi bi-question-circle-fill"></i> Soal Bertanda Ragu-ragu (${raguList.length}):</strong>
+                        Nomor: ${raguList.join(', ')}
+                    </div>`;
+                }
+                pesan += '</div>';
+
+                showBlockModal('Ujian Belum Dapat Dikumpulkan', pesan);
+                return;
+            }
+
+            // 3. Semua Lengkap & Valid: Tampilkan Modal Konfirmasi
+            const modalStatus = document.getElementById('modal-status-text');
+            if (modalStatus) {
+                modalStatus.innerHTML = "Seluruh <strong>" + totalQuestions + "</strong> butir soal telah selesai dijawab dan tidak ada tanda ragu-ragu.";
             }
             document.getElementById('confirm-modal').showModal();
         }
@@ -867,19 +935,15 @@
         }
 
         function showQuestion(index) {
-            // Hide all
             document.querySelectorAll('.question-item').forEach(el => el.classList.add('hidden'));
-            // Show target
             document.getElementById(`question-${index}`).classList.remove('hidden');
             
-            // Nav Button Styles for both Desktop & Mobile Drawer
             document.querySelectorAll('[id^="nav-btn-"], [id^="mob-nav-btn-"]').forEach(btn => btn.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-1'));
             const dBtn = document.getElementById(`nav-btn-${index}`);
             const mBtn = document.getElementById(`mob-nav-btn-${index}`);
             if(dBtn) dBtn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
             if(mBtn) mBtn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
             
-            // Prev/Next/Submit visibility
             document.getElementById('btn-prev').disabled = (index === 0);
             if (index === totalQuestions - 1) {
                 document.getElementById('btn-next').classList.add('hidden');
@@ -890,8 +954,8 @@
             }
             currentQuestionIndex = index;
             
-            // Sync Ragu Checkbox (Optional, simple implementation)
-            document.getElementById('ragu-check').checked = false; 
+            // Sync persistent Ragu Checkbox
+            document.getElementById('ragu-check').checked = !!raguState[index]; 
         }
 
         function nextQuestion() { if(currentQuestionIndex < totalQuestions - 1) showQuestion(currentQuestionIndex+1); }
@@ -916,85 +980,99 @@
                     const mBtn = document.getElementById(`mob-nav-btn-${index}`);
                     [dBtn, mBtn].forEach(btn => {
                         if(!btn) return;
-                        // Update style ONLY if not marked as Ragu
-                        if(!document.getElementById('ragu-check').checked || currentQuestionIndex !== index) {
-                             if(!btn.classList.contains('bg-amber-400')) {
-                                 btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
-                                 btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                             }
+                        if(!raguState[index]) {
+                            btn.classList.remove('bg-white', 'text-gray-700', 'text-gray-600', 'border-gray-200');
+                            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
                         }
                     });
                     updateNavProgress();
+                } else if(data.status === 'finished' || data.is_finished) {
+                    alert("Ujian telah berakhir atau diselesaikan oleh Pengawas Ruangan.");
+                    window.location.href = "{{ route('siswa.dashboard') }}";
                 }
             })
             .catch(err => console.error(err));
         }
 
         function toggleRagu() {
+            const isChecked = document.getElementById('ragu-check').checked;
+            raguState[currentQuestionIndex] = isChecked;
+
             const dBtn = document.getElementById(`nav-btn-${currentQuestionIndex}`);
             const mBtn = document.getElementById(`mob-nav-btn-${currentQuestionIndex}`);
-            const isChecked = document.getElementById('ragu-check').checked;
             
             if(isChecked) {
-                // Set style RAGU (Amber)
                 [dBtn, mBtn].forEach(btn => {
                     if(!btn) return;
-                    btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-700', 'border-gray-200', 'border-blue-600');
+                    btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-700', 'text-gray-600', 'border-gray-200', 'border-blue-600');
                     btn.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
                 });
             } else {
-                // Restore style based on ANSWER STATUS
-                let isAnswered = false;
                 const qItem = document.getElementById(`question-${currentQuestionIndex}`);
-                if(qItem) {
-                    const soalId = qItem.dataset.soalId;
-                    if (qItem.querySelector(`input[name="jawaban_${soalId}"]:checked`)) isAnswered = true;
-                    else if (qItem.querySelector(`input[name="jawaban_${soalId}[]"]:checked`)) isAnswered = true;
-                    else {
-                         const matchVal = document.getElementById(`jawaban_matching_${soalId}`)?.value;
-                         if(matchVal && matchVal.length > 2 && matchVal !== '{}') isAnswered = true;
-                    }
-                    if(!isAnswered && qItem.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`).length > 0) isAnswered = true;
-                }
+                const isAnswered = qItem ? checkIsQuestionAnswered(qItem) : false;
 
                 [dBtn, mBtn].forEach(btn => {
                     if(!btn) return;
                     btn.classList.remove('bg-amber-400', 'border-amber-400');
                     if(isAnswered) {
                         btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                        btn.classList.remove('bg-white', 'text-gray-700', 'text-gray-600', 'border-gray-200');
                     } else {
                         btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+                        btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
                     }
                 });
             }
+            updateNavProgress();
         }
 
         function updateNavProgress() {
-             const answered = document.querySelectorAll('.bg-blue-600.text-white[id^="nav-btn-"]').length;
-             const pct = Math.round((answered / totalQuestions) * 100);
-             const bar = document.getElementById('progress-bar-nav');
-             if(bar) {
-                 bar.style.width = `${pct}%`;
-                 document.getElementById('progress-text').innerText = `${pct}% Selesai`;
-             }
-             const mobBtn = document.getElementById('mob-progress-btn');
-             if(mobBtn) {
-                 mobBtn.innerText = `Soal (${answered}/${totalQuestions})`;
-             }
+            let answered = 0;
+            document.querySelectorAll('.question-item').forEach((item, idx) => {
+                const isAnswered = checkIsQuestionAnswered(item);
+                const isRagu = !!raguState[idx];
+                const dBtn = document.getElementById(`nav-btn-${idx}`);
+                const mBtn = document.getElementById(`mob-nav-btn-${idx}`);
+
+                if (isAnswered) answered++;
+
+                [dBtn, mBtn].forEach(btn => {
+                    if(!btn) return;
+                    if(isRagu) {
+                        btn.classList.remove('bg-blue-600', 'bg-white', 'text-gray-700', 'text-gray-600', 'border-gray-200');
+                        btn.classList.add('bg-amber-400', 'text-white', 'border-amber-400');
+                    } else if(isAnswered) {
+                        btn.classList.remove('bg-amber-400', 'bg-white', 'text-gray-700', 'text-gray-600', 'border-gray-200');
+                        btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    } else {
+                        btn.classList.remove('bg-amber-400', 'bg-blue-600', 'text-white', 'border-blue-600');
+                        btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+                    }
+                });
+            });
+
+            const pct = Math.round((answered / totalQuestions) * 100);
+            const bar = document.getElementById('progress-bar-nav');
+            if(bar) {
+                bar.style.width = `${pct}%`;
+                document.getElementById('progress-text').innerText = `${pct}% Selesai`;
+            }
+            const mobBtn = document.getElementById('mob-progress-btn');
+            if(mobBtn) {
+                mobBtn.innerText = `Soal (${answered}/${totalQuestions})`;
+            }
         }
 
-        // --- COMPLEX ANSWER LOGIC (Restored) ---
+        // --- COMPLEX ANSWER LOGIC ---
         function saveAnswerComplex(soalId, index, tipe) {
             let jawaban = "";
             
             if (tipe === 'jawaban_ganda') {
-                // Collect all checked checkbox values
                 const checkboxes = document.querySelectorAll(`input[name="jawaban_${soalId}[]"]:checked`);
                 const values = Array.from(checkboxes).map(cb => cb.value);
-                jawaban = values.join(','); // Send as comma separated string
+                jawaban = values.join(',');
             } 
             else if (tipe === 'menjodohkan') {
-                // Taken from hidden input
                 jawaban = document.getElementById(`jawaban_matching_${soalId}`).value;
             }
 
@@ -1005,19 +1083,19 @@
              const inputs = document.querySelectorAll(`input[name^="tf_${soalId}_"]:checked`);
              let answers = {};
              inputs.forEach(input => {
-                 const name = input.name; // tf_123_0
+                 const name = input.name;
                  const parts = name.split('_');
                  const idx = parts[2];
                  answers[idx] = input.value;
              });
              
-             // Convert to JSON
              const jsonAnswer = JSON.stringify(answers);
              saveAnswer(soalId, jsonAnswer, index);
         }
 
-        // --- MATCHING LOGIC (Restored) ---
+        // --- MATCHING (MENJODOHKAN) LOGIC WITH BIDIRECTIONAL PAIRING & DYNAMIC COLORS ---
         let selectedLeft = null;
+        let selectedRight = null;
         let pairs = {}; // { soalId: { leftId: rightId } }
         
         const matchColors = [
@@ -1027,6 +1105,10 @@
             { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700', stroke: '#a855f7' },
             { border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700', stroke: '#ec4899' },
             { border: 'border-cyan-500', bg: 'bg-cyan-50', text: 'text-cyan-700', stroke: '#06b6d4' },
+            { border: 'border-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', stroke: '#f59e0b' },
+            { border: 'border-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', stroke: '#6366f1' },
+            { border: 'border-teal-500', bg: 'bg-teal-50', text: 'text-teal-700', stroke: '#14b8a6' },
+            { border: 'border-rose-500', bg: 'bg-rose-50', text: 'text-rose-700', stroke: '#f43f5e' },
         ];
 
         function getPairColor(index) {
@@ -1034,30 +1116,67 @@
         }
 
         function selectMatchLeft(el, soalId, index) {
+            if (selectedRight) {
+                const rightId = selectedRight.id;
+                const leftId = el.dataset.id;
+                
+                selectedRight.el.classList.remove('ring-4', 'ring-purple-200', 'border-purple-400');
+                if(!pairs[soalId]) pairs[soalId] = {};
+                pairs[soalId][leftId] = rightId;
+                
+                document.getElementById(`jawaban_matching_${soalId}`).value = JSON.stringify(pairs[soalId]);
+                saveAnswerComplex(soalId, index, 'menjodohkan');
+                drawMatchingLines(soalId);
+                
+                selectedRight = null;
+                selectedLeft = null;
+                return;
+            }
+
             if (selectedLeft && selectedLeft.el !== el) {
                 selectedLeft.el.classList.remove('ring-4', 'ring-blue-200', 'border-blue-400');
             }
+            
+            if (selectedLeft && selectedLeft.el === el) {
+                el.classList.remove('ring-4', 'ring-blue-200', 'border-blue-400');
+                selectedLeft = null;
+                return;
+            }
+
             el.classList.add('ring-4', 'ring-blue-200', 'border-blue-400');
             selectedLeft = { el: el, id: el.dataset.id };
         }
 
         function selectMatchRight(el, soalId, index) {
-            if (!selectedLeft) return; 
+            if (selectedLeft) {
+                const rightId = el.dataset.id;
+                const leftId = selectedLeft.id;
+                
+                selectedLeft.el.classList.remove('ring-4', 'ring-blue-200', 'border-blue-400');
+                if(!pairs[soalId]) pairs[soalId] = {};
+                pairs[soalId][leftId] = rightId;
+                
+                document.getElementById(`jawaban_matching_${soalId}`).value = JSON.stringify(pairs[soalId]);
+                saveAnswerComplex(soalId, index, 'menjodohkan');
+                drawMatchingLines(soalId);
+                
+                selectedLeft = null;
+                selectedRight = null;
+                return;
+            }
 
-            const rightId = el.dataset.id;
-            const leftId = selectedLeft.id;
-            
-            if(!pairs[soalId]) pairs[soalId] = {};
-            
-            selectedLeft.el.classList.remove('ring-4', 'ring-blue-200', 'border-blue-400');
-            
-            pairs[soalId][leftId] = rightId;
-            
-            document.getElementById(`jawaban_matching_${soalId}`).value = JSON.stringify(pairs[soalId]);
-            saveAnswerComplex(soalId, index, 'menjodohkan');
-            
-            drawMatchingLines(soalId);
-            selectedLeft = null;
+            if (selectedRight && selectedRight.el !== el) {
+                selectedRight.el.classList.remove('ring-4', 'ring-purple-200', 'border-purple-400');
+            }
+
+            if (selectedRight && selectedRight.el === el) {
+                el.classList.remove('ring-4', 'ring-purple-200', 'border-purple-400');
+                selectedRight = null;
+                return;
+            }
+
+            el.classList.add('ring-4', 'ring-purple-200', 'border-purple-400');
+            selectedRight = { el: el, id: el.dataset.id };
         }
 
         function drawMatchingLines(soalId) {
@@ -1118,7 +1237,7 @@
                         line.setAttribute("stroke", color.stroke);
                         line.setAttribute("stroke-width", "3");
                         line.setAttribute("stroke-linecap", "round");
-                        line.setAttribute("class", "transition-all duration-500");
+                        line.setAttribute("class", "transition-all duration-300");
                         
                         svg.appendChild(line);
                     }
@@ -1129,9 +1248,12 @@
 
         function resetMatching(soalId, index) {
             pairs[soalId] = {};
+            if (selectedLeft) { selectedLeft.el.classList.remove('ring-4', 'ring-blue-200', 'border-blue-400'); selectedLeft = null; }
+            if (selectedRight) { selectedRight.el.classList.remove('ring-4', 'ring-purple-200', 'border-purple-400'); selectedRight = null; }
             document.getElementById(`jawaban_matching_${soalId}`).value = "";
             saveAnswerComplex(soalId, index, 'menjodohkan');
             drawMatchingLines(soalId);
+            updateNavProgress();
         }
 
         function updateTrueFalseStyles(soalId, selectedVal) {
@@ -1169,6 +1291,10 @@
                      drawMatchingLines(soalId);
                  });
              });
+
+             @if(session('warning_time') || session('warning_unanswered'))
+                 showBlockModal('Pemberitahuan Sistem', "{{ session('warning_time') ?: session('warning_unanswered') }}");
+             @endif
         });
         
         // Hook into showQuestion for redrawing
@@ -1185,7 +1311,7 @@
             }
         };
 
-        // --- 6. REALTIME STATUS POLLING (STOP & CONTINUE / LIVE PAUSE) ---
+        // --- 6. REALTIME STATUS POLLING (STOP & CONTINUE / LIVE PAUSE / AUTO-FINISH) ---
         function checkExamLiveStatus() {
             fetch("{{ route('siswa.ujian.status_pengerjaan', $ujian->id) }}", {
                 method: "GET",
@@ -1197,10 +1323,10 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success' || data.status === 'active' || data.success === true) {
-                    // 1. Handle Forced Finish by Proctor
+                    // 1. Handle Forced Finish by Proctor / Exam End Time Reached
                     if (data.is_finished && isExamActive) {
                         isExamActive = false;
-                        alert("Ujian telah diselesaikan oleh Pengawas Ruangan.");
+                        alert("Ujian telah diselesaikan oleh Pengawas Ruangan atau waktu pelaksanaan ujian telah berakhir.");
                         window.location.href = "{{ route('siswa.dashboard') }}";
                         return;
                     }
@@ -1209,10 +1335,8 @@
                     const pauseOverlay = document.getElementById('pause-exam-overlay');
                     if (data.is_paused) {
                         if (!isExamPaused) {
-                            // Status baru saja dijeda oleh pengawas
                             isExamPaused = true;
 
-                            // Batalkan jika ada modal pelanggaran yang sempat muncul saat jeda
                             const violModal = document.getElementById('violation-modal');
                             if (violModal && violModal.open) {
                                 if (violationTimeout) clearTimeout(violationTimeout);
@@ -1227,7 +1351,6 @@
                         }
                     } else {
                         if (isExamPaused) {
-                            // Status baru saja dilanjutkan oleh pengawas
                             isExamPaused = false;
                             if (pauseOverlay) {
                                 pauseOverlay.classList.add('hidden');

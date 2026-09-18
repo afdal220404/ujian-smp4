@@ -499,7 +499,7 @@ class SiswaDashboardController extends Controller
         // Cek Akses Ujian Susulan
         if ($ujian->is_susulan) {
             $peserta = $ujian->peserta_susulan ?? [];
-            if (!in_array($siswa->id, $peserta) && !in_array((string)$siswa->id, $peserta)) {
+            if (!in_array((int)$siswa->id, array_map('intval', (array)$peserta))) {
                 return redirect()->route('siswa.dashboard')->with('error', 'Anda tidak terdaftar untuk ujian susulan ini.');
             }
         }
@@ -563,7 +563,7 @@ class SiswaDashboardController extends Controller
         // Cek Akses Ujian Susulan
         if ($ujian->is_susulan) {
             $peserta = $ujian->peserta_susulan ?? [];
-            if (!in_array($siswa->id, $peserta) && !in_array((string)$siswa->id, $peserta)) {
+            if (!in_array((int)$siswa->id, array_map('intval', (array)$peserta))) {
                 return redirect()->route('siswa.dashboard')->with('error', 'Anda tidak terdaftar untuk ujian susulan ini.');
             }
         }
@@ -703,6 +703,15 @@ class SiswaDashboardController extends Controller
             'jawaban'  => 'nullable|string'
         ]);
 
+        $ujian = Ujian::find($request->ujian_id);
+        if ($ujian && $ujian->waktu_selesai && now() > \Carbon\Carbon::parse($ujian->waktu_selesai)) {
+            return response()->json([
+                'status' => 'finished',
+                'is_finished' => true,
+                'message' => 'Waktu ujian telah berakhir atau telah diselesaikan oleh Pengawas Ruangan.'
+            ], 403);
+        }
+
         // Cek Hasil Ujian yang sedang aktif
         $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $request->ujian_id)
                         ->where('siswa_id', $siswa->id)
@@ -710,7 +719,7 @@ class SiswaDashboardController extends Controller
                         ->first();
 
         if (!$hasilUjian) {
-            return response()->json(['status' => 'error', 'message' => 'Sesi ujian tidak valid or sudah selesai.'], 400);
+            return response()->json(['status' => 'error', 'is_finished' => true, 'message' => 'Sesi ujian tidak valid atau sudah selesai.'], 400);
         }
 
         // Cek jika ujian sedang dijeda oleh pengawas
@@ -744,212 +753,45 @@ class SiswaDashboardController extends Controller
                         ->where('siswa_id', $siswa->id)
                         ->firstOrFail();
 
-        // 1. Set Waktu Selesai & Status Penyelesaian
-        $hasilUjian->waktu_selesai = now();
-        $hasilUjian->status_penyelesaian = $request->input('status_penyelesaian', 'normal');
-        $hasilUjian->keterangan_pelanggaran = $request->input('keterangan_pelanggaran', null);
-        $hasilUjian->is_locked_reentry = false;
-        
-        // 2. Hitung Nilai Otomatis
         $ujian = Ujian::with('soals.bankSoal')->findOrFail($id);
-        $jawabanSiswa = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)->get()->keyBy('soal_id');
-        
-        $jumlahBenar = 0;
-        $totalSoal = $ujian->soals->count();
+        $statusPenyelesaian = $request->input('status_penyelesaian', 'normal');
+        $keteranganPelanggaran = $request->input('keterangan_pelanggaran', null);
 
-        foreach ($ujian->soals as $soal) {
-            $jawabanSiswaRecord = $jawabanSiswa[$soal->id] ?? null;
-            $jawaban = $jawabanSiswaRecord ? $jawabanSiswaRecord->jawaban_dipilih : null;
-            
-            $isCorrect = false;
+        // Validasi Khusus Pengumpulan Normal oleh Siswa (bukan waktu habis / pelanggaran)
+        if ($statusPenyelesaian === 'normal') {
+            // 1. Validasi Batas Minimal Waktu Pengumpulan (50% dari Total Waktu Ujian)
+            $durasiTotalDetik = ($ujian->durasi_menit ?? 60) * 60;
+            $minimalDetik = $durasiTotalDetik * 0.5;
+            $waktuMulai = $hasilUjian->waktu_mulai ?? $ujian->waktu_mulai;
+            $waktuBerjalanDetik = now()->diffInSeconds($waktuMulai);
 
-            // --- 1. PILIHAN GANDA & BENAR/SALAH ---
-            if ($soal->tipe == 'pilihan_ganda' || $soal->tipe == 'benar_salah') {
-                $kunci = trim(strtoupper($soal->kunci_jawaban));
-                $jawab = trim(strtoupper($jawaban));
-                
-                // Normalisasi Benar/Salah
-                if ($soal->tipe == 'benar_salah') {
-                    if ($kunci == 'COMPLEX_TF') {
-                        // LOGIK COMPLEX (All or Nothing)
-                        $pernyataan = $soal->data_soal['pernyataan'] ?? [];
-                        $jawabJson = json_decode($jawaban, true);
-                        
-                        // Strict Check: Count must match (to ensure all answered? not necessarily, but all existing must be correct)
-                        // Actually, if student skips one, it's WRONG.
-                        
-                        $allCorrect = true;
-                        // Avoid crash if pernyataan empty
-                        if(empty($pernyataan)) $allCorrect = false;
-
-                        if (is_array($pernyataan)) {
-                            foreach ($pernyataan as $idx => $item) {
-                                $kunciItem = $item['correct'] ?? '';
-                                $jawabItem = $jawabJson[$idx] ?? '';
-                                
-                                if ($kunciItem !== $jawabItem) {
-                                    $allCorrect = false;
-                                    break; 
-                                }
-                            }
-                        } else {
-                            $allCorrect = false;
-                        }
-
-                        if ($allCorrect) $isCorrect = true;
-
-                        // Skip logic bawah
-                        goto skip_simple_check;
-                    }
-
-                    // Normalisasi Old Simple TF
-                    if ($jawab == 'A') $jawab = 'TRUE';
-                    if ($jawab == 'B') $jawab = 'FALSE';
-                    if ($kunci == 'A') $kunci = 'TRUE';
-                    if ($kunci == 'B') $kunci = 'FALSE';
-                }
-
-                if ($jawab == $kunci && $jawab != '') {
-                    $isCorrect = true;
-                }
-                
-                skip_simple_check:
+            if ($waktuBerjalanDetik < $minimalDetik) {
+                return redirect()->route('siswa.ujian.kerjakan', $id)
+                    ->with('warning_time', 'Ujian belum dapat dikumpulkan. Waktu pengerjaan masih berjalan (belum mencapai minimal 50% dari total durasi ujian). Silakan periksa kembali jawaban Anda.');
             }
-            
-            // --- 2. JAWABAN GANDA ---
-            elseif ($soal->tipe == 'jawaban_ganda') {
-                if ($jawaban) {
-                    $jawabanArr = array_map(function($val) {
-                        return trim(strtoupper($val));
-                    }, explode(',', $jawaban));
-                    sort($jawabanArr);
-                    
-                    $kunciArr = array_map(function($val) {
-                        return trim(strtoupper($val));
-                    }, explode(',', $soal->kunci_jawaban));
-                    sort($kunciArr);
-                    
-                    if ($jawabanArr == $kunciArr) {
-                        $isCorrect = true;
-                    }
+
+            // 2. Validasi Seluruh Soal Wajib Dijawab
+            $jawabanSiswa = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)->get()->keyBy('soal_id');
+            $totalSoal = $ujian->soals->count();
+            $terisiCount = 0;
+
+            foreach ($ujian->soals as $soal) {
+                $jRecord = $jawabanSiswa[$soal->id] ?? null;
+                $jVal = $jRecord ? trim($jRecord->jawaban_dipilih ?? '') : '';
+                if ($jVal !== '' && $jVal !== '{}' && $jVal !== '[]') {
+                    $terisiCount++;
                 }
             }
 
-            // --- 3. MENJODOHKAN ---
-            elseif ($soal->tipe == 'menjodohkan') {
-                if ($jawaban) {
-                    $pairs = json_decode($jawaban, true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        $pairs = [];
-                    }
-
-                    if (is_array($pairs)) {
-                        $matchesData = $soal->data_soal['matches'] ?? [];
-                        $totalPairs = count($matchesData);
-                        
-                        if ($totalPairs > 0) {
-                            $allPairsCorrect = true;
-                            foreach ($matchesData as $k => $matchData) {
-                                $expectedKey = 'L' . $k;
-                                $expectedValue = 'R' . $k;
-                                
-                                if (!isset($pairs[$expectedKey]) || $pairs[$expectedKey] !== $expectedValue) {
-                                    $allPairsCorrect = false;
-                                    break;
-                                }
-                            }
-                            
-                            if ($allPairsCorrect) {
-                                $isCorrect = true;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Update Database with is_correct
-            if ($jawabanSiswaRecord) {
-                $jawabanSiswaRecord->is_correct = $isCorrect ? 1 : 0;
-                $jawabanSiswaRecord->save();
-            }
-
-            if ($isCorrect) {
-                $jumlahBenar++;
+            if ($terisiCount < $totalSoal) {
+                $sisa = $totalSoal - $terisiCount;
+                return redirect()->route('siswa.ujian.kerjakan', $id)
+                    ->with('warning_unanswered', "Ujian belum dapat dikumpulkan. Masih ada {$sisa} butir soal yang belum dijawab.");
             }
         }
-        
-        $jumlahSalah = $totalSoal - $jumlahBenar;
 
-        // Rumus Nilai: (Benar / Total) * 100
-        $nilai = $totalSoal > 0 ? ($jumlahBenar / $totalSoal) * 100 : 0;
-        
-        $hasilUjian->nilai = $nilai;
-        $hasilUjian->jumlah_benar = $jumlahBenar; // Simpan ke DB
-
-        // Pastikan kelas_id tetap ada, update jika misalnya dulu waktu_mulai belum terekam kelas_id (untuk data lama)
-        if (empty($hasilUjian->kelas_id)) {
-            $hasilUjian->kelas_id = $siswa->kelas_id;
-        }
-
-        // User specifically asked to only store correct count, and DB reflects that.
-        $hasilUjian->save();
-
-        // --- 4. MIRRORING KE UJIAN INDUK (Jika ini Ujian Susulan) ---
-        if ($ujian->is_susulan && $ujian->ujian_induk_id) {
-            try {
-                $hasilInduk = \App\Models\HasilUjian::updateOrCreate(
-                    [
-                        'ujian_id' => $ujian->ujian_induk_id,
-                        'siswa_id' => $siswa->id
-                    ],
-                    [
-                        'kelas_id'               => $siswa->kelas_id,
-                        'waktu_mulai'            => $hasilUjian->waktu_mulai,
-                        'waktu_selesai'          => $hasilUjian->waktu_selesai,
-                        'nilai'                  => $hasilUjian->nilai,
-                        'jumlah_benar'           => $hasilUjian->jumlah_benar,
-                        'status_penyelesaian'    => $hasilUjian->status_penyelesaian,
-                        'keterangan_pelanggaran' => $hasilUjian->keterangan_pelanggaran,
-                    ]
-                );
-
-                // Mirror JawabanSiswa
-                // PENTING: Refresh dari DB agar is_correct yang sudah di-update terbaca dengan benar.
-                // Tanpa refresh, $jawabanSiswa masih memegang objek lama dari memori (is_correct belum ter-update).
-                $jawabanSiswaFresh = \App\Models\JawabanSiswa::where('hasil_ujian_id', $hasilUjian->id)
-                                        ->get()
-                                        ->keyBy('soal_id');
-
-                $parentUjian = Ujian::with('soals')->find($ujian->ujian_induk_id);
-                if ($parentUjian) {
-                    $parentSoalMap = $parentUjian->soals->pluck('id', 'bank_soal_id');
-
-                    foreach ($jawabanSiswaFresh as $susulanSoalId => $jsRecord) {
-                        // Ambil bank_soal_id dari soal susulan
-                        $susulanSoalRecord = $ujian->soals->where('id', $susulanSoalId)->first();
-                        $bankSoalId = $susulanSoalRecord ? $susulanSoalRecord->bank_soal_id : null;
-
-                        $parentSoalId = $parentSoalMap[$bankSoalId] ?? null;
-
-                        if ($parentSoalId) {
-                            \App\Models\JawabanSiswa::updateOrCreate(
-                                [
-                                    'hasil_ujian_id' => $hasilInduk->id,
-                                    'soal_id'        => $parentSoalId
-                                ],
-                                [
-                                    'jawaban_dipilih' => $jsRecord->jawaban_dipilih,
-                                    'is_correct'      => $jsRecord->is_correct, // Sekarang sudah benar
-                                ]
-                            );
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                \Log::error('Mirroring Error: ' . $e->getMessage());
-                // Tetap lanjut redirect agar siswa tidak error, guru bisa lapor jika nilai tidak sinkron
-            }
-        }
+        // Finalisasi Ujian (Hitung Nilai, Update DB, Mirroring Susulan)
+        $hasilUjian->finalizeExam($statusPenyelesaian, $keteranganPelanggaran);
 
         return redirect()->route('siswa.ujian.hasil', $id)->with('success', 'Ujian telah selesai dikerjakan.');
     }
@@ -1064,11 +906,12 @@ class SiswaDashboardController extends Controller
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
+        $ujian = Ujian::find($id);
         $hasilUjian = \App\Models\HasilUjian::where('ujian_id', $id)
                         ->where('siswa_id', $siswa->id)
                         ->first();
 
-        if (!$hasilUjian) {
+        if (!$hasilUjian || !$ujian) {
             return response()->json([
                 'status' => 'not_found',
                 'is_paused' => false,
@@ -1077,17 +920,27 @@ class SiswaDashboardController extends Controller
             ]);
         }
 
+        $now = now();
+        $isExamEnded = ($ujian->waktu_selesai && $now > \Carbon\Carbon::parse($ujian->waktu_selesai));
+
+        // Jika waktu ujian sudah habis atau diakhiri pengawas, selesaikan otomatis sesi siswa jika belum selesai
+        if ($isExamEnded && !$hasilUjian->waktu_selesai) {
+            $hasilUjian->finalizeExam('waktu_habis', 'Waktu ujian telah berakhir atau diselesaikan oleh Pengawas Ruangan');
+        }
+
         // Update heartbeat pengerjaan aktif jika tidak sedang dijeda
         if (!$hasilUjian->is_paused && !$hasilUjian->waktu_selesai) {
             $hasilUjian->update(['last_heartbeat' => now()]);
         }
+
+        $isFinished = ($hasilUjian->waktu_selesai !== null) || $isExamEnded;
 
         return response()->json([
             'status' => 'success',
             'success' => true,
             'is_paused' => (bool) $hasilUjian->is_paused,
             'is_locked_reentry' => (bool) $hasilUjian->is_locked_reentry,
-            'is_finished' => ($hasilUjian->waktu_selesai !== null),
+            'is_finished' => (bool) $isFinished,
             'waktu_selesai' => $hasilUjian->waktu_selesai ? $hasilUjian->waktu_selesai->toDateTimeString() : null,
         ]);
     }

@@ -272,16 +272,17 @@ class GuruMapelController extends Controller
         $belumMengerjakan = $siswaBelum->count();
         $totalSiswa = $semuaSiswa->count();
 
-        // 6. Validasi Kelayakan Susulan
+        // 6. Validasi Kelayakan Susulan & Data Guru Pengawas
         $now = Carbon::now('Asia/Jakarta');
         $isIndukOngoing = ($ujian->waktu_mulai <= $now && $ujian->waktu_selesai >= $now);
         $hasActiveSusulan = $ujian->ujianSusulans()->where('waktu_selesai', '>', $now)->exists();
+        $daftarGuru = Guru::orderBy('nama_lengkap')->get();
 
         return view('guru.mapel.detail_ujian', compact(
             'ujian', 'mapel', 'kelas',
             'hasilUjian', 'siswaBelum', 
             'totalSiswa', 'sudahMengerjakan', 'belumMengerjakan',
-            'isIndukOngoing', 'hasActiveSusulan'
+            'isIndukOngoing', 'hasActiveSusulan', 'daftarGuru'
         ));
     }
 

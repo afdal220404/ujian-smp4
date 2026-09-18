@@ -354,6 +354,24 @@
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Durasi Ujian</label>
                                 <input type="text" id="modal_durasi" readonly class="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 outline-none cursor-not-allowed" placeholder="Otomatis dihitung...">
                             </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Guru Pengawas Ruangan <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <select name="pengawas_id" required class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                                        <option value="" disabled selected>-- Pilih Guru Pengawas Ruangan (Wajib) --</option>
+                                        @if(isset($daftarGuru))
+                                            @foreach($daftarGuru as $g)
+                                                <option value="{{ $g->id }}" {{ (old('pengawas_id', $ujian->pengawas_id ?? '') == $g->id) ? 'selected' : '' }}>
+                                                    {{ $g->nama_lengkap }} {{ $g->nip ? "({$g->nip})" : '' }}
+                                                </option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                                        <i class="bi bi-chevron-down text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         {{-- Kolom Kanan: Pilih Siswa --}}
