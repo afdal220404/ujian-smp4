@@ -957,7 +957,9 @@ function modalUpdateUI(tipe) {
 function modalPreviewGambar(input) {
     if (input.files && input.files[0]) {
         if (input.files[0].size > 2 * 1024 * 1024) {
-            alert('Gambar terlalu besar! Maksimal 2MB.'); input.value = ''; return;
+            showNotificationModal('File Terlalu Besar', 'Ukuran gambar maksimal 2MB!', 'error');
+            input.value = '';
+            return;
         }
         const reader = new FileReader();
         reader.onload = e => {
@@ -981,7 +983,9 @@ function modalPreviewOpsi(input) {
 
     if (input.files && input.files[0]) {
         if (input.files[0].size > 2 * 1024 * 1024) {
-            alert('Gambar terlalu besar! Maksimal 2MB.'); input.value = ''; return;
+            showNotificationModal('File Terlalu Besar', 'Ukuran gambar maksimal 2MB!', 'error');
+            input.value = '';
+            return;
         }
         const reader = new FileReader();
         reader.onload = e => {
@@ -1431,6 +1435,11 @@ function editUpdateUI(tipe) {
 
 function editPreviewGambar(input) {
     if (input.files && input.files[0]) {
+        if (input.files[0].size > 2 * 1024 * 1024) {
+            showNotificationModal('File Terlalu Besar', 'Ukuran gambar maksimal 2MB!', 'error');
+            input.value = '';
+            return;
+        }
         const reader = new FileReader();
         reader.onload = e => {
             const prev = document.getElementById('edit-gambar-preview');

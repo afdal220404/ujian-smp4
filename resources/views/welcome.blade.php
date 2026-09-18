@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Ujian SMPN 4 Tilatang Kamang</title>
     
-    {{-- Tailwind CDN --}}
+    {{-- SweetAlert2 & Tailwind CDN --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
     {{-- Baris untuk Favicon --}}

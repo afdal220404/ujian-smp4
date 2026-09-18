@@ -383,7 +383,9 @@
                 cell.classList.add('bg-green-50');
                 setTimeout(() => cell.classList.remove('bg-green-50'), 500);
             } else {
-                alert('Gagal menyimpan perubahan.');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal menyimpan perubahan.', confirmButtonColor: '#00415a' });
+                }
             }
         })
         .catch(error => console.error('Error saving edit:', error));
@@ -396,7 +398,18 @@
         const guruId = document.getElementById('guruIdInput').value;
 
         if (!namaMapel || !guruId) {
-            alert('Mohon isi nama mata pelajaran dan pilih guru pengampu!');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Form Belum Lengkap',
+                    text: 'Mohon isi nama mata pelajaran dan pilih guru pengampu!',
+                    confirmButtonColor: '#00415a',
+                    customClass: {
+                        popup: 'rounded-3xl shadow-2xl',
+                        confirmButton: 'rounded-xl font-bold px-5 py-2.5'
+                    }
+                });
+            }
             return;
         }
 

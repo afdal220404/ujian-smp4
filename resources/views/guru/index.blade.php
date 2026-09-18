@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('image/logo_sekolah2.png') }}">
 
     {{-- Aset & Library --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     

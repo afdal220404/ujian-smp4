@@ -202,6 +202,93 @@
             }
         }
 
+        // Global Custom Alert & Confirm Helpers
+        window.showCustomAlert = function(titleOrOptions, message, type = 'info', callback = null) {
+            let options = {};
+            if (typeof titleOrOptions === 'object' && titleOrOptions !== null) {
+                options = titleOrOptions;
+            } else {
+                options = {
+                    title: titleOrOptions || 'Pemberitahuan',
+                    text: message || '',
+                    icon: type || 'info'
+                };
+            }
+            
+            let confirmBtnColor = '#00415a';
+            if (options.icon === 'error' || options.icon === 'danger') confirmBtnColor = '#ef4444';
+            else if (options.icon === 'success') confirmBtnColor = '#10b981';
+            else if (options.icon === 'warning') confirmBtnColor = '#f59e0b';
+
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    confirmButtonColor: confirmBtnColor,
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        popup: 'rounded-3xl shadow-2xl p-6 border border-slate-100',
+                        confirmButton: 'rounded-xl font-bold px-6 py-2.5 shadow-md',
+                        cancelButton: 'rounded-xl font-medium px-5 py-2.5'
+                    },
+                    ...options
+                }).then(result => {
+                    if (callback && typeof callback === 'function') {
+                        callback(result);
+                    }
+                    return result;
+                });
+            } else if (callback && typeof callback === 'function') {
+                callback();
+            }
+        };
+
+        window.showCustomConfirm = function(title, message, onConfirm, onCancel, options = {}) {
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    title: title || 'Konfirmasi',
+                    text: message || '',
+                    icon: options.icon || 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: options.confirmColor || '#00415a',
+                    cancelButtonColor: options.cancelColor || '#94a3b8',
+                    confirmButtonText: options.confirmText || 'Ya, Lanjutkan',
+                    cancelButtonText: options.cancelText || 'Batal',
+                    customClass: {
+                        popup: 'rounded-3xl shadow-2xl p-6 border border-slate-100',
+                        confirmButton: 'rounded-xl font-bold px-5 py-2.5 shadow-md',
+                        cancelButton: 'rounded-xl font-medium px-5 py-2.5'
+                    },
+                    ...options
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        if (onConfirm && typeof onConfirm === 'function') onConfirm();
+                    } else {
+                        if (onCancel && typeof onCancel === 'function') onCancel();
+                    }
+                    return result;
+                });
+            } else if (onConfirm && typeof onConfirm === 'function') {
+                onConfirm();
+            }
+        };
+
+        // Global interceptor for standard window.alert
+        window.alert = function(msg) {
+            let icon = 'info';
+            let title = 'Pemberitahuan';
+            const lower = String(msg).toLowerCase();
+            if (lower.includes('gagal') || lower.includes('error') || lower.includes('salah') || lower.includes('terlalu besar') || lower.includes('blokir') || lower.includes('tidak boleh')) {
+                icon = 'error';
+                title = 'Peringatan';
+            } else if (lower.includes('berhasil') || lower.includes('sukses')) {
+                icon = 'success';
+                title = 'Berhasil';
+            } else if (lower.includes('waktu habis') || lower.includes('periksa') || lower.includes('belum') || lower.includes('terkunci') || lower.includes('perhatian')) {
+                icon = 'warning';
+                title = 'Perhatian';
+            }
+            window.showCustomAlert(title, msg, icon);
+        };
+
         function confirmLogout() {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
@@ -224,9 +311,7 @@
                     }
                 });
             } else {
-                if (confirm('Yakin ingin keluar dari akun siswa?')) {
-                    window.location.href = "{{ route('logout') }}";
-                }
+                window.location.href = "{{ route('logout') }}";
             }
         }
     </script>
@@ -268,8 +353,6 @@
                         confirmButton: 'rounded-xl font-bold px-6 py-2.5 shadow-md'
                     }
                 });
-            } else {
-                alert('Peringatan: Ujian {{ $namaUjian }} hanya dapat diakses melalui Aplikasi Mobile Ujian Digital SMPN 4.');
             }
         });
     </script>
@@ -340,8 +423,6 @@
                         }
                     }
                 });
-            } else {
-                alert('Sesi Ujian Terkunci. Silakan melapor ke Pengawas Ruangan untuk membuka kunci masuk kembali.');
             }
         });
     </script>

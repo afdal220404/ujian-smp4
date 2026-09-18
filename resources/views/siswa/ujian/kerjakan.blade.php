@@ -6,7 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Ujian: {{ $ujian->nama_ujian }}</title>
     
-    {{-- Tailwind & Icons --}}
+    {{-- Tailwind & Icons & SweetAlert2 --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
@@ -675,7 +676,6 @@
                 reqFS.call(elem).then(() => {
                     initExamSystem();
                 }).catch(err => {
-                    alert("Browser memblokir fullscreen. Harap izinkan fullscreen untuk memulai.");
                     initExamSystem();
                 });
             } else {
@@ -921,7 +921,18 @@
             if (distance < 0) {
                 clearInterval(timerInterval);
                 document.getElementById("exam-timer").innerHTML = "00:00:00";
-                alert("WAKTU HABIS!");
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Waktu Ujian Habis!',
+                        text: 'Waktu ujian telah selesai. Jawaban Anda sedang dikumpulkan secara otomatis.',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        customClass: {
+                            popup: 'rounded-3xl shadow-2xl p-6 border border-slate-100'
+                        }
+                    });
+                }
                 submitExamForce('waktu_habis');
                 return;
             }
@@ -987,8 +998,23 @@
                     });
                     updateNavProgress();
                 } else if(data.status === 'finished' || data.is_finished) {
-                    alert("Ujian telah berakhir atau diselesaikan oleh Pengawas Ruangan.");
-                    window.location.href = "{{ route('siswa.dashboard') }}";
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Sesi Ujian Telah Selesai',
+                            text: 'Ujian telah berakhir atau diselesaikan oleh Pengawas Ruangan.',
+                            confirmButtonColor: '#00415a',
+                            confirmButtonText: 'Kembali ke Dashboard',
+                            customClass: {
+                                popup: 'rounded-3xl shadow-2xl p-6 border border-slate-100',
+                                confirmButton: 'rounded-xl font-bold px-6 py-2.5 shadow-md'
+                            }
+                        }).then(() => {
+                            window.location.href = "{{ route('siswa.dashboard') }}";
+                        });
+                    } else {
+                        window.location.href = "{{ route('siswa.dashboard') }}";
+                    }
                 }
             })
             .catch(err => console.error(err));
@@ -1326,8 +1352,23 @@
                     // 1. Handle Forced Finish by Proctor / Exam End Time Reached
                     if (data.is_finished && isExamActive) {
                         isExamActive = false;
-                        alert("Ujian telah diselesaikan oleh Pengawas Ruangan atau waktu pelaksanaan ujian telah berakhir.");
-                        window.location.href = "{{ route('siswa.dashboard') }}";
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Sesi Ujian Telah Selesai',
+                                text: 'Ujian telah diselesaikan oleh Pengawas Ruangan atau batas waktu ujian telah berakhir.',
+                                confirmButtonColor: '#00415a',
+                                confirmButtonText: 'Kembali ke Dashboard',
+                                customClass: {
+                                    popup: 'rounded-3xl shadow-2xl p-6 border border-slate-100',
+                                    confirmButton: 'rounded-xl font-bold px-6 py-2.5 shadow-md'
+                                }
+                            }).then(() => {
+                                window.location.href = "{{ route('siswa.dashboard') }}";
+                            });
+                        } else {
+                            window.location.href = "{{ route('siswa.dashboard') }}";
+                        }
                         return;
                     }
 

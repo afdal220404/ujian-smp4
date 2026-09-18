@@ -10,7 +10,8 @@
     {{-- (Opsional) Jika Anda punya file PNG untuk kualitas lebih baik di mobile --}}
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('image/logo_sekolah2.png') }}">
     
-    {{-- Tailwind CDN --}}
+    {{-- SweetAlert2 & Tailwind CDN --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     {{-- CSS Custom --}}

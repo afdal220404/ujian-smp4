@@ -264,8 +264,6 @@
                     confirmButton: 'rounded-xl font-bold px-5 py-2.5'
                 }
             });
-        } else {
-            alert('Kelas ' + tingkat + ' terkunci karena Anda belum menempuh jenjang ini.');
         }
     }
 
