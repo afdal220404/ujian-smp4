@@ -137,30 +137,55 @@ class HasilUjian extends Model
             // 3. Menjodohkan
             elseif ($soal->tipe == 'menjodohkan') {
                 if ($jawaban) {
-                    $pairs = json_decode($jawaban, true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        $pairs = [];
+                    $rawStudent = is_array($jawaban) ? $jawaban : json_decode($jawaban, true);
+                    if (!is_array($rawStudent)) $rawStudent = [];
+
+                    // 1. Ekstrak Kunci Pasangan yang Diharapkan
+                    $expectedPairs = [];
+                    $dataSoal = is_array($soal->data_soal) ? $soal->data_soal : (json_decode($soal->data_soal ?? '[]', true) ?? []);
+                    
+                    if (isset($dataSoal['correct_pairs']) && is_array($dataSoal['correct_pairs'])) {
+                        foreach ($dataSoal['correct_pairs'] as $cp) {
+                            if (isset($cp['left']) && isset($cp['right'])) {
+                                $expectedPairs[] = $cp['left'] . ':' . $cp['right'];
+                            }
+                        }
+                    } elseif (isset($dataSoal['matches']) && is_array($dataSoal['matches'])) {
+                        foreach ($dataSoal['matches'] as $k => $m) {
+                            $expectedPairs[] = 'L' . $k . ':R' . $k;
+                        }
                     }
 
-                    if (is_array($pairs)) {
-                        $matchesData = $soal->data_soal['matches'] ?? [];
-                        $totalPairs = count($matchesData);
-
-                        if ($totalPairs > 0 && count($pairs) >= $totalPairs) {
-                            $allPairsCorrect = true;
-                            foreach ($matchesData as $k => $matchData) {
-                                $expectedKey = 'L' . $k;
-                                $expectedValue = 'R' . $k;
-
-                                if (!isset($pairs[$expectedKey]) || $pairs[$expectedKey] !== $expectedValue) {
-                                    $allPairsCorrect = false;
-                                    break;
+                    // 2. Ekstrak Pasangan Jawaban Siswa
+                    $studentPairs = [];
+                    if (isset($rawStudent['pairs']) && is_array($rawStudent['pairs'])) {
+                        foreach ($rawStudent['pairs'] as $p) {
+                            if (isset($p['left']) && isset($p['right'])) {
+                                $studentPairs[] = $p['left'] . ':' . $p['right'];
+                            }
+                        }
+                    } else {
+                        foreach ($rawStudent as $lKey => $rVal) {
+                            if (is_array($rVal)) {
+                                foreach ($rVal as $rItem) {
+                                    $studentPairs[] = $lKey . ':' . $rItem;
                                 }
+                            } elseif (is_string($rVal) || is_numeric($rVal)) {
+                                $studentPairs[] = $lKey . ':' . $rVal;
                             }
+                        }
+                    }
 
-                            if ($allPairsCorrect) {
-                                $isCorrect = true;
-                            }
+                    $expectedPairs = array_values(array_unique($expectedPairs));
+                    $studentPairs = array_values(array_unique($studentPairs));
+
+                    $totalExpected = count($expectedPairs);
+                    if ($totalExpected > 0) {
+                        $matchedCorrect = count(array_intersect($expectedPairs, $studentPairs));
+                        $extraWrong = count(array_diff($studentPairs, $expectedPairs));
+                        
+                        if ($matchedCorrect === $totalExpected && $extraWrong === 0) {
+                            $isCorrect = true;
                         }
                     }
                 }

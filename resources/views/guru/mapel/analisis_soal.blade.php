@@ -256,26 +256,98 @@
                                 {{-- 4. MENJODOHKAN --}}
                                 @elseif($item['soal']->tipe == 'menjodohkan')
                                     @php
-                                        $dataSoal = is_string($item['soal']->data_soal) ? json_decode($item['soal']->data_soal, true) : $item['soal']->data_soal;
-                                        $matches = $dataSoal['matches'] ?? [];
+                                        $dataSoal = is_string($item['soal']->data_soal) ? json_decode($item['soal']->data_soal, true) : ($item['soal']->data_soal ?? []);
+                                        $leftItems = $dataSoal['left_items'] ?? [];
+                                        $rightItems = $dataSoal['right_items'] ?? [];
+                                        $correctPairs = $dataSoal['correct_pairs'] ?? [];
+                                        $legacyMatches = $dataSoal['matches'] ?? [];
+
+                                        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                                        $rMap = [];
+                                        foreach ($rightItems as $ri => $r) {
+                                            $rId = $r['id'] ?? ('R'.$ri);
+                                            $rMap[$rId] = [
+                                                'label' => $alphabet[$ri] ?? ('R'.($ri+1)),
+                                                'text'  => $r['text'] ?? '',
+                                                'gambar'=> $r['gambar'] ?? null,
+                                            ];
+                                        }
                                     @endphp
-                                    @if(!empty($matches))
+                                    @if(!empty($leftItems) && !empty($rightItems))
+                                        <div class="bg-emerald-50/70 border border-emerald-200 text-emerald-900 shadow-sm rounded-xl text-xs p-3.5 space-y-3">
+                                            <div class="font-bold border-b border-emerald-200/80 pb-2 text-emerald-800 flex items-center justify-between uppercase tracking-wider text-[10px]">
+                                                <span><i class="bi bi-check-circle-fill"></i> Kunci Jawaban Pasangan</span>
+                                            </div>
+
+                                            {{-- Daftar Opsi Kanan --}}
+                                            <div class="p-2 bg-white rounded-lg border border-emerald-200/80">
+                                                <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                                                    Pilihan Jawaban (Kanan):
+                                                </span>
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                                                    @foreach($rightItems as $ri => $r)
+                                                    @php $rLabel = $alphabet[$ri] ?? ('R'.($ri+1)); @endphp
+                                                    <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                                        <span class="w-4 h-4 rounded bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0">{{ $rLabel }}</span>
+                                                        <span class="text-slate-700 truncate">{!! format_soal($r['text'] ?? '-') !!}</span>
+                                                        @if(!empty($r['gambar']))
+                                                            <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-5 w-5 object-cover rounded border ml-auto">
+                                                        @endif
+                                                    </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+
+                                            {{-- Premis Kiri + Kunci Pasangannya --}}
+                                            <div class="space-y-1.5">
+                                                @foreach($leftItems as $li => $l)
+                                                    @php
+                                                        $lId = $l['id'] ?? ('L'.$li);
+                                                        $matchedKeys = [];
+                                                        foreach ($correctPairs as $cp) {
+                                                            if (($cp['left'] ?? null) === $lId && isset($cp['right'])) {
+                                                                $rId = $cp['right'];
+                                                                $lbl = $rMap[$rId]['label'] ?? $rId;
+                                                                $txt = $rMap[$rId]['text'] ?? '';
+                                                                $matchedKeys[] = $txt ? "{$lbl} ({$txt})" : $lbl;
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-200 text-xs">
+                                                        <div class="flex items-center gap-2 min-w-0">
+                                                            <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px] shrink-0">Item {{ $li+1 }}</span>
+                                                            <span class="text-slate-800 font-medium truncate">{!! format_soal($l['text'] ?? '-') !!}</span>
+                                                            @if(!empty($l['gambar']))
+                                                                <img src="{{ asset('storage/'.$l['gambar']) }}" class="h-6 w-6 object-cover rounded border">
+                                                            @endif
+                                                        </div>
+                                                        <div class="shrink-0 flex items-center gap-1">
+                                                            <span class="text-[10px] text-slate-400 font-bold">Kunci:</span>
+                                                            @if(!empty($matchedKeys))
+                                                                <span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                                                                    {{ implode(', ', $matchedKeys) }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-red-500 italic text-[10px]">(Belum dipasangkan)</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @elseif(!empty($legacyMatches))
                                         <div class="bg-green-50 border border-green-200 text-green-900 shadow-sm ring-1 ring-green-100 rounded-lg text-xs p-3">
                                             <div class="font-bold border-b border-green-200 pb-2 mb-3 text-green-800 flex items-center gap-1.5">
                                                 <i class="bi bi-check-circle-fill"></i> Pasangan Benar (Kunci)
                                             </div>
                                             <div class="grid grid-cols-1 gap-2">
-                                                @foreach($matches as $match)
+                                                @foreach($legacyMatches as $match)
                                                     <div class="flex items-center gap-2">
-                                                        {{-- Kotak Kiri --}}
                                                         <div class="bg-white border border-green-200 rounded px-2 py-1.5 flex-1 flex flex-col shadow-sm">
                                                             @if(!empty($match['gambar_left'])) <img src="{{ asset('storage/' . $match['gambar_left']) }}" class="max-h-10 mb-1 object-contain"> @endif
                                                             @if(!empty($match['left'])) <span>{!! format_soal($match['left']) !!}</span> @endif
                                                         </div>
-                                                        
                                                         <i class="bi bi-link text-green-600 font-bold text-lg px-1"></i>
-                                                        
-                                                        {{-- Kotak Kanan --}}
                                                         <div class="bg-white border border-green-200 rounded px-2 py-1.5 flex-1 flex flex-col shadow-sm">
                                                             @if(!empty($match['gambar_right'])) <img src="{{ asset('storage/' . $match['gambar_right']) }}" class="max-h-10 mb-1 object-contain ml-auto"> @endif
                                                             @if(!empty($match['right'])) <span class="text-right">{!! format_soal($match['right']) !!}</span> @endif

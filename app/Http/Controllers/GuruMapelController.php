@@ -726,39 +726,114 @@ class GuruMapelController extends Controller
                 $formatted['kunci_jawaban'] = isset($dataSoal['kunci_jawaban_jg']) ? implode(',', $dataSoal['kunci_jawaban_jg']) : '';
             }
             elseif ($tipe == 'menjodohkan') {
-                $matches = [];
-                foreach ($dataSoal['matches'] ?? [] as $midx => $m) {
-                    $imgL = null; $imgR = null;
-                    // Left Image
-                    if ($request->hasFile("soal.{$index}.matches.{$midx}.gambar_left")) {
-                        $imgL = $request->file("soal.{$index}.matches.{$midx}.gambar_left")->store('temp_soal', 'public');
-                    } else {
-                        if (isset($m['existing_gambar_left'])) {
-                            $imgL = $m['existing_gambar_left'];
+                if (isset($dataSoal['left_items']) || isset($dataSoal['right_items'])) {
+                    $leftItems = [];
+                    foreach ($dataSoal['left_items'] ?? [] as $lidx => $l) {
+                        $imgL = null;
+                        if ($request->hasFile("soal.{$index}.left_items.{$lidx}.gambar")) {
+                            $imgL = $request->file("soal.{$index}.left_items.{$lidx}.gambar")->store('temp_soal', 'public');
                         } else {
-                            $oldM = $soalsLama[$index]['data_soal']['matches'] ?? [];
-                            foreach($oldM as $om) if(($om['left'] ?? '') == ($m['left'] ?? '')) $imgL = $om['gambar_left'] ?? null;
+                            if (isset($l['existing_gambar'])) {
+                                $imgL = $l['existing_gambar'];
+                            } else {
+                                $oldLeft = $soalsLama[$index]['data_soal']['left_items'] ?? [];
+                                foreach ($oldLeft as $ol) {
+                                    if (($ol['id'] ?? '') === ($l['id'] ?? '') || ($ol['text'] ?? '') === ($l['text'] ?? '')) {
+                                        $imgL = $ol['gambar'] ?? null;
+                                    }
+                                }
+                            }
+                        }
+                        $leftItems[] = [
+                            'id' => $l['id'] ?? ('L' . $lidx),
+                            'text' => $l['text'] ?? '',
+                            'gambar' => $imgL,
+                        ];
+                    }
+
+                    $rightItems = [];
+                    foreach ($dataSoal['right_items'] ?? [] as $ridx => $r) {
+                        $imgR = null;
+                        if ($request->hasFile("soal.{$index}.right_items.{$ridx}.gambar")) {
+                            $imgR = $request->file("soal.{$index}.right_items.{$ridx}.gambar")->store('temp_soal', 'public');
+                        } else {
+                            if (isset($r['existing_gambar'])) {
+                                $imgR = $r['existing_gambar'];
+                            } else {
+                                $oldRight = $soalsLama[$index]['data_soal']['right_items'] ?? [];
+                                foreach ($oldRight as $or) {
+                                    if (($or['id'] ?? '') === ($r['id'] ?? '') || ($or['text'] ?? '') === ($r['text'] ?? '')) {
+                                        $imgR = $or['gambar'] ?? null;
+                                    }
+                                }
+                            }
+                        }
+                        $rightItems[] = [
+                            'id' => $r['id'] ?? ('R' . $ridx),
+                            'text' => $r['text'] ?? '',
+                            'gambar' => $imgR,
+                        ];
+                    }
+
+                    $correctPairs = [];
+                    $rawPairs = $dataSoal['correct_pairs_json'] ?? ($dataSoal['correct_pairs'] ?? []);
+                    if (is_string($rawPairs)) {
+                        $rawPairs = json_decode($rawPairs, true) ?? [];
+                    }
+                    if (is_array($rawPairs)) {
+                        foreach ($rawPairs as $k => $v) {
+                            if (is_array($v) && isset($v['left']) && isset($v['right'])) {
+                                $correctPairs[] = ['left' => (string)$v['left'], 'right' => (string)$v['right']];
+                            } elseif (is_array($v)) {
+                                foreach ($v as $rId) {
+                                    $correctPairs[] = ['left' => (string)$k, 'right' => (string)$rId];
+                                }
+                            } else {
+                                $correctPairs[] = ['left' => (string)$k, 'right' => (string)$v];
+                            }
                         }
                     }
-                    // Right Image
-                    if ($request->hasFile("soal.{$index}.matches.{$midx}.gambar_right")) {
-                        $imgR = $request->file("soal.{$index}.matches.{$midx}.gambar_right")->store('temp_soal', 'public');
-                    } else {
-                        if (isset($m['existing_gambar_right'])) {
-                            $imgR = $m['existing_gambar_right'];
-                        } else {
-                            $oldM = $soalsLama[$index]['data_soal']['matches'] ?? [];
-                            foreach($oldM as $om) if(($om['right'] ?? '') == ($m['right'] ?? '')) $imgR = $om['gambar_right'] ?? null;
-                        }
-                    }
-                    $matches[] = [
-                        'left' => $m['left'] ?? '',
-                        'right' => $m['right'] ?? '',
-                        'gambar_left' => $imgL,
-                        'gambar_right' => $imgR
+
+                    $formatted['data_soal'] = [
+                        'left_items' => $leftItems,
+                        'right_items' => $rightItems,
+                        'correct_pairs' => $correctPairs,
                     ];
+                } else {
+                    $matches = [];
+                    foreach ($dataSoal['matches'] ?? [] as $midx => $m) {
+                        $imgL = null; $imgR = null;
+                        // Left Image
+                        if ($request->hasFile("soal.{$index}.matches.{$midx}.gambar_left")) {
+                            $imgL = $request->file("soal.{$index}.matches.{$midx}.gambar_left")->store('temp_soal', 'public');
+                        } else {
+                            if (isset($m['existing_gambar_left'])) {
+                                $imgL = $m['existing_gambar_left'];
+                            } else {
+                                $oldM = $soalsLama[$index]['data_soal']['matches'] ?? [];
+                                foreach($oldM as $om) if(($om['left'] ?? '') == ($m['left'] ?? '')) $imgL = $om['gambar_left'] ?? null;
+                            }
+                        }
+                        // Right Image
+                        if ($request->hasFile("soal.{$index}.matches.{$midx}.gambar_right")) {
+                            $imgR = $request->file("soal.{$index}.matches.{$midx}.gambar_right")->store('temp_soal', 'public');
+                        } else {
+                            if (isset($m['existing_gambar_right'])) {
+                                $imgR = $m['existing_gambar_right'];
+                            } else {
+                                $oldM = $soalsLama[$index]['data_soal']['matches'] ?? [];
+                                foreach($oldM as $om) if(($om['right'] ?? '') == ($m['right'] ?? '')) $imgR = $om['gambar_right'] ?? null;
+                            }
+                        }
+                        $matches[] = [
+                            'left' => $m['left'] ?? '',
+                            'right' => $m['right'] ?? '',
+                            'gambar_left' => $imgL,
+                            'gambar_right' => $imgR
+                        ];
+                    }
+                    $formatted['data_soal'] = ['matches' => $matches];
                 }
-                $formatted['data_soal'] = ['matches' => $matches];
                 $formatted['kunci_jawaban'] = 'MATCHING';
             }
 
@@ -1222,6 +1297,16 @@ class GuruMapelController extends Controller
                 }
 
                 // Bersihkan gambar di tipe Menjodohkan
+                if (!empty($data['left_items'])) {
+                    foreach ($data['left_items'] as $l) {
+                        if (!empty($l['gambar'])) Storage::disk('public')->delete($l['gambar']);
+                    }
+                }
+                if (!empty($data['right_items'])) {
+                    foreach ($data['right_items'] as $r) {
+                        if (!empty($r['gambar'])) Storage::disk('public')->delete($r['gambar']);
+                    }
+                }
                 $matches = $data['matches'] ?? [];
                 foreach ($matches as $match) {
                     if (!empty($match['gambar_left'])) {
@@ -1311,21 +1396,67 @@ class GuruMapelController extends Controller
                 $dataSoal['options'][] = $o;
             }
         } elseif ($tipe === 'menjodohkan') {
-            $matches = $request->matches ?? [];
-            foreach ($matches as $idx => $val) {
-                $m = ['left' => $val['left'] ?? '', 'right' => $val['right'] ?? ''];
-                if ($request->hasFile("matches.$idx.gambar_left")) {
-                    $m['gambar_left'] = $request->file("matches.$idx.gambar_left")->store('soal', 'public');
-                } elseif (isset($val['existing_gambar_left'])) {
-                    $m['gambar_left'] = $val['existing_gambar_left'];
+            if ($request->has('left_items') || $request->has('right_items')) {
+                $leftItems = $request->left_items ?? [];
+                $rightItems = $request->right_items ?? [];
+                $correctPairs = $request->correct_pairs_json ?? ($request->correct_pairs ?? []);
+                if (is_string($correctPairs)) {
+                    $correctPairs = json_decode($correctPairs, true) ?? [];
                 }
 
-                if ($request->hasFile("matches.$idx.gambar_right")) {
-                    $m['gambar_right'] = $request->file("matches.$idx.gambar_right")->store('soal', 'public');
-                } elseif (isset($val['existing_gambar_right'])) {
-                    $m['gambar_right'] = $val['existing_gambar_right'];
+                $dataSoal['left_items'] = [];
+                foreach ($leftItems as $idx => $val) {
+                    $l = ['id' => $val['id'] ?? ('L' . $idx), 'text' => $val['text'] ?? ''];
+                    if ($request->hasFile("left_items.$idx.gambar")) {
+                        $l['gambar'] = $request->file("left_items.$idx.gambar")->store('soal', 'public');
+                    } elseif (isset($val['existing_gambar'])) {
+                        $l['gambar'] = $val['existing_gambar'];
+                    }
+                    $dataSoal['left_items'][] = $l;
                 }
-                $dataSoal['matches'][] = $m;
+
+                $dataSoal['right_items'] = [];
+                foreach ($rightItems as $idx => $val) {
+                    $r = ['id' => $val['id'] ?? ('R' . $idx), 'text' => $val['text'] ?? ''];
+                    if ($request->hasFile("right_items.$idx.gambar")) {
+                        $r['gambar'] = $request->file("right_items.$idx.gambar")->store('soal', 'public');
+                    } elseif (isset($val['existing_gambar'])) {
+                        $r['gambar'] = $val['existing_gambar'];
+                    }
+                    $dataSoal['right_items'][] = $r;
+                }
+
+                $dataSoal['correct_pairs'] = [];
+                if (is_array($correctPairs)) {
+                    foreach ($correctPairs as $k => $v) {
+                        if (is_array($v) && isset($v['left']) && isset($v['right'])) {
+                            $dataSoal['correct_pairs'][] = ['left' => (string)$v['left'], 'right' => (string)$v['right']];
+                        } elseif (is_array($v)) {
+                            foreach ($v as $rId) {
+                                $dataSoal['correct_pairs'][] = ['left' => (string)$k, 'right' => (string)$rId];
+                            }
+                        } else {
+                            $dataSoal['correct_pairs'][] = ['left' => (string)$k, 'right' => (string)$v];
+                        }
+                    }
+                }
+            } else {
+                $matches = $request->matches ?? [];
+                foreach ($matches as $idx => $val) {
+                    $m = ['left' => $val['left'] ?? '', 'right' => $val['right'] ?? ''];
+                    if ($request->hasFile("matches.$idx.gambar_left")) {
+                        $m['gambar_left'] = $request->file("matches.$idx.gambar_left")->store('soal', 'public');
+                    } elseif (isset($val['existing_gambar_left'])) {
+                        $m['gambar_left'] = $val['existing_gambar_left'];
+                    }
+
+                    if ($request->hasFile("matches.$idx.gambar_right")) {
+                        $m['gambar_right'] = $request->file("matches.$idx.gambar_right")->store('soal', 'public');
+                    } elseif (isset($val['existing_gambar_right'])) {
+                        $m['gambar_right'] = $val['existing_gambar_right'];
+                    }
+                    $dataSoal['matches'][] = $m;
+                }
             }
         }
 
@@ -1609,6 +1740,12 @@ class GuruMapelController extends Controller
         }
         if (isset($dataSoal['pernyataan'])) {
             foreach ($dataSoal['pernyataan'] as &$p) $moveImg($p['gambar']);
+        }
+        if (isset($dataSoal['left_items'])) {
+            foreach ($dataSoal['left_items'] as &$l) $moveImg($l['gambar']);
+        }
+        if (isset($dataSoal['right_items'])) {
+            foreach ($dataSoal['right_items'] as &$r) $moveImg($r['gambar']);
         }
         if (isset($dataSoal['matches'])) {
             foreach ($dataSoal['matches'] as &$m) {

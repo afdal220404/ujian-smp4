@@ -375,41 +375,156 @@
 
                             {{-- 4. Menjodohkan --}}
                             @elseif($soal->tipe == 'menjodohkan')
-                                <div class="mt-3 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5 text-xs pl-2">
+                                <div class="mt-3 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5 text-xs">
                                     @php
-                                        $matches = $soal->data_soal['matches'] ?? [];
-                                        $userPairs = is_array($soal->jawaban_siswa) ? $soal->jawaban_siswa : (json_decode($soal->jawaban_siswa, true) ?? []);
-                                    @endphp
-                                    @foreach($matches as $k => $match)
-                                        @php
-                                            $userRightId = $userPairs['L'.$k] ?? null;
-                                            $correctRightId = 'R'.$k;
-                                            $leftText = $match['left'] ?? $match['pertanyaan'] ?? '-';
-                                            $userAnswerText = "(Tidak Dijawab)";
-                                            $pairIsCorrect = false;
+                                        $dataSoal = is_string($soal->data_soal) ? json_decode($soal->data_soal, true) : ($soal->data_soal ?? []);
+                                        $leftItems = $dataSoal['left_items'] ?? [];
+                                        $rightItems = $dataSoal['right_items'] ?? [];
+                                        $correctPairs = $dataSoal['correct_pairs'] ?? [];
+                                        $legacyMatches = $dataSoal['matches'] ?? [];
 
-                                            if ($userRightId) {
-                                                $rIndex = (int) str_replace('R', '', $userRightId);
-                                                $userAnswerText = $matches[$rIndex]['right'] ?? $matches[$rIndex]['jawaban'] ?? 'Unknown';
-                                                $pairIsCorrect = ($userRightId === $correctRightId);
+                                        $rawUserAnswer = $soal->jawaban_siswa ?? '';
+                                        $userPairs = [];
+                                        if (is_array($rawUserAnswer)) {
+                                            $userPairs = $rawUserAnswer;
+                                        } else {
+                                            $decoded = json_decode($rawUserAnswer, true);
+                                            if (is_array($decoded)) $userPairs = $decoded;
+                                        }
+
+                                        // Normalize user pairs to array of {left, right}
+                                        $userPairList = [];
+                                        if (isset($userPairs['pairs']) && is_array($userPairs['pairs'])) {
+                                            $userPairList = $userPairs['pairs'];
+                                        } elseif (is_array($userPairs)) {
+                                            foreach ($userPairs as $k => $v) {
+                                                if (is_array($v)) {
+                                                    foreach ($v as $subV) $userPairList[] = ['left' => $k, 'right' => $subV];
+                                                } elseif ($v && !is_numeric($k)) {
+                                                    $userPairList[] = ['left' => $k, 'right' => $v];
+                                                }
                                             }
-                                            $correctAnswerText = $match['right'] ?? $match['jawaban'] ?? '-';
-                                        @endphp
-                                        <div class="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex flex-col gap-1.5">
-                                            <div class="font-bold !text-slate-800">{!! format_soal($leftText) !!}</div>
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-slate-100">
-                                                <span class="px-2.5 py-0.5 rounded-md font-bold {{ $pairIsCorrect ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
-                                                    Jawabanmu: {{ $userAnswerText }} @if($pairIsCorrect) ✓ @else ✗ @endif
-                                                </span>
-                                                @if(!$pairIsCorrect)
-                                                    <span class="text-slate-400">→</span>
-                                                    <span class="px-2.5 py-0.5 rounded-md font-bold bg-sky-50 text-sky-800 border border-sky-200">
-                                                        Kunci: {{ $correctAnswerText }}
-                                                    </span>
-                                                @endif
+                                        }
+
+                                        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                                        $rMap = [];
+                                        foreach ($rightItems as $ri => $r) {
+                                            $rId = $r['id'] ?? ('R'.$ri);
+                                            $rMap[$rId] = [
+                                                'label' => $alphabet[$ri] ?? ('R'.($ri+1)),
+                                                'text'  => $r['text'] ?? '',
+                                                'gambar'=> $r['gambar'] ?? null,
+                                            ];
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leftItems) && !empty($rightItems))
+                                        {{-- Legend Pilihan Kanan --}}
+                                        <div class="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl mb-3">
+                                            <div class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                                <i class="bi bi-list-check"></i> Daftar Pilihan Jawaban (Kanan):
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                                @foreach($rightItems as $ri => $r)
+                                                @php $rLabel = $alphabet[$ri] ?? ('R'.($ri+1)); @endphp
+                                                <div class="flex items-center gap-1.5 text-xs bg-white p-1.5 rounded-lg border border-emerald-200/80">
+                                                    <span class="w-5 h-5 rounded bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">{{ $rLabel }}</span>
+                                                    <span class="text-gray-700 truncate">{!! format_soal($r['text'] ?? '-') !!}</span>
+                                                    @if(!empty($r['gambar']))
+                                                        <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-6 w-6 object-cover rounded border ml-auto">
+                                                    @endif
+                                                </div>
+                                                @endforeach
                                             </div>
                                         </div>
-                                    @endforeach
+
+                                        {{-- Premis Kiri + Evaluasi --}}
+                                        @foreach($leftItems as $li => $l)
+                                            @php
+                                                $lId = $l['id'] ?? ('L'.$li);
+                                                
+                                                // Correct right IDs for this left
+                                                $correctRightIds = [];
+                                                foreach ($correctPairs as $cp) {
+                                                    if (($cp['left'] ?? null) === $lId && isset($cp['right'])) {
+                                                        $correctRightIds[] = $cp['right'];
+                                                    }
+                                                }
+
+                                                // Student right IDs for this left
+                                                $studentRightIds = [];
+                                                foreach ($userPairList as $up) {
+                                                    if (($up['left'] ?? null) === $lId && isset($up['right'])) {
+                                                        $studentRightIds[] = $up['right'];
+                                                    }
+                                                }
+
+                                                sort($correctRightIds);
+                                                sort($studentRightIds);
+                                                $isFullyCorrect = (!empty($correctRightIds) && $correctRightIds === $studentRightIds);
+                                                $isPartiallyCorrect = (!empty($studentRightIds) && count(array_intersect($studentRightIds, $correctRightIds)) > 0);
+
+                                                $studentLabels = array_map(function($rId) use ($rMap) {
+                                                    return $rMap[$rId]['label'] ?? $rId;
+                                                }, $studentRightIds);
+
+                                                $correctLabels = array_map(function($rId) use ($rMap) {
+                                                    return $rMap[$rId]['label'] ?? $rId;
+                                                }, $correctRightIds);
+                                            @endphp
+                                            <div class="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex flex-col gap-1.5">
+                                                <div class="flex items-center gap-2 font-bold text-slate-800">
+                                                    <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px]">Item {{ $li+1 }}</span>
+                                                    <span>{!! format_soal($l['text'] ?? '-') !!}</span>
+                                                    @if(!empty($l['gambar']))
+                                                        <img src="{{ asset('storage/'.$l['gambar']) }}" class="h-6 w-6 object-cover rounded border ml-auto">
+                                                    @endif
+                                                </div>
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] pt-1.5 border-t border-slate-100">
+                                                    <span class="px-2.5 py-0.5 rounded-md font-bold {{ $isFullyCorrect ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : ($isPartiallyCorrect ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-rose-50 text-rose-800 border border-rose-200') }}">
+                                                        Jawabanmu: {{ !empty($studentLabels) ? implode(', ', $studentLabels) : '(Tidak Dijawab)' }} @if($isFullyCorrect) ✓ @elseif($isPartiallyCorrect) ~ @else ✗ @endif
+                                                    </span>
+                                                    @if(!$isFullyCorrect)
+                                                        <span class="text-slate-400">→</span>
+                                                        <span class="px-2.5 py-0.5 rounded-md font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                                            Kunci: {{ !empty($correctLabels) ? implode(', ', $correctLabels) : '-' }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @elseif(!empty($legacyMatches))
+                                        @foreach($legacyMatches as $k => $match)
+                                            @php
+                                                $userRightId = $userPairs['L'.$k] ?? null;
+                                                $correctRightId = 'R'.$k;
+                                                $leftText = $match['left'] ?? $match['pertanyaan'] ?? '-';
+                                                $userAnswerText = "(Tidak Dijawab)";
+                                                $pairIsCorrect = false;
+
+                                                if ($userRightId) {
+                                                    $rIndex = (int) str_replace('R', '', $userRightId);
+                                                    $userAnswerText = $legacyMatches[$rIndex]['right'] ?? $legacyMatches[$rIndex]['jawaban'] ?? 'Unknown';
+                                                    $pairIsCorrect = ($userRightId === $correctRightId);
+                                                }
+                                                $correctAnswerText = $match['right'] ?? $match['jawaban'] ?? '-';
+                                            @endphp
+                                            <div class="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex flex-col gap-1.5">
+                                                <div class="font-bold !text-slate-800">{!! format_soal($leftText) !!}</div>
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-slate-100">
+                                                    <span class="px-2.5 py-0.5 rounded-md font-bold {{ $pairIsCorrect ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200' }}">
+                                                        Jawabanmu: {{ $userAnswerText }} @if($pairIsCorrect) ✓ @else ✗ @endif
+                                                    </span>
+                                                    @if(!$pairIsCorrect)
+                                                        <span class="text-slate-400">→</span>
+                                                        <span class="px-2.5 py-0.5 rounded-md font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                                            Kunci: {{ $correctAnswerText }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endif
                                 </div>
                             @endif
 

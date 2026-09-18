@@ -329,78 +329,212 @@
                 {{-- 4. MENJODOHKAN --}}
                 @elseif($soal->tipe == 'menjodohkan')
                     @php
-                        $dataSoal = is_string($soal->data_soal) ? json_decode($soal->data_soal, true) : $soal->data_soal;
-                        $matches = $dataSoal['matches'] ?? [];
-                        
+                        $dataSoal = is_string($soal->data_soal) ? json_decode($soal->data_soal, true) : ($soal->data_soal ?? []);
+                        $leftItems = $dataSoal['left_items'] ?? [];
+                        $rightItems = $dataSoal['right_items'] ?? [];
+                        $correctPairs = $dataSoal['correct_pairs'] ?? [];
+                        $legacyMatches = $dataSoal['matches'] ?? [];
+
                         $jwbRaw = $soal->jawaban_siswa ?? '';
-                        $jwbArr = json_decode($jwbRaw, true);
-                        if(!is_array($jwbArr)) $jwbArr = [];
+                        $jwbArr = is_array($jwbRaw) ? $jwbRaw : (json_decode($jwbRaw, true) ?? []);
+
+                        // Normalize user pairs to array of {left, right}
+                        $userPairList = [];
+                        if (isset($jwbArr['pairs']) && is_array($jwbArr['pairs'])) {
+                            $userPairList = $jwbArr['pairs'];
+                        } elseif (is_array($jwbArr)) {
+                            foreach ($jwbArr as $k => $v) {
+                                if (is_array($v)) {
+                                    foreach ($v as $subV) $userPairList[] = ['left' => $k, 'right' => $subV];
+                                } elseif ($v && !is_numeric($k)) {
+                                    $userPairList[] = ['left' => $k, 'right' => $v];
+                                }
+                            }
+                        }
+
+                        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                        $rMap = [];
+                        foreach ($rightItems as $ri => $r) {
+                            $rId = $r['id'] ?? ('R'.$ri);
+                            $rMap[$rId] = [
+                                'label' => $alphabet[$ri] ?? ('R'.($ri+1)),
+                                'text'  => $r['text'] ?? '',
+                                'gambar'=> $r['gambar'] ?? null,
+                            ];
+                        }
                     @endphp
                     <div class="bg-gray-50 rounded-lg p-3 text-xs border border-gray-200">
-                        <div class="font-bold border-b border-gray-200 pb-2 mb-3 text-gray-600 flex items-center gap-2 uppercase tracking-wider text-[10px]">
-                            <i class="bi bi-link"></i> Pemetaan Jawaban Siswa
+                        <div class="font-bold border-b border-gray-200 pb-2 mb-3 text-gray-600 flex items-center justify-between uppercase tracking-wider text-[10px]">
+                            <span><i class="bi bi-link"></i> Pemetaan Jawaban Siswa</span>
                         </div>
-                        <div class="grid grid-cols-1 gap-4">
-                            @foreach($matches as $lIdx => $matchL)
-                                @php
-                                    $leftKey = "L" . $lIdx;
-                                    $rightKeySiswa = $jwbArr[$leftKey] ?? null;
-                                    
-                                    $studentRightText = 'Tidak dijawab';
-                                    $studentRightImg = null;
-                                    $isBenar = false;
 
-                                    if ($rightKeySiswa !== null) {
-                                        $rIdx = str_replace('R', '', $rightKeySiswa);
-                                        if (isset($matches[$rIdx])) {
-                                            $studentRightText = $matches[$rIdx]['right'] ?? '-';
-                                            $studentRightImg = $matches[$rIdx]['gambar_right'] ?? null;
+                        @if(!empty($leftItems) && !empty($rightItems))
+                            {{-- Daftar Pilihan Kanan --}}
+                            <div class="p-2 bg-emerald-50/60 border border-emerald-200/80 rounded-lg mb-3">
+                                <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                                    Pilihan Jawaban (Kanan):
+                                </span>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+                                    @foreach($rightItems as $ri => $r)
+                                    @php $rLabel = $alphabet[$ri] ?? ('R'.($ri+1)); @endphp
+                                    <div class="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-emerald-200">
+                                        <span class="w-4 h-4 rounded bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0">{{ $rLabel }}</span>
+                                        <span class="text-gray-700 truncate">{!! format_soal($r['text'] ?? '-') !!}</span>
+                                        @if(!empty($r['gambar']))
+                                            <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-5 w-5 object-cover rounded border ml-auto">
+                                        @endif
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3">
+                                @foreach($leftItems as $li => $l)
+                                    @php
+                                        $lId = $l['id'] ?? ('L'.$li);
+
+                                        // Correct right IDs for this left
+                                        $correctRightIds = [];
+                                        foreach ($correctPairs as $cp) {
+                                            if (($cp['left'] ?? null) === $lId && isset($cp['right'])) {
+                                                $correctRightIds[] = $cp['right'];
+                                            }
                                         }
-                                        // Cek apakah benar (di sistem basic, L0 berpasangan dgn R0)
-                                        if ($rIdx == $lIdx) {
-                                            $isBenar = true;
+
+                                        // Student right IDs for this left
+                                        $studentRightIds = [];
+                                        foreach ($userPairList as $up) {
+                                            if (($up['left'] ?? null) === $lId && isset($up['right'])) {
+                                                $studentRightIds[] = $up['right'];
+                                            }
                                         }
-                                    }
-                                @endphp
-                                <div class="flex flex-col gap-1.5 relative">
-                                    <div class="flex items-stretch gap-2">
-                                        {{-- Kotak Kiri (Pertanyaan) --}}
-                                        <div class="bg-white border border-gray-200 rounded px-2 py-2 flex-1 flex flex-col shadow-sm">
-                                            @if(!empty($matchL['gambar_left'])) <img src="{{ asset('storage/' . $matchL['gambar_left']) }}" class="max-h-12 w-auto mb-1 object-contain border border-gray-100"> @endif
-                                            <span class="font-medium text-gray-700">{!! format_soal($matchL['left'] ?? '-') !!}</span>
-                                        </div>
-                                        
-                                        <div class="flex flex-col items-center justify-center px-1 shrink-0">
-                                            <i class="bi bi-arrow-right text-gray-400"></i>
-                                        </div>
-                                        
-                                        {{-- Kotak Kanan (Pilihan Siswa) --}}
-                                        <div class="bg-white border {{ $rightKeySiswa ? ($isBenar ? 'border-green-400 bg-green-50 ring-1 ring-green-300' : 'border-red-400 bg-red-50 ring-1 ring-red-300') : 'border-gray-200' }} rounded px-2 py-2 flex-1 flex flex-col shadow-sm relative">
-                                            @if(!empty($studentRightImg)) <img src="{{ asset('storage/' . $studentRightImg) }}" class="max-h-12 w-auto mb-1 object-contain ml-auto border border-gray-100"> @endif
-                                            <span class="text-right font-medium {{ !$rightKeySiswa ? 'text-gray-400 italic' : 'text-gray-700' }}">{!! format_soal($studentRightText) !!}</span>
-                                            
-                                            {{-- Icon Bulat Benar/Salah --}}
-                                            @if($rightKeySiswa)
-                                                <div class="absolute -top-2.5 -right-2.5">
-                                                    @if($isBenar)
-                                                        <i class="bi bi-check-circle-fill text-green-500 bg-white rounded-full text-lg shadow-sm"></i>
-                                                    @else
-                                                        <i class="bi bi-x-circle-fill text-red-500 bg-white rounded-full text-lg shadow-sm"></i>
+
+                                        sort($correctRightIds);
+                                        sort($studentRightIds);
+                                        $hasAnswered = !empty($studentRightIds);
+                                        $isFullyCorrect = ($hasAnswered && $correctRightIds === $studentRightIds);
+                                        $isPartiallyCorrect = ($hasAnswered && !$isFullyCorrect && count(array_intersect($studentRightIds, $correctRightIds)) > 0);
+
+                                        $studentLabels = array_map(function($rId) use ($rMap) {
+                                            $lbl = $rMap[$rId]['label'] ?? $rId;
+                                            $txt = $rMap[$rId]['text'] ?? '';
+                                            return $txt ? "{$lbl} ({$txt})" : $lbl;
+                                        }, $studentRightIds);
+
+                                        $correctLabels = array_map(function($rId) use ($rMap) {
+                                            $lbl = $rMap[$rId]['label'] ?? $rId;
+                                            $txt = $rMap[$rId]['text'] ?? '';
+                                            return $txt ? "{$lbl} ({$txt})" : $lbl;
+                                        }, $correctRightIds);
+                                    @endphp
+                                    <div class="flex flex-col gap-1 relative bg-white p-2.5 rounded-lg border border-gray-200">
+                                        <div class="flex items-start justify-between gap-2">
+                                            {{-- Premis Kiri --}}
+                                            <div class="flex-1 flex items-start gap-2">
+                                                <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px] shrink-0">Item {{ $li+1 }}</span>
+                                                <div class="text-gray-800 font-medium">
+                                                    {!! format_soal($l['text'] ?? '-') !!}
+                                                    @if(!empty($l['gambar']))
+                                                        <img src="{{ asset('storage/'.$l['gambar']) }}" class="mt-1 max-h-12 rounded border border-gray-100 object-contain">
                                                     @endif
+                                                </div>
+                                            </div>
+
+                                            <div class="shrink-0 flex items-center gap-1">
+                                                @if($isFullyCorrect)
+                                                    <span class="px-2 py-0.5 rounded font-bold bg-green-100 text-green-800 text-[10px] flex items-center gap-1">
+                                                        <i class="bi bi-check-circle-fill"></i> Tepat
+                                                    </span>
+                                                @elseif($isPartiallyCorrect)
+                                                    <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800 text-[10px] flex items-center gap-1">
+                                                        <i class="bi bi-exclamation-circle-fill"></i> Sebagian
+                                                    </span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded font-bold bg-red-100 text-red-800 text-[10px] flex items-center gap-1">
+                                                        <i class="bi bi-x-circle-fill"></i> Salah
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        {{-- Jawaban Siswa & Kunci --}}
+                                        <div class="pt-1.5 border-t border-gray-100 flex flex-col gap-0.5 text-[11px]">
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-gray-400 font-bold">Jawaban Siswa:</span>
+                                                <span class="{{ $isFullyCorrect ? 'text-green-700 font-bold' : ($hasAnswered ? 'text-gray-700 font-medium' : 'text-gray-400 italic') }}">
+                                                    {{ $hasAnswered ? implode(', ', $studentLabels) : '(Tidak dijawab)' }}
+                                                </span>
+                                            </div>
+                                            @if(!$isFullyCorrect)
+                                                <div class="flex items-center gap-1 text-green-700">
+                                                    <span class="font-bold">Kunci Benar:</span>
+                                                    <span>{{ !empty($correctLabels) ? implode(', ', $correctLabels) : '-' }}</span>
                                                 </div>
                                             @endif
                                         </div>
                                     </div>
+                                @endforeach
+                            </div>
+                        @elseif(!empty($legacyMatches))
+                            <div class="grid grid-cols-1 gap-4">
+                                @foreach($legacyMatches as $lIdx => $matchL)
+                                    @php
+                                        $leftKey = "L" . $lIdx;
+                                        $rightKeySiswa = $jwbArr[$leftKey] ?? null;
+                                        
+                                        $studentRightText = 'Tidak dijawab';
+                                        $studentRightImg = null;
+                                        $isBenar = false;
 
-                                    {{-- Tampilkan Kunci Jika Siswa Salah/Kosong --}}
-                                    @if(!$isBenar)
-                                        <div class="text-[10px] text-green-600 text-right pr-2 mt-0.5 flex items-center justify-end gap-1">
-                                            <i class="bi bi-info-circle"></i> Kunci Benar: <strong>{!! format_soal($matchL['right'] ?? '-') !!}</strong>
+                                        if ($rightKeySiswa !== null) {
+                                            $rIdx = str_replace('R', '', $rightKeySiswa);
+                                            if (isset($legacyMatches[$rIdx])) {
+                                                $studentRightText = $legacyMatches[$rIdx]['right'] ?? '-';
+                                                $studentRightImg = $legacyMatches[$rIdx]['gambar_right'] ?? null;
+                                            }
+                                            if ($rIdx == $lIdx) {
+                                                $isBenar = true;
+                                            }
+                                        }
+                                    @endphp
+                                    <div class="flex flex-col gap-1.5 relative">
+                                        <div class="flex items-stretch gap-2">
+                                            {{-- Kotak Kiri --}}
+                                            <div class="bg-white border border-gray-200 rounded px-2 py-2 flex-1 flex flex-col shadow-sm">
+                                                @if(!empty($matchL['gambar_left'])) <img src="{{ asset('storage/' . $matchL['gambar_left']) }}" class="max-h-12 w-auto mb-1 object-contain border border-gray-100"> @endif
+                                                <span class="font-medium text-gray-700">{!! format_soal($matchL['left'] ?? '-') !!}</span>
+                                            </div>
+                                            
+                                            <div class="flex flex-col items-center justify-center px-1 shrink-0">
+                                                <i class="bi bi-arrow-right text-gray-400"></i>
+                                            </div>
+                                            
+                                            {{-- Kotak Kanan --}}
+                                            <div class="bg-white border {{ $rightKeySiswa ? ($isBenar ? 'border-green-400 bg-green-50 ring-1 ring-green-300' : 'border-red-400 bg-red-50 ring-1 ring-red-300') : 'border-gray-200' }} rounded px-2 py-2 flex-1 flex flex-col shadow-sm relative">
+                                                @if(!empty($studentRightImg)) <img src="{{ asset('storage/' . $studentRightImg) }}" class="max-h-12 w-auto mb-1 object-contain ml-auto border border-gray-100"> @endif
+                                                <span class="text-right font-medium {{ !$rightKeySiswa ? 'text-gray-400 italic' : 'text-gray-700' }}">{!! format_soal($studentRightText) !!}</span>
+                                                
+                                                @if($rightKeySiswa)
+                                                    <div class="absolute -top-2.5 -right-2.5">
+                                                        @if($isBenar)
+                                                            <i class="bi bi-check-circle-fill text-green-500 bg-white rounded-full text-lg shadow-sm"></i>
+                                                        @else
+                                                            <i class="bi bi-x-circle-fill text-red-500 bg-white rounded-full text-lg shadow-sm"></i>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
+
+                                        @if(!$isBenar)
+                                            <div class="text-[10px] text-green-600 text-right pr-2 mt-0.5 flex items-center justify-end gap-1">
+                                                <i class="bi bi-info-circle"></i> Kunci Benar: <strong>{!! format_soal($matchL['right'] ?? '-') !!}</strong>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 @endif
             </div>

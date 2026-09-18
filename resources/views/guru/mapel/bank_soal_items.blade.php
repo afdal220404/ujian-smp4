@@ -354,31 +354,101 @@
                         @endforeach
                     </div>
 
-                {{-- 3. Mencocokkan --}}
-                @elseif($soal->tipe === 'menjodohkan' && !empty($dataSoal['matches']))
-                    <div class="mt-3 space-y-1.5">
-                        @foreach($dataSoal['matches'] as $match)
-                        @php
-                            $left  = $match['left']  ?? '-';
-                            $right = $match['right'] ?? '-';
-                        @endphp
-                        <div class="flex items-center gap-2 text-xs">
-                            <div class="flex-1 p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 min-w-0">
-                                {!! format_soal($left) !!}
-                                @if(!empty($match['gambar_left']))
-                                    <img src="{{ asset('storage/'.$match['gambar_left']) }}" class="mt-1 h-10 rounded border object-contain">
-                                @endif
+                {{-- 3. Mencocokkan Fleksibel --}}
+                @elseif($soal->tipe === 'menjodohkan')
+                    @php
+                        $leftItems = $dataSoal['left_items'] ?? [];
+                        $rightItems = $dataSoal['right_items'] ?? [];
+                        $correctPairs = $dataSoal['correct_pairs'] ?? [];
+                        $legacyMatches = $dataSoal['matches'] ?? [];
+                        $alphabet = range('A', 'Z');
+                        $rMap = [];
+                        foreach ($rightItems as $ri => $r) {
+                            $rMap[$r['id'] ?? ('R'.$ri)] = [
+                                'label' => $alphabet[$ri] ?? ('R'.($ri+1)),
+                                'text'  => $r['text'] ?? '',
+                                'gambar'=> $r['gambar'] ?? null,
+                            ];
+                        }
+                    @endphp
+                    @if(!empty($leftItems) || !empty($rightItems))
+                        <div class="mt-3 space-y-2">
+                            {{-- Pilihan Kanan --}}
+                            <div class="p-2.5 bg-emerald-50/70 border border-emerald-100 rounded-xl">
+                                <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-1.5">Pilihan Jawaban (Kanan):</span>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                    @foreach($rightItems as $ri => $r)
+                                    @php $rLabel = $alphabet[$ri] ?? ('R'.($ri+1)); @endphp
+                                    <div class="flex items-center gap-1.5 text-xs bg-white p-1.5 rounded-lg border border-emerald-200/80">
+                                        <span class="w-5 h-5 rounded bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">{{ $rLabel }}</span>
+                                        <span class="text-gray-700 truncate">{!! format_soal($r['text'] ?? '-') !!}</span>
+                                        @if(!empty($r['gambar']))
+                                            <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-6 w-6 object-cover rounded border ml-auto">
+                                        @endif
+                                    </div>
+                                    @endforeach
+                                </div>
                             </div>
-                            <i class="bi bi-arrow-right text-gray-400 shrink-0"></i>
-                            <div class="flex-1 p-2 rounded-lg bg-green-50 border border-green-200 text-green-800 font-medium min-w-0">
-                                {!! format_soal($right) !!}
-                                @if(!empty($match['gambar_right']))
-                                    <img src="{{ asset('storage/'.$match['gambar_right']) }}" class="mt-1 h-10 rounded border object-contain">
-                                @endif
+
+                            {{-- Premis Kiri + Kunci Pasangan --}}
+                            <div class="space-y-1.5">
+                                @foreach($leftItems as $li => $l)
+                                @php
+                                    $lId = $l['id'] ?? ('L'.$li);
+                                    $matchedKeys = [];
+                                    foreach ($correctPairs as $cp) {
+                                        if (($cp['left'] ?? null) === $lId && isset($cp['right'])) {
+                                            $matchedKeys[] = $rMap[$cp['right']]['label'] ?? $cp['right'];
+                                        }
+                                    }
+                                @endphp
+                                <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px] shrink-0">Item {{ $li+1 }}</span>
+                                        <span class="text-gray-800 font-medium truncate">{!! format_soal($l['text'] ?? '-') !!}</span>
+                                        @if(!empty($l['gambar']))
+                                            <img src="{{ asset('storage/'.$l['gambar']) }}" class="h-6 w-6 object-cover rounded border">
+                                        @endif
+                                    </div>
+                                    <div class="shrink-0 flex items-center gap-1">
+                                        <span class="text-[10px] text-gray-400 font-bold">Kunci:</span>
+                                        @if(!empty($matchedKeys))
+                                            <span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                                                {{ implode(', ', $matchedKeys) }}
+                                            </span>
+                                        @else
+                                            <span class="text-red-500 italic text-[10px]">(Belum dipasangkan)</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endforeach
                             </div>
                         </div>
-                        @endforeach
-                    </div>
+                    @elseif(!empty($legacyMatches))
+                        <div class="mt-3 space-y-1.5">
+                            @foreach($legacyMatches as $match)
+                            @php
+                                $left  = $match['left']  ?? '-';
+                                $right = $match['right'] ?? '-';
+                            @endphp
+                            <div class="flex items-center gap-2 text-xs">
+                                <div class="flex-1 p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 min-w-0">
+                                    {!! format_soal($left) !!}
+                                    @if(!empty($match['gambar_left']))
+                                        <img src="{{ asset('storage/'.$match['gambar_left']) }}" class="mt-1 h-10 rounded border object-contain">
+                                    @endif
+                                </div>
+                                <i class="bi bi-arrow-right text-gray-400 shrink-0"></i>
+                                <div class="flex-1 p-2 rounded-lg bg-green-50 border border-green-200 text-green-800 font-medium min-w-0">
+                                    {!! format_soal($right) !!}
+                                    @if(!empty($match['gambar_right']))
+                                        <img src="{{ asset('storage/'.$match['gambar_right']) }}" class="mt-1 h-10 rounded border object-contain">
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    @endif
                 @endif
 
         </div>{{-- /panel jawaban --}}
@@ -399,7 +469,7 @@
 <div id="modal-tambah-soal" class="fixed inset-0 z-50 hidden">
     <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeTambahSoalModal()"></div>
     <div class="fixed inset-0 flex items-center justify-center p-3 md:p-6">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
 
             {{-- Modal Header --}}
             <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
@@ -430,123 +500,189 @@
                         </select>
                     </div>
 
-                    {{-- ── Layout Kiri + Kanan --}}
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {{-- ── 1. Baris Atas: Pertanyaan (Kiri) & Upload Gambar + Kunci PG (Kanan) --}}
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5">
 
-                        {{-- Kiri: Pertanyaan & Jawaban --}}
-                        <div class="lg:col-span-8 space-y-4">
-
-                            {{-- Pertanyaan --}}
-                            <div class="pertanyaan-container">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
-                                    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
-                                            <b>B</b>
-                                        </button>
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
-                                            <i>I</i>
-                                        </button>
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
-                                            <u>U</u>
-                                        </button>
-                                    </div>
+                        {{-- Kiri: Pertanyaan --}}
+                        <div class="lg:col-span-8 pertanyaan-container">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                                <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                                        <b>B</b>
+                                    </button>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                                        <i>I</i>
+                                    </button>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                                        <u>U</u>
+                                    </button>
                                 </div>
-                                <div contenteditable="true" id="modal-pertanyaan-editor"
-                                    class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
-                                    data-placeholder="Tulis pertanyaan di sini..."></div>
-                                <textarea name="pertanyaan" id="modal-pertanyaan" class="hidden"></textarea>
                             </div>
+                            <div contenteditable="true" id="modal-pertanyaan-editor"
+                                class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
+                                data-placeholder="Tulis pertanyaan di sini..."></div>
+                            <textarea name="pertanyaan" id="modal-pertanyaan" class="hidden"></textarea>
+                        </div>
 
-                            {{-- Container Jawaban Dinamis --}}
-                            <div id="modal-answers-container" class="space-y-4">
-
-                                {{-- 1. PILIHAN GANDA --}}
-                                <div class="modal-type-section modal-type-pilihan_ganda space-y-3">
-                                    @foreach(['a','b','c','d'] as $opsi)
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 font-bold flex items-center justify-center shrink-0 border border-gray-200 uppercase text-xs">{{ $opsi }}</div>
-                                        <input type="text" name="opsi_{{ $opsi }}" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
-                                        {{-- Tombol Gambar Opsi (gambar menggantikan ikon) --}}
-                                        <label class="shrink-0 cursor-pointer w-10 h-10 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
-                                            <i class="bi bi-image text-gray-400 modal-opsi-icon"></i>
-                                            <img src="" class="modal-opsi-preview hidden w-full h-full object-cover rounded-lg">
-                                            <input type="file" name="gambar_{{ $opsi }}" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
-                                        </label>
-                                    </div>
-                                    @endforeach
-                                </div>
-
-                                {{-- 2. BENAR / SALAH --}}
-                                <div class="modal-type-section modal-type-benar_salah hidden space-y-4">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                                        <i class="bi bi-info-circle mr-1"></i> Masukkan pernyataan dan tentukan apakah Benar atau Salah.
-                                    </div>
-                                    <div id="modal-tf-container" class="space-y-2"></div>
-                                    <button type="button" onclick="modalAddTf()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Pernyataan
-                                    </button>
-                                </div>
-
-                                <!-- 3. JAWABAN GANDA Dinamis -->
-                                <div class="modal-type-section modal-type-jawaban_ganda hidden space-y-3">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                                        <i class="bi bi-info-circle mr-1"></i> Centang kotak di kanan untuk menandai jawaban benar (bisa lebih dari satu). Minimal 2 opsi.
-                                    </div>
-                                    <div id="modal-jg-container" class="space-y-2"></div>
-                                    <button type="button" onclick="modalAddJg()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Opsi Jawaban
-                                    </button>
-                                </div>
-
-                                {{-- 4. MENCOCOKKAN --}}
-                                <div class="modal-type-section modal-type-menjodohkan hidden space-y-4">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                                        <i class="bi bi-info-circle mr-1"></i> Buat pasangan pertanyaan (kiri) dan jawaban kanan yang sesuai.
-                                    </div>
-                                    <div id="modal-matches-container" class="space-y-2"></div>
-                                    <button type="button" onclick="modalAddMatch()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Pasangan
-                                    </button>
-                                </div>
-
-                            </div>{{-- /answers-container --}}
-                        </div>{{-- /Kiri --}}
-
-                        {{-- Kanan: Gambar Soal & Kunci --}}
-                        <div class="lg:col-span-4 space-y-4">
-
-                            {{-- Upload Gambar Soal --}}
+                        {{-- Kanan: Upload Gambar Soal & Kunci PG --}}
+                        <div class="lg:col-span-4 flex flex-col gap-3">
                             <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Gambar Soal</label>
-                                <div id="modal-upload-box" class="relative w-full h-40 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden" onclick="document.getElementById('modal-gambar-input').click()">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Gambar Pendukung Soal</label>
+                                <div id="modal-upload-box" class="relative w-full h-[110px] border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden" onclick="document.getElementById('modal-gambar-input').click()">
                                     <img id="modal-gambar-preview" class="absolute inset-0 w-full h-full object-contain bg-white p-2" style="display:none;">
-                                    <div id="modal-upload-text" class="text-center p-4">
-                                        <i class="bi bi-cloud-arrow-up-fill text-3xl text-gray-300"></i>
-                                        <p class="text-xs text-gray-500 mt-2 font-medium">Klik untuk Upload</p>
+                                    <div id="modal-upload-text" class="text-center p-2">
+                                        <i class="bi bi-cloud-arrow-up-fill text-2xl text-gray-300"></i>
+                                        <p class="text-[11px] text-gray-500 mt-0.5 font-medium">Klik untuk Upload Gambar</p>
                                     </div>
                                     <input type="file" name="gambar" id="modal-gambar-input" class="hidden" accept="image/*" onchange="modalPreviewGambar(this)">
                                 </div>
                             </div>
 
                             {{-- Kunci Jawaban Pilihan Ganda --}}
-                            <div id="modal-key-pg" class="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                                <label class="block text-xs font-bold text-blue-800 uppercase mb-2">Kunci Jawaban</label>
+                            <div id="modal-key-pg" class="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                                <label class="block text-[11px] font-bold text-blue-800 uppercase mb-1">Kunci Jawaban PG</label>
                                 <div class="relative">
-                                    <select name="kunci_jawaban" id="modal-kunci" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg focus:border-blue-500 outline-none text-sm font-bold text-blue-700 appearance-none cursor-pointer">
+                                    <select name="kunci_jawaban" id="modal-kunci" class="w-full px-3 py-1.5 bg-white border border-blue-200 rounded-lg focus:border-blue-500 outline-none text-xs font-bold text-blue-700 appearance-none cursor-pointer">
                                         <option value="" disabled selected>-- Pilih Kunci --</option>
                                         @foreach(['A','B','C','D'] as $huruf)
                                         <option value="{{ $huruf }}">Jawaban {{ $huruf }}</option>
                                         @endforeach
                                     </select>
                                     <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-blue-500">
-                                        <i class="bi bi-check-circle-fill"></i>
+                                        <i class="bi bi-check-circle-fill text-xs"></i>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                        </div>{{-- /Kanan --}}
-                    </div>{{-- /grid --}}
+                    </div>{{-- /Baris Atas --}}
+
+                    {{-- ── 2. Baris Bawah: Container Jawaban Dinamis (FULL WIDTH) --}}
+                    <div id="modal-answers-container" class="space-y-4 w-full">
+
+                        {{-- 1. PILIHAN GANDA --}}
+                        <div class="modal-type-section modal-type-pilihan_ganda space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                @foreach(['a','b','c','d'] as $opsi)
+                                <div class="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 border border-blue-200 uppercase text-xs">{{ $opsi }}</div>
+                                    <input type="text" name="opsi_{{ $opsi }}" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
+                                    {{-- Tombol Gambar Opsi (gambar menggantikan ikon) --}}
+                                    <label class="shrink-0 cursor-pointer w-9 h-9 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
+                                        <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
+                                        <img src="" class="modal-opsi-preview hidden w-full h-full object-cover rounded-lg">
+                                        <input type="file" name="gambar_{{ $opsi }}" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
+                                    </label>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- 2. BENAR / SALAH --}}
+                        <div class="modal-type-section modal-type-benar_salah hidden space-y-4">
+                            <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+                                <i class="bi bi-info-circle mr-1"></i> Masukkan pernyataan dan tentukan apakah Benar atau Salah.
+                            </div>
+                            <div id="modal-tf-container" class="space-y-2"></div>
+                            <button type="button" onclick="modalAddTf()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
+                                <i class="bi bi-plus-circle-fill"></i> Tambah Pernyataan
+                            </button>
+                        </div>
+
+                        <!-- 3. JAWABAN GANDA Dinamis -->
+                        <div class="modal-type-section modal-type-jawaban_ganda hidden space-y-3">
+                            <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+                                <i class="bi bi-info-circle mr-1"></i> Centang kotak di kanan untuk menandai jawaban benar (bisa lebih dari satu). Minimal 2 opsi.
+                            </div>
+                            <div id="modal-jg-container" class="space-y-2"></div>
+                            <button type="button" onclick="modalAddJg()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
+                                <i class="bi bi-plus-circle-fill"></i> Tambah Opsi Jawaban
+                            </button>
+                        </div>
+
+                        {{-- 4. MENCOCOKKAN INTERAKTIF --}}
+                        <div class="modal-type-section modal-type-menjodohkan hidden space-y-4">
+                            <div class="bg-blue-50 p-3.5 rounded-xl text-xs text-blue-700 border border-blue-100 flex items-start gap-2">
+                                <i class="bi bi-info-circle-fill text-blue-500 mt-0.5 shrink-0"></i>
+                                <div>
+                                    <b>Panduan Membuat Soal Mencocokkan:</b>
+                                    <ol class="list-decimal list-inside mt-1 space-y-0.5 text-blue-800">
+                                        <li>Tambahkan item pada daftar <b>Premis (Kiri)</b> dan <b>Pilihan Jawaban (Kanan)</b>.</li>
+                                        <li>Tentukan kunci jawaban pada <b>Papan Kunci Pasangan</b> di bawah dengan cara mengklik item kiri lalu mengklik item kanan untuk menarik garis.</li>
+                                        <li>Bebas menghubungkan item kiri ke kanan sebanyak yang diinginkan, dan diperbolehkan jika ada item yang tidak memiliki pasangan (pengecoh).</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            {{-- DUA KOLOM INPUT: PREMIS KIRI & PILIHAN KANAN --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {{-- SISI KIRI (PREMIS / PERTANYAAN) --}}
+                                <div class="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i class="bi bi-card-text text-blue-600 text-sm"></i> Premis (Sisi Kiri)
+                                        </span>
+                                        <button type="button" onclick="modalAddMatchLeft()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                                            <i class="bi bi-plus-circle-fill"></i> Tambah Item Kiri
+                                        </button>
+                                    </div>
+                                    <div id="modal-match-lefts-container" class="space-y-2"></div>
+                                </div>
+
+                                {{-- SISI KANAN (PILIHAN JAWABAN) --}}
+                                <div class="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i class="bi bi-list-check text-emerald-600 text-sm"></i> Pilihan (Sisi Kanan)
+                                        </span>
+                                        <button type="button" onclick="modalAddMatchRight()" class="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                                            <i class="bi bi-plus-circle-fill"></i> Tambah Pilihan Kanan
+                                        </button>
+                                    </div>
+                                    <div id="modal-match-rights-container" class="space-y-2"></div>
+                                </div>
+                            </div>
+
+                            {{-- PAPAN KUNCI PASANGAN (HUBUNGKAN DENGAN GARIS) --}}
+                            <div class="modal-teacher-matching-board bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-indigo-50">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+                                            <i class="bi bi-bezier2"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-bold text-gray-800">Papan Kunci Pasangan (Hubungkan dengan Garis)</h4>
+                                            <p class="text-[11px] text-gray-400">Klik item Kiri lalu klik item Kanan untuk memasangkan (atau klik ulang untuk memutus).</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="modalResetTeacherMatching('modal')" class="text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reset Garis
+                                    </button>
+                                </div>
+
+                                {{-- Interactive Canvas --}}
+                                <div id="modal-teacher-match-canvas" class="relative select-none p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 min-h-[160px]">
+                                    <svg id="modal-teacher-match-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+                                    
+                                    <div class="flex flex-col sm:flex-row justify-between relative z-20 gap-6 sm:gap-10">
+                                        {{-- Sisi Kiri Board --}}
+                                        <div id="modal-teacher-board-left" class="flex-1 space-y-2.5">
+                                            {{-- Dynamically populated by JS --}}
+                                        </div>
+
+                                        {{-- Sisi Kanan Board --}}
+                                        <div id="modal-teacher-board-right" class="flex-1 space-y-2.5">
+                                            {{-- Dynamically populated by JS --}}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="correct_pairs_json" id="modal-correct-pairs-json" value="[]">
+                            </div>
+                        </div>
+
+                    </div>{{-- /answers-container --}}
 
                     {{-- Footer dalam form --}}
                     <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-gray-100">
@@ -564,30 +700,46 @@
     </div>
 </div>
 
-{{-- TEMPLATE: Match Item --}}
-<template id="modal-match-template">
-    <div class="modal-match-item flex items-center gap-2">
-        <div class="flex-1 flex gap-2">
-            <input type="text" name="matches[MIDX][left]" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 outline-none" placeholder="Pertanyaan / Pernyataan">
-            <label class="shrink-0 cursor-pointer w-10 h-[38px] rounded border border-gray-200 flex items-center justify-center overflow-hidden bg-white" title="Upload Gambar">
-                <i class="bi bi-image text-gray-400 modal-opsi-icon relative top-px"></i>
-                <img src="" class="modal-opsi-preview hidden w-full h-full object-cover">
-                <input type="file" name="matches[MIDX][gambar_left]" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
-                <input type="hidden" name="matches[MIDX][existing_gambar_left]" class="modal-existing-img">
-            </label>
+{{-- TEMPLATE: Match Right Item --}}
+<template id="modal-match-right-template">
+    <div class="modal-match-right-item flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200" data-id="RUID">
+        <div class="modal-right-badge w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+            A
         </div>
-        <div class="text-gray-400"><i class="bi bi-arrow-right"></i></div>
-        <div class="flex-1 flex gap-2">
-            <input type="text" name="matches[MIDX][right]" class="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm focus:bg-white focus:border-green-500 outline-none" placeholder="Pasangan Benar">
-            <label class="shrink-0 cursor-pointer w-10 h-[38px] rounded border border-gray-200 flex items-center justify-center overflow-hidden bg-white" title="Upload Gambar">
-                <i class="bi bi-image text-gray-400 modal-opsi-icon relative top-px"></i>
-                <img src="" class="modal-opsi-preview hidden w-full h-full object-cover">
-                <input type="file" name="matches[MIDX][gambar_right]" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
-                <input type="hidden" name="matches[MIDX][existing_gambar_right]" class="modal-existing-img">
-            </label>
-        </div>
-        <button type="button" onclick="this.closest('.modal-match-item').remove()" class="text-red-400 hover:text-red-600">
-            <i class="bi bi-x-circle-fill"></i>
+        <input type="hidden" name="right_items[RIDX][id]" value="RUID" class="modal-right-id">
+        <input type="text" name="right_items[RIDX][text]" class="modal-right-text flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none" placeholder="Teks pilihan jawaban...">
+        
+        <label class="shrink-0 cursor-pointer w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar">
+            <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
+            <img src="" class="modal-opsi-preview hidden w-full h-full object-cover">
+            <input type="file" name="right_items[RIDX][gambar]" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
+            <input type="hidden" name="right_items[RIDX][existing_gambar]" class="modal-existing-img">
+        </label>
+
+        <button type="button" onclick="modalRemoveMatchRight(this)" class="text-slate-300 hover:text-rose-500 shrink-0 p-1">
+            <i class="bi bi-trash3-fill text-sm"></i>
+        </button>
+    </div>
+</template>
+
+{{-- TEMPLATE: Match Left Item --}}
+<template id="modal-match-left-template">
+    <div class="modal-match-left-item flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200" data-id="LUID">
+        <span class="modal-left-badge px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs shrink-0">
+            Item 1
+        </span>
+        <input type="hidden" name="left_items[LIDX][id]" value="LUID" class="modal-left-id">
+        <input type="text" name="left_items[LIDX][text]" class="modal-left-text flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-blue-500 outline-none" placeholder="Teks premis / pertanyaan...">
+        
+        <label class="shrink-0 cursor-pointer w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar">
+            <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
+            <img src="" class="modal-opsi-preview hidden w-full h-full object-cover">
+            <input type="file" name="left_items[LIDX][gambar]" class="hidden modal-opsi-img" accept="image/*" onchange="modalPreviewOpsi(this)">
+            <input type="hidden" name="left_items[LIDX][existing_gambar]" class="modal-existing-img">
+        </label>
+
+        <button type="button" onclick="modalRemoveMatchLeft(this)" class="text-slate-300 hover:text-rose-500 shrink-0 p-1">
+            <i class="bi bi-trash3-fill text-sm"></i>
         </button>
     </div>
 </template>
@@ -654,7 +806,7 @@
 <div id="modal-edit-soal" class="fixed inset-0 z-50 hidden">
     <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeEditModal()"></div>
     <div class="fixed inset-0 flex items-center justify-center p-3 md:p-6">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
             {{-- Header --}}
             <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                 <div>
@@ -686,98 +838,175 @@
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {{-- Kiri --}}
-                        <div class="lg:col-span-8 space-y-4">
-                            <div class="pertanyaan-container">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
-                                    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
-                                            <b>B</b>
-                                        </button>
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
-                                            <i>I</i>
-                                        </button>
-                                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
-                                            <u>U</u>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div contenteditable="true" id="edit-pertanyaan-editor"
-                                    class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
-                                    data-placeholder="Tulis pertanyaan di sini..."></div>
-                                <textarea name="pertanyaan" id="edit-pertanyaan" class="hidden"></textarea>
-                            </div>
-
-                            <div id="edit-answers-container" class="space-y-4">
-                                {{-- 1. PG --}}
-                                <div class="edit-type-section edit-type-pilihan_ganda space-y-3">
-                                    @foreach(['a','b','c','d'] as $opsi)
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 font-bold flex items-center justify-center shrink-0 border border-gray-200 uppercase text-xs">{{ $opsi }}</div>
-                                        <input type="text" name="opsi_{{ $opsi }}" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
-                                        <label class="shrink-0 cursor-pointer w-10 h-10 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
-                                            <i class="bi bi-image text-gray-400 modal-opsi-icon"></i>
-                                            <img src="" class="modal-opsi-preview hidden w-full h-full object-cover rounded-lg">
-                                            <input type="file" name="gambar_{{ $opsi }}" class="hidden" accept="image/*" onchange="modalPreviewOpsi(this)">
-                                        </label>
-                                    </div>
-                                    @endforeach
-                                </div>
-                                {{-- 2. TF --}}
-                                <div class="edit-type-section edit-type-benar_salah hidden space-y-4">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700"><i class="bi bi-info-circle mr-1"></i> Masukkan pernyataan dan tentukan Benar atau Salah.</div>
-                                    <div id="edit-tf-container" class="space-y-2"></div>
-                                    <button type="button" onclick="editAddTf()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Pernyataan
+                    {{-- ── 1. Baris Atas: Pertanyaan (Kiri) & Upload Gambar + Kunci PG (Kanan) --}}
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5">
+                        {{-- Kiri: Pertanyaan --}}
+                        <div class="lg:col-span-8 pertanyaan-container">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Pertanyaan</label>
+                                <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200 text-xs">
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'bold')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Tebal (Ctrl+B)">
+                                        <b>B</b>
                                     </button>
-                                </div>
-                                <!-- 3. JAWABAN GANDA Dinamis -->
-                                <div class="edit-type-section edit-type-jawaban_ganda hidden space-y-3">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                                        <i class="bi bi-info-circle mr-1"></i> Centang kotak di kanan untuk menandai jawaban benar (bisa lebih dari satu). Minimal 2 opsi.
-                                    </div>
-                                    <div id="edit-jg-container" class="space-y-2"></div>
-                                    <button type="button" onclick="editAddJg()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Opsi Jawaban
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'italic')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs italic text-gray-700 hover:text-blue-600 transition-all font-serif cursor-pointer" title="Miring (Ctrl+I)">
+                                        <i>I</i>
                                     </button>
-                                </div>
-                                {{-- 4. Menjodohkan --}}
-                                <div class="edit-type-section edit-type-menjodohkan hidden space-y-4">
-                                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700"><i class="bi bi-info-circle mr-1"></i> Buat pasangan pertanyaan dan jawaban.</div>
-                                    <div id="edit-matches-container" class="space-y-2"></div>
-                                    <button type="button" onclick="editAddMatch()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah Pasangan
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
+                                        <u>U</u>
                                     </button>
                                 </div>
                             </div>
+                            <div contenteditable="true" id="edit-pertanyaan-editor"
+                                class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800"
+                                data-placeholder="Tulis pertanyaan di sini..."></div>
+                            <textarea name="pertanyaan" id="edit-pertanyaan" class="hidden"></textarea>
                         </div>
 
-                        {{-- Kanan --}}
-                        <div class="lg:col-span-4 space-y-4">
+                        {{-- Kanan: Upload Gambar Soal & Kunci PG --}}
+                        <div class="lg:col-span-4 flex flex-col gap-3">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Gambar Soal</label>
-                                <div id="edit-upload-box" class="relative w-full h-40 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden" onclick="document.getElementById('edit-gambar-input').click()">
+                                <div id="edit-upload-box" class="relative w-full h-[110px] border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden" onclick="document.getElementById('edit-gambar-input').click()">
                                     <img id="edit-gambar-preview" class="absolute inset-0 w-full h-full object-contain bg-white p-2" style="display:none;">
-                                    <div id="edit-upload-text" class="text-center p-4">
-                                        <i class="bi bi-cloud-arrow-up-fill text-3xl text-gray-300"></i>
-                                        <p class="text-xs text-gray-500 mt-2 font-medium">Klik untuk Upload / Ganti</p>
+                                    <div id="edit-upload-text" class="text-center p-2">
+                                        <i class="bi bi-cloud-arrow-up-fill text-2xl text-gray-300"></i>
+                                        <p class="text-[11px] text-gray-500 mt-0.5 font-medium">Klik untuk Upload / Ganti</p>
                                     </div>
                                     <input type="file" name="gambar" id="edit-gambar-input" class="hidden" accept="image/*" onchange="editPreviewGambar(this)">
                                 </div>
                             </div>
-                            <div id="edit-key-pg" class="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                                <label class="block text-xs font-bold text-blue-800 uppercase mb-2">Kunci Jawaban</label>
+                            <div id="edit-key-pg" class="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                                <label class="block text-[11px] font-bold text-blue-800 uppercase mb-1">Kunci Jawaban PG</label>
                                 <div class="relative">
-                                    <select name="kunci_jawaban" id="edit-kunci" class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg focus:border-blue-500 outline-none text-sm font-bold text-blue-700 appearance-none cursor-pointer">
+                                    <select name="kunci_jawaban" id="edit-kunci" class="w-full px-3 py-1.5 bg-white border border-blue-200 rounded-lg focus:border-blue-500 outline-none text-xs font-bold text-blue-700 appearance-none cursor-pointer">
                                         <option value="" disabled>-- Pilih Kunci --</option>
                                         @foreach(['A','B','C','D'] as $huruf)
                                         <option value="{{ $huruf }}">Jawaban {{ $huruf }}</option>
                                         @endforeach
                                     </select>
-                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-blue-500"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-blue-500"><i class="bi bi-check-circle-fill text-xs"></i></div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ── 2. Baris Bawah: Container Jawaban Dinamis (FULL WIDTH) --}}
+                    <div id="edit-answers-container" class="space-y-4 w-full">
+                        {{-- 1. PG --}}
+                        <div class="edit-type-section edit-type-pilihan_ganda space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                @foreach(['a','b','c','d'] as $opsi)
+                                <div class="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 border border-blue-200 uppercase text-xs">{{ $opsi }}</div>
+                                    <input type="text" name="opsi_{{ $opsi }}" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
+                                    <label class="shrink-0 cursor-pointer w-9 h-9 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
+                                        <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
+                                        <img src="" class="modal-opsi-preview hidden w-full h-full object-cover rounded-lg">
+                                        <input type="file" name="gambar_{{ $opsi }}" class="hidden" accept="image/*" onchange="modalPreviewOpsi(this)">
+                                    </label>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- 2. TF --}}
+                        <div class="edit-type-section edit-type-benar_salah hidden space-y-4">
+                            <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700"><i class="bi bi-info-circle mr-1"></i> Masukkan pernyataan dan tentukan Benar atau Salah.</div>
+                            <div id="edit-tf-container" class="space-y-2"></div>
+                            <button type="button" onclick="editAddTf()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
+                                <i class="bi bi-plus-circle-fill"></i> Tambah Pernyataan
+                            </button>
+                        </div>
+
+                        <!-- 3. JAWABAN GANDA Dinamis -->
+                        <div class="edit-type-section edit-type-jawaban_ganda hidden space-y-3">
+                            <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+                                <i class="bi bi-info-circle mr-1"></i> Centang kotak di kanan untuk menandai jawaban benar (bisa lebih dari satu). Minimal 2 opsi.
+                            </div>
+                            <div id="edit-jg-container" class="space-y-2"></div>
+                            <button type="button" onclick="editAddJg()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
+                                <i class="bi bi-plus-circle-fill"></i> Tambah Opsi Jawaban
+                            </button>
+                        </div>
+
+                        {{-- 4. MENCOCOKKAN INTERAKTIF (EDIT) --}}
+                        <div class="edit-type-section edit-type-menjodohkan hidden space-y-4">
+                            <div class="bg-blue-50 p-3.5 rounded-xl text-xs text-blue-700 border border-blue-100 flex items-start gap-2">
+                                <i class="bi bi-info-circle-fill text-blue-500 mt-0.5 shrink-0"></i>
+                                <div>
+                                    <b>Panduan Membuat Soal Mencocokkan:</b>
+                                    <ol class="list-decimal list-inside mt-1 space-y-0.5 text-blue-800">
+                                        <li>Tambahkan item pada daftar <b>Premis (Kiri)</b> dan <b>Pilihan Jawaban (Kanan)</b>.</li>
+                                        <li>Tentukan kunci jawaban pada <b>Papan Kunci Pasangan</b> di bawah dengan cara mengklik item kiri lalu mengklik item kanan untuk menarik garis.</li>
+                                        <li>Bebas menghubungkan item kiri ke kanan sebanyak yang diinginkan, dan diperbolehkan jika ada item yang tidak memiliki pasangan (pengecoh).</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            {{-- DUA KOLOM INPUT: PREMIS KIRI & PILIHAN KANAN --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {{-- SISI KIRI (PREMIS / PERTANYAAN) --}}
+                                <div class="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i class="bi bi-card-text text-blue-600 text-sm"></i> Premis (Sisi Kiri)
+                                        </span>
+                                        <button type="button" onclick="editAddMatchLeft()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                                            <i class="bi bi-plus-circle-fill"></i> Tambah Item Kiri
+                                        </button>
+                                    </div>
+                                    <div id="edit-match-lefts-container" class="space-y-2"></div>
+                                </div>
+
+                                {{-- SISI KANAN (PILIHAN JAWABAN) --}}
+                                <div class="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <i class="bi bi-list-check text-emerald-600 text-sm"></i> Pilihan (Sisi Kanan)
+                                        </span>
+                                        <button type="button" onclick="editAddMatchRight()" class="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                                            <i class="bi bi-plus-circle-fill"></i> Tambah Pilihan Kanan
+                                        </button>
+                                    </div>
+                                    <div id="edit-match-rights-container" class="space-y-2"></div>
+                                </div>
+                            </div>
+
+                            {{-- PAPAN KUNCI PASANGAN (HUBUNGKAN DENGAN GARIS) --}}
+                            <div class="edit-teacher-matching-board bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-indigo-50">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+                                            <i class="bi bi-bezier2"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-bold text-gray-800">Papan Kunci Pasangan (Hubungkan dengan Garis)</h4>
+                                            <p class="text-[11px] text-gray-400">Klik item Kiri lalu klik item Kanan untuk memasangkan (atau klik ulang untuk memutus).</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="modalResetTeacherMatching('edit')" class="text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reset Garis
+                                    </button>
+                                </div>
+
+                                {{-- Interactive Canvas --}}
+                                <div id="edit-teacher-match-canvas" class="relative select-none p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 min-h-[160px]">
+                                    <svg id="edit-teacher-match-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+                                    
+                                    <div class="flex flex-col sm:flex-row justify-between relative z-20 gap-6 sm:gap-10">
+                                        {{-- Sisi Kiri Board --}}
+                                        <div id="edit-teacher-board-left" class="flex-1 space-y-2.5">
+                                            {{-- Dynamically populated by JS --}}
+                                        </div>
+
+                                        {{-- Sisi Kanan Board --}}
+                                        <div id="edit-teacher-board-right" class="flex-1 space-y-2.5">
+                                            {{-- Dynamically populated by JS --}}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="correct_pairs_json" id="edit-correct-pairs-json" value="[]">
                             </div>
                         </div>
                     </div>
@@ -928,13 +1157,19 @@ function openTambahSoalModal() {
     if (edTambah) edTambah.innerHTML = '';
     document.getElementById('modal-pertanyaan').value = '';
     document.getElementById('modal-tf-container').innerHTML = '';
-    document.getElementById('modal-matches-container').innerHTML = '';
+    document.getElementById('modal-match-rights-container').innerHTML = '';
+    document.getElementById('modal-match-lefts-container').innerHTML = '';
     document.getElementById('modal-gambar-preview').style.display = 'none';
     document.getElementById('modal-upload-text').style.display = '';
+    window._modalMatchState.modal = { pairs: [], selectedLeft: null, selectedRight: null };
+    const jsonInp = document.getElementById('modal-correct-pairs-json');
+    if (jsonInp) jsonInp.value = '[]';
+
     modalUpdateUI('pilihan_ganda');
     document.getElementById('modal-tipe-soal').value = 'pilihan_ganda';
-    // Default 2 match + 1 TF items
-    modalAddMatch(); modalAddMatch();
+    // Default 2 match right & 2 match left + 1 TF items
+    modalAddMatchRight(); modalAddMatchRight();
+    modalAddMatchLeft(); modalAddMatchLeft();
     modalAddTf();
 }
 
@@ -951,6 +1186,10 @@ function modalUpdateUI(tipe) {
     // Kunci Jawaban (hanya tampil untuk PG)
     const keyPG = document.getElementById('modal-key-pg');
     if (keyPG) keyPG.classList.toggle('hidden', tipe !== 'pilihan_ganda');
+
+    if (tipe === 'menjodohkan') {
+        setTimeout(() => renderModalTeacherMatchingBoard('modal'), 100);
+    }
 }
 
 // ── GAMBAR SOAL PREVIEW ───────────────────────────────────
@@ -994,6 +1233,10 @@ function modalPreviewOpsi(input) {
             // Sembunyikan ikon, tampilkan gambar
             if (icon) icon.classList.add('hidden');
             label.classList.add('border-blue-400', 'p-0');
+
+            const isEdit = input.closest('#form-edit-soal') !== null;
+            const prefix = isEdit ? 'edit' : 'modal';
+            renderModalTeacherMatchingBoard(prefix);
         };
         reader.readAsDataURL(input.files[0]);
     } else {
@@ -1001,19 +1244,472 @@ function modalPreviewOpsi(input) {
         preview.classList.add('hidden');
         if (icon) icon.classList.remove('hidden');
         label.classList.remove('border-blue-400', 'p-0');
+
+        const isEdit = input.closest('#form-edit-soal') !== null;
+        const prefix = isEdit ? 'edit' : 'modal';
+        renderModalTeacherMatchingBoard(prefix);
     }
 }
 
-// ── ADD MATCHING PAIR ─────────────────────────────────────
-function modalAddMatch() {
-    const container = document.getElementById('modal-matches-container');
-    const template  = document.getElementById('modal-match-template');
-    const idx = Date.now() + Math.random().toString(36).substr(2, 5);
-    const clone = template.content.cloneNode(true);
-    clone.querySelectorAll('[name]').forEach(el => {
-        el.name = el.name.replace(/MIDX/g, idx);
+// ── MATCHING MODAL HANDLERS (VISUAL BOARD & 2-COLUMN INPUTS) ────────────
+const alphabetList = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const modalTeacherPalette = [
+    { border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', stroke: '#2563eb' },
+    { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', stroke: '#059669' },
+    { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700', stroke: '#9333ea' },
+    { border: 'border-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', stroke: '#d97706' },
+    { border: 'border-rose-500', bg: 'bg-rose-50', text: 'text-rose-700', stroke: '#e11d48' },
+    { border: 'border-cyan-500', bg: 'bg-cyan-50', text: 'text-cyan-700', stroke: '#0891b2' },
+    { border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700', stroke: '#db2777' },
+    { border: 'border-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', stroke: '#4f46e5' },
+    { border: 'border-teal-500', bg: 'bg-teal-50', text: 'text-teal-700', stroke: '#0d9488' },
+    { border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-700', stroke: '#ea580c' },
+];
+
+window._modalMatchState = {
+    modal: { pairs: [], selectedLeft: null, selectedRight: null },
+    edit:  { pairs: [], selectedLeft: null, selectedRight: null },
+};
+
+function modalResetTeacherMatching(prefix = 'modal') {
+    const state = window._modalMatchState[prefix] || { pairs: [] };
+    state.pairs = [];
+    state.selectedLeft = null;
+    state.selectedRight = null;
+    const jsonInput = document.getElementById(`${prefix}-correct-pairs-json`);
+    if (jsonInput) jsonInput.value = '[]';
+    renderModalTeacherMatchingBoard(prefix);
+}
+
+function renderModalTeacherMatchingBoard(prefix = 'modal') {
+    const boardLeft = document.getElementById(`${prefix}-teacher-board-left`);
+    const boardRight = document.getElementById(`${prefix}-teacher-board-right`);
+    const jsonInput = document.getElementById(`${prefix}-correct-pairs-json`);
+    const leftContainer = document.getElementById(`${prefix}-match-lefts-container`);
+    const rightContainer = document.getElementById(`${prefix}-match-rights-container`);
+
+    if (!boardLeft || !boardRight) return;
+
+    const leftItems = leftContainer ? leftContainer.querySelectorAll('.modal-match-left-item') : [];
+    const rightItems = rightContainer ? rightContainer.querySelectorAll('.modal-match-right-item') : [];
+
+    const state = window._modalMatchState[prefix] || { pairs: [] };
+    const currentPairs = state.pairs || [];
+    const validLeftIds = new Set();
+    const validRightIds = new Set();
+
+    // Render Left Column of Board
+    let leftHtml = '';
+    if (leftItems.length === 0) {
+        leftHtml = '<p class="text-xs text-gray-400 italic p-3 text-center bg-white rounded-xl border border-dashed border-gray-200">Belum ada item premis kiri.</p>';
+    } else {
+        leftItems.forEach((lItem, idx) => {
+            const lId = lItem.getAttribute('data-id') || lItem.querySelector('.modal-left-id')?.value;
+            validLeftIds.add(lId);
+            const lText = lItem.querySelector('.modal-left-text')?.value || `Premis ${idx + 1}`;
+            const imgPreview = lItem.querySelector('.modal-opsi-preview');
+            const hasImg = imgPreview && !imgPreview.classList.contains('hidden') && imgPreview.getAttribute('src');
+
+            leftHtml += `
+                <button type="button" 
+                        class="modal-teacher-node-left w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-semibold text-gray-800 hover:border-blue-400 hover:shadow-xs transition-all flex items-center justify-between group"
+                        data-id="${lId}" onclick="onModalTeacherNodeLeftClick(this, '${prefix}')">
+                    <div class="flex items-center gap-2 pr-2 min-w-0 flex-1">
+                        <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold text-[10px] shrink-0">Item ${idx+1}</span>
+                        ${hasImg ? `<img src="${imgPreview.getAttribute('src')}" class="h-6 w-6 object-cover rounded border shrink-0">` : ''}
+                        <span class="truncate text-gray-700 font-medium">${lText}</span>
+                    </div>
+                    <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors shrink-0 modal-teacher-dot-left" id="${prefix}-tdot-${lId}"></div>
+                </button>
+            `;
+        });
+    }
+    boardLeft.innerHTML = leftHtml;
+
+    // Render Right Column of Board
+    let rightHtml = '';
+    if (rightItems.length === 0) {
+        rightHtml = '<p class="text-xs text-gray-400 italic p-3 text-center bg-white rounded-xl border border-dashed border-gray-200">Belum ada item pilihan kanan.</p>';
+    } else {
+        rightItems.forEach((rItem, idx) => {
+            const rId = rItem.getAttribute('data-id') || rItem.querySelector('.modal-right-id')?.value;
+            validRightIds.add(rId);
+            const rLabel = alphabetList[idx] || `R${idx+1}`;
+            const rText = rItem.querySelector('.modal-right-text')?.value || `Pilihan ${rLabel}`;
+            const imgPreview = rItem.querySelector('.modal-opsi-preview');
+            const hasImg = imgPreview && !imgPreview.classList.contains('hidden') && imgPreview.getAttribute('src');
+
+            rightHtml += `
+                <button type="button" 
+                        class="modal-teacher-node-right w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-medium text-gray-700 hover:border-emerald-400 hover:shadow-xs transition-all flex items-center justify-between group"
+                        data-id="${rId}" onclick="onModalTeacherNodeRightClick(this, '${prefix}')">
+                    <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-emerald-400 transition-colors shrink-0 modal-teacher-dot-right" id="${prefix}-tdot-${rId}"></div>
+                    <div class="flex items-center gap-2 pl-2 min-w-0 flex-1 justify-end text-right">
+                        <span class="truncate text-gray-700 font-medium">${rText}</span>
+                        ${hasImg ? `<img src="${imgPreview.getAttribute('src')}" class="h-6 w-6 object-cover rounded border shrink-0">` : ''}
+                        <span class="w-5 h-5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px] flex items-center justify-center shrink-0">${rLabel}</span>
+                    </div>
+                </button>
+            `;
+        });
+    }
+    boardRight.innerHTML = rightHtml;
+
+    // Filter out pairs with deleted items
+    state.pairs = currentPairs.filter(p => validLeftIds.has(p.left) && validRightIds.has(p.right));
+    if (jsonInput) jsonInput.value = JSON.stringify(state.pairs);
+
+    // Redraw SVG lines
+    setTimeout(() => drawModalTeacherMatchingLines(prefix), 50);
+}
+
+function onModalTeacherNodeLeftClick(btn, prefix = 'modal') {
+    const state = window._modalMatchState[prefix] || { pairs: [] };
+    const lId = btn.dataset.id;
+    if (!state.pairs) state.pairs = [];
+
+    if (state.selectedRight) {
+        const rId = state.selectedRight.dataset.id;
+        state.selectedRight.classList.remove('ring-4', 'ring-emerald-200', 'border-emerald-500');
+        
+        // Toggle pair
+        const existingIdx = state.pairs.findIndex(p => p.left === lId && p.right === rId);
+        if (existingIdx !== -1) {
+            state.pairs.splice(existingIdx, 1);
+        } else {
+            state.pairs.push({ left: lId, right: rId });
+        }
+
+        const jsonInput = document.getElementById(`${prefix}-correct-pairs-json`);
+        if (jsonInput) jsonInput.value = JSON.stringify(state.pairs);
+
+        state.selectedRight = null;
+        state.selectedLeft = null;
+        drawModalTeacherMatchingLines(prefix);
+        return;
+    }
+
+    if (state.selectedLeft && state.selectedLeft !== btn) {
+        state.selectedLeft.classList.remove('ring-4', 'ring-blue-200', 'border-blue-500');
+    }
+
+    if (state.selectedLeft === btn) {
+        btn.classList.remove('ring-4', 'ring-blue-200', 'border-blue-500');
+        state.selectedLeft = null;
+        return;
+    }
+
+    btn.classList.add('ring-4', 'ring-blue-200', 'border-blue-500');
+    state.selectedLeft = btn;
+}
+
+function onModalTeacherNodeRightClick(btn, prefix = 'modal') {
+    const state = window._modalMatchState[prefix] || { pairs: [] };
+    const rId = btn.dataset.id;
+    if (!state.pairs) state.pairs = [];
+
+    if (state.selectedLeft) {
+        const lId = state.selectedLeft.dataset.id;
+        state.selectedLeft.classList.remove('ring-4', 'ring-blue-200', 'border-blue-500');
+        
+        // Toggle pair
+        const existingIdx = state.pairs.findIndex(p => p.left === lId && p.right === rId);
+        if (existingIdx !== -1) {
+            state.pairs.splice(existingIdx, 1);
+        } else {
+            state.pairs.push({ left: lId, right: rId });
+        }
+
+        const jsonInput = document.getElementById(`${prefix}-correct-pairs-json`);
+        if (jsonInput) jsonInput.value = JSON.stringify(state.pairs);
+
+        state.selectedLeft = null;
+        state.selectedRight = null;
+        drawModalTeacherMatchingLines(prefix);
+        return;
+    }
+
+    if (state.selectedRight && state.selectedRight !== btn) {
+        state.selectedRight.classList.remove('ring-4', 'ring-emerald-200', 'border-emerald-500');
+    }
+
+    if (state.selectedRight === btn) {
+        btn.classList.remove('ring-4', 'ring-emerald-200', 'border-emerald-500');
+        state.selectedRight = null;
+        return;
+    }
+
+    btn.classList.add('ring-4', 'ring-emerald-200', 'border-emerald-500');
+    state.selectedRight = btn;
+}
+
+function drawModalTeacherMatchingLines(prefix = 'modal') {
+    const canvas = document.getElementById(`${prefix}-teacher-match-canvas`);
+    if (!canvas) return;
+
+    const svg = document.getElementById(`${prefix}-teacher-match-svg`);
+    if (!svg) return;
+
+    svg.innerHTML = '';
+    const state = window._modalMatchState[prefix] || { pairs: [] };
+    const pairs = state.pairs || [];
+    const canvasRect = canvas.getBoundingClientRect();
+
+    // Reset all node styling
+    canvas.querySelectorAll('.modal-teacher-node-left, .modal-teacher-node-right').forEach(btn => {
+        modalTeacherPalette.forEach(c => btn.classList.remove(c.border, c.bg, 'shadow-xs'));
+        btn.classList.add('border-gray-200', 'bg-white');
+        const dot = btn.querySelector('.modal-teacher-dot-left, .modal-teacher-dot-right');
+        if (dot) dot.style.backgroundColor = '#cbd5e1';
     });
-    container.appendChild(clone);
+
+    // Color mapping per left item
+    const leftNodes = Array.from(canvas.querySelectorAll('.modal-teacher-node-left'));
+    const leftColorMap = {};
+    leftNodes.forEach((node, idx) => {
+        leftColorMap[node.dataset.id] = modalTeacherPalette[idx % modalTeacherPalette.length];
+    });
+
+    pairs.forEach(p => {
+        const lNode = canvas.querySelector(`.modal-teacher-node-left[data-id="${p.left}"]`);
+        const rNode = canvas.querySelector(`.modal-teacher-node-right[data-id="${p.right}"]`);
+
+        if (lNode && rNode) {
+            const color = leftColorMap[p.left] || modalTeacherPalette[0];
+
+            lNode.classList.remove('border-gray-200', 'bg-white');
+            lNode.classList.add(color.border, color.bg, 'shadow-xs');
+            const lDot = lNode.querySelector('.modal-teacher-dot-left');
+            if (lDot) lDot.style.backgroundColor = color.stroke;
+
+            rNode.classList.remove('border-gray-200');
+            rNode.classList.add('border-slate-400', 'bg-slate-50', 'shadow-xs');
+            const rDot = rNode.querySelector('.modal-teacher-dot-right');
+            if (rDot) rDot.style.backgroundColor = color.stroke;
+
+            if (lDot && rDot) {
+                const lRect = lDot.getBoundingClientRect();
+                const rRect = rDot.getBoundingClientRect();
+
+                const x1 = lRect.left + (lRect.width / 2) - canvasRect.left;
+                const y1 = lRect.top + (lRect.height / 2) - canvasRect.top;
+                const x2 = rRect.left + (rRect.width / 2) - canvasRect.left;
+                const y2 = rRect.top + (rRect.height / 2) - canvasRect.top;
+
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", x1);
+                line.setAttribute("y1", y1);
+                line.setAttribute("x2", x2);
+                line.setAttribute("y2", y2);
+                line.setAttribute("stroke", color.stroke);
+                line.setAttribute("stroke-width", "3");
+                line.setAttribute("stroke-linecap", "round");
+                line.setAttribute("class", "transition-all duration-300");
+
+                svg.appendChild(line);
+            }
+        }
+    });
+}
+
+window.addEventListener('resize', () => {
+    const tambahModal = document.getElementById('modal-tambah-soal');
+    if (tambahModal && !tambahModal.classList.contains('hidden')) {
+        drawModalTeacherMatchingLines('modal');
+    }
+    const editModal = document.getElementById('modal-edit-soal');
+    if (editModal && !editModal.classList.contains('hidden')) {
+        drawModalTeacherMatchingLines('edit');
+    }
+});
+
+function modalAddMatchRight(text = '', gambarUrl = null, relativeGambar = null, customId = null) {
+    const container = document.getElementById('modal-match-rights-container');
+    const template  = document.getElementById('modal-match-right-template');
+    const rUid = customId || ('R' + Date.now() + Math.random().toString(36).substr(2, 4));
+    const clone = template.content.cloneNode(true);
+    const item = clone.querySelector('.modal-match-right-item');
+    item.setAttribute('data-id', rUid);
+    
+    const idInput = clone.querySelector('.modal-right-id');
+    const textInput = clone.querySelector('.modal-right-text');
+    if (idInput) idInput.value = rUid;
+    if (textInput) {
+        textInput.value = text;
+        textInput.addEventListener('input', () => renderModalTeacherMatchingBoard('modal'));
+    }
+    if (gambarUrl) {
+        const preview = clone.querySelector('.modal-opsi-preview');
+        const icon = clone.querySelector('.modal-opsi-icon');
+        const hidden = clone.querySelector('.modal-existing-img');
+        const label = preview ? preview.closest('label') : null;
+        if (preview) { preview.src = gambarUrl; preview.classList.remove('hidden'); }
+        if (icon) icon.classList.add('hidden');
+        if (hidden) hidden.value = relativeGambar;
+        if (label) label.classList.add('border-blue-400', 'p-0');
+    }
+    container.appendChild(item);
+    reindexModalMatchRights('modal');
+    renderModalTeacherMatchingBoard('modal');
+}
+
+function modalRemoveMatchRight(btn) {
+    const item = btn.closest('.modal-match-right-item');
+    const isEdit = btn.closest('#edit-match-rights-container') !== null;
+    const prefix = isEdit ? 'edit' : 'modal';
+    if (item) item.remove();
+    reindexModalMatchRights(prefix);
+    renderModalTeacherMatchingBoard(prefix);
+}
+
+function reindexModalMatchRights(prefix = 'modal') {
+    const container = document.getElementById(`${prefix}-match-rights-container`);
+    if (!container) return;
+    const items = container.querySelectorAll('.modal-match-right-item');
+    items.forEach((item, idx) => {
+        const label = alphabetList[idx] || `R${idx+1}`;
+        const badge = item.querySelector('.modal-right-badge');
+        if (badge) badge.textContent = label;
+
+        const idInput = item.querySelector('.modal-right-id');
+        const textInput = item.querySelector('.modal-right-text');
+        const fileInput = item.querySelector('.modal-opsi-img');
+        const existingInput = item.querySelector('.modal-existing-img');
+
+        if (idInput) idInput.name = `right_items[${idx}][id]`;
+        if (textInput) textInput.name = `right_items[${idx}][text]`;
+        if (fileInput) fileInput.name = `right_items[${idx}][gambar]`;
+        if (existingInput) existingInput.name = `right_items[${idx}][existing_gambar]`;
+    });
+}
+
+function modalAddMatchLeft(text = '', gambarUrl = null, relativeGambar = null, customId = null) {
+    const container = document.getElementById('modal-match-lefts-container');
+    const template  = document.getElementById('modal-match-left-template');
+    const lUid = customId || ('L' + Date.now() + Math.random().toString(36).substr(2, 4));
+    const clone = template.content.cloneNode(true);
+    const item = clone.querySelector('.modal-match-left-item');
+    item.setAttribute('data-id', lUid);
+
+    const idInput = clone.querySelector('.modal-left-id');
+    const textInput = clone.querySelector('.modal-left-text');
+    if (idInput) idInput.value = lUid;
+    if (textInput) {
+        textInput.value = text;
+        textInput.addEventListener('input', () => renderModalTeacherMatchingBoard('modal'));
+    }
+    if (gambarUrl) {
+        const preview = clone.querySelector('.modal-opsi-preview');
+        const icon = clone.querySelector('.modal-opsi-icon');
+        const hidden = clone.querySelector('.modal-existing-img');
+        const label = preview ? preview.closest('label') : null;
+        if (preview) { preview.src = gambarUrl; preview.classList.remove('hidden'); }
+        if (icon) icon.classList.add('hidden');
+        if (hidden) hidden.value = relativeGambar;
+        if (label) label.classList.add('border-blue-400', 'p-0');
+    }
+    container.appendChild(item);
+    reindexModalMatchLefts('modal');
+    renderModalTeacherMatchingBoard('modal');
+}
+
+function modalRemoveMatchLeft(btn) {
+    const item = btn.closest('.modal-match-left-item');
+    const isEdit = btn.closest('#edit-match-lefts-container') !== null;
+    const prefix = isEdit ? 'edit' : 'modal';
+    if (item) item.remove();
+    reindexModalMatchLefts(prefix);
+    renderModalTeacherMatchingBoard(prefix);
+}
+
+function reindexModalMatchLefts(prefix = 'modal') {
+    const container = document.getElementById(`${prefix}-match-lefts-container`);
+    if (!container) return;
+    const items = container.querySelectorAll('.modal-match-left-item');
+    items.forEach((item, idx) => {
+        const badge = item.querySelector('.modal-left-badge');
+        if (badge) badge.textContent = `Item ${idx + 1}`;
+
+        const idInput = item.querySelector('.modal-left-id');
+        const textInput = item.querySelector('.modal-left-text');
+        const fileInput = item.querySelector('.modal-opsi-img');
+        const existingInput = item.querySelector('.modal-existing-img');
+
+        if (idInput) idInput.name = `left_items[${idx}][id]`;
+        if (textInput) textInput.name = `left_items[${idx}][text]`;
+        if (fileInput) fileInput.name = `left_items[${idx}][gambar]`;
+        if (existingInput) existingInput.name = `left_items[${idx}][existing_gambar]`;
+    });
+}
+
+// Edit Modal matching functions
+function editAddMatchRight(text = '', gambarUrl = null, relativeGambar = null, customId = null) {
+    const container = document.getElementById('edit-match-rights-container');
+    const template  = document.getElementById('modal-match-right-template');
+    const rUid = customId || ('R' + Date.now() + Math.random().toString(36).substr(2, 4));
+    const clone = template.content.cloneNode(true);
+    const item = clone.querySelector('.modal-match-right-item');
+    item.setAttribute('data-id', rUid);
+    
+    const idInput = clone.querySelector('.modal-right-id');
+    const textInput = clone.querySelector('.modal-right-text');
+    if (idInput) idInput.value = rUid;
+    if (textInput) {
+        textInput.value = text;
+        textInput.addEventListener('input', () => renderModalTeacherMatchingBoard('edit'));
+    }
+    if (gambarUrl) {
+        const preview = clone.querySelector('.modal-opsi-preview');
+        const icon = clone.querySelector('.modal-opsi-icon');
+        const hidden = clone.querySelector('.modal-existing-img');
+        const label = preview ? preview.closest('label') : null;
+        if (preview) { preview.src = gambarUrl; preview.classList.remove('hidden'); }
+        if (icon) icon.classList.add('hidden');
+        if (hidden) hidden.value = relativeGambar;
+        if (label) label.classList.add('border-blue-400', 'p-0');
+    }
+    container.appendChild(item);
+    reindexModalMatchRights('edit');
+    renderModalTeacherMatchingBoard('edit');
+}
+
+function editRemoveMatchRight(btn) {
+    modalRemoveMatchRight(btn);
+}
+
+function editAddMatchLeft(text = '', gambarUrl = null, relativeGambar = null, customId = null) {
+    const container = document.getElementById('edit-match-lefts-container');
+    const template  = document.getElementById('modal-match-left-template');
+    const lUid = customId || ('L' + Date.now() + Math.random().toString(36).substr(2, 4));
+    const clone = template.content.cloneNode(true);
+    const item = clone.querySelector('.modal-match-left-item');
+    item.setAttribute('data-id', lUid);
+
+    const idInput = clone.querySelector('.modal-left-id');
+    const textInput = clone.querySelector('.modal-left-text');
+    if (idInput) idInput.value = lUid;
+    if (textInput) {
+        textInput.value = text;
+        textInput.addEventListener('input', () => renderModalTeacherMatchingBoard('edit'));
+    }
+    if (gambarUrl) {
+        const preview = clone.querySelector('.modal-opsi-preview');
+        const icon = clone.querySelector('.modal-opsi-icon');
+        const hidden = clone.querySelector('.modal-existing-img');
+        const label = preview ? preview.closest('label') : null;
+        if (preview) { preview.src = gambarUrl; preview.classList.remove('hidden'); }
+        if (icon) icon.classList.add('hidden');
+        if (hidden) hidden.value = relativeGambar;
+        if (label) label.classList.add('border-blue-400', 'p-0');
+    }
+    container.appendChild(item);
+    reindexModalMatchLefts('edit');
+    renderModalTeacherMatchingBoard('edit');
+}
+
+function editRemoveMatchLeft(btn) {
+    modalRemoveMatchLeft(btn);
 }
 
 // ── ADD TF STATEMENT ──────────────────────────────────────
@@ -1084,107 +1780,8 @@ function reindexJgLabels(containerId) {
     });
 }
 
-// ── VALIDASI & SUBMIT ─────────────────────────────────────
+// ── INIT UI ───────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('form-bank-soal');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const edTambah = document.getElementById('modal-pertanyaan-editor');
-            const txTambah = document.getElementById('modal-pertanyaan');
-            if (edTambah && txTambah) {
-                txTambah.value = edTambah.innerHTML;
-                const plainText = edTambah.innerText.trim();
-                if (!plainText && !edTambah.querySelector('img')) {
-                    e.preventDefault();
-                    showNotificationModal('Teks pertanyaan tidak boleh kosong!');
-                    return;
-                }
-            }
-
-            const tipe = document.getElementById('modal-tipe-soal').value;
-
-            // PG: harus ada kunci
-            if (tipe === 'pilihan_ganda') {
-                const kunci = document.getElementById('modal-kunci').value;
-                if (!kunci) {
-                    e.preventDefault();
-                    showNotificationModal('Pilih Kunci Jawaban terlebih dahulu!');
-                    return;
-                }
-            }
-            // Jawaban Ganda: minimal 1 centang form
-            if (tipe === 'jawaban_ganda') {
-                const checked = form.querySelectorAll('input[type="checkbox"]:checked');
-                // karena ada input hidden bernilai 0 dan checked bernilai 1.
-                let checkedCount = 0;
-                checked.forEach((c) => {
-                    if(c.value == '1') checkedCount++;
-                });
-                const totalOptions = form.querySelectorAll('.modal-jg-item').length;
-                
-                if (totalOptions < 2) {
-                    e.preventDefault();
-                    showNotificationModal('Minimal harus ada 2 opsi jawaban!');
-                    return;
-                }
-                if (checkedCount === 0) {
-                    e.preventDefault();
-                    showNotificationModal('Centang minimal satu jawaban benar!');
-                    return;
-                }
-                
-                // Validasi teks/gambar
-                let anyEmpty = false;
-                form.querySelectorAll('.modal-jg-item').forEach(item => {
-                    const text = item.querySelector('input[type="text"]').value.trim();
-                    const fileInp = item.querySelector('input[type="file"]').files.length;
-                    const existing = item.querySelector('.modal-existing-img')?.value;
-                    if (!text && fileInp === 0 && !existing) anyEmpty = true;
-                });
-                if (anyEmpty) {
-                    e.preventDefault();
-                    showNotificationModal('Semua opsi jawaban dinamis harus diisi teks atau gambarnya!');
-                    return;
-                }
-            }
-            // Benar Salah: minimal 1 pernyataan
-            if (tipe === 'benar_salah') {
-                const items = document.getElementById('modal-tf-container').querySelectorAll('.modal-tf-item').length;
-                if (items === 0) {
-                    e.preventDefault();
-                    showNotificationModal('Tambahkan minimal satu pernyataan Benar/Salah!');
-                    return;
-                }
-            }
-            // Mencocokkan: minimal 1 pasangan
-            if (tipe === 'menjodohkan') {
-                const items = document.getElementById('modal-matches-container').querySelectorAll('.modal-match-item').length;
-                if (items === 0) {
-                    e.preventDefault();
-                    showNotificationModal('Tambahkan minimal satu pasangan!');
-                    return;
-                }
-            }
-        });
-    }
-
-    const formEdit = document.getElementById('form-edit-soal');
-    if (formEdit) {
-        formEdit.addEventListener('submit', function(e) {
-            const edEdit = document.getElementById('edit-pertanyaan-editor');
-            const txEdit = document.getElementById('edit-pertanyaan');
-            if (edEdit && txEdit) {
-                txEdit.value = edEdit.innerHTML;
-                const plainText = edEdit.innerText.trim();
-                if (!plainText && !edEdit.querySelector('img')) {
-                    e.preventDefault();
-                    showNotificationModal('Teks pertanyaan tidak boleh kosong!');
-                    return;
-                }
-            }
-        });
-    }
-
     // Init UI
     modalUpdateUI('pilihan_ganda');
 });
@@ -1334,7 +1931,8 @@ function openEditModal(soalId) {
 
     // Reset containers
     document.getElementById('edit-tf-container').innerHTML = '';
-    document.getElementById('edit-matches-container').innerHTML = '';
+    document.getElementById('edit-match-rights-container').innerHTML = '';
+    document.getElementById('edit-match-lefts-container').innerHTML = '';
     document.getElementById('edit-jg-container').innerHTML = '';
     // Reset semua opsi image buttons
     form.querySelectorAll('.modal-opsi-preview').forEach(img => { img.src=''; img.classList.add('hidden'); });
@@ -1391,12 +1989,47 @@ function openEditModal(soalId) {
             const gambarUrl = stmt.gambar ? (stmt.gambar.startsWith('http') ? stmt.gambar : `{{ asset('storage') }}/${stmt.gambar}`) : null;
             editAddTf(stmt.text, stmt.correct, gambarUrl, stmt.gambar);
         });
-    } else if (soalData.tipe === 'menjodohkan' && soalData.data_soal && soalData.data_soal.matches) {
-        soalData.data_soal.matches.forEach(m => {
-            const leftGambarUrl = m.gambar_left ? (m.gambar_left.startsWith('http') ? m.gambar_left : `{{ asset('storage') }}/${m.gambar_left}`) : null;
-            const rightGambarUrl = m.gambar_right ? (m.gambar_right.startsWith('http') ? m.gambar_right : `{{ asset('storage') }}/${m.gambar_right}`) : null;
-            editAddMatch(m.left, m.right, leftGambarUrl, m.gambar_left, rightGambarUrl, m.gambar_right);
-        });
+    } else if (soalData.tipe === 'menjodohkan' && soalData.data_soal) {
+        const ds = soalData.data_soal;
+        let pairs = [];
+        if (ds.left_items && ds.right_items) {
+            ds.right_items.forEach(r => {
+                const gUrl = r.gambar ? (r.gambar.startsWith('http') ? r.gambar : `{{ asset('storage') }}/${r.gambar}`) : null;
+                editAddMatchRight(r.text, gUrl, r.gambar, r.id);
+            });
+            pairs = ds.correct_pairs || [];
+            ds.left_items.forEach(l => {
+                const gUrl = l.gambar ? (l.gambar.startsWith('http') ? l.gambar : `{{ asset('storage') }}/${l.gambar}`) : null;
+                editAddMatchLeft(l.text, gUrl, l.gambar, l.id);
+            });
+        } else if (ds.matches) {
+            // Backward compatibility for legacy matches
+            ds.matches.forEach((m, idx) => {
+                const rId = 'R' + idx;
+                const rGUrl = m.gambar_right ? (m.gambar_right.startsWith('http') ? m.gambar_right : `{{ asset('storage') }}/${m.gambar_right}`) : null;
+                editAddMatchRight(m.right, rGUrl, m.gambar_right, rId);
+            });
+            ds.matches.forEach((m, idx) => {
+                const lId = 'L' + idx;
+                const lGUrl = m.gambar_left ? (m.gambar_left.startsWith('http') ? m.gambar_left : `{{ asset('storage') }}/${m.gambar_left}`) : null;
+                editAddMatchLeft(m.left, lGUrl, m.gambar_left, lId);
+                pairs.push({ left: lId, right: 'R' + idx });
+            });
+        }
+        // Minimal 2 rights and 2 lefts
+        const rightContainer = document.getElementById('edit-match-rights-container');
+        while (rightContainer.querySelectorAll('.modal-match-right-item').length < 2) {
+            editAddMatchRight();
+        }
+        const leftContainer = document.getElementById('edit-match-lefts-container');
+        while (leftContainer.querySelectorAll('.modal-match-left-item').length < 2) {
+            editAddMatchLeft();
+        }
+
+        window._modalMatchState.edit = { pairs: pairs, selectedLeft: null, selectedRight: null };
+        const jsonInput = document.getElementById('edit-correct-pairs-json');
+        if (jsonInput) jsonInput.value = JSON.stringify(pairs);
+        renderModalTeacherMatchingBoard('edit');
     }
 
     editUpdateUI(soalData.tipe);
@@ -1431,6 +2064,10 @@ function editUpdateUI(tipe) {
     if (active) active.classList.remove('hidden');
     const keyPG = document.getElementById('edit-key-pg');
     if (keyPG) keyPG.classList.toggle('hidden', tipe !== 'pilihan_ganda');
+
+    if (tipe === 'menjodohkan') {
+        setTimeout(() => renderModalTeacherMatchingBoard('edit'), 100);
+    }
 }
 
 function editPreviewGambar(input) {
@@ -1656,49 +2293,62 @@ function validateSoalForm(form, tipe) {
     }
     // 4. Menjodohkan
     else if (tipe === 'menjodohkan') {
-        const matchItems = form.querySelectorAll(form.id === 'form-edit-soal' ? '#edit-matches-container > div' : '#modal-matches-container > div');
-        if (matchItems.length === 0) {
+        const isEdit = form.id === 'form-edit-soal';
+        const prefix = isEdit ? 'edit' : 'modal';
+        const rightContainerId = `${prefix}-match-rights-container`;
+        const leftContainerId = `${prefix}-match-lefts-container`;
+        
+        const rightItems = document.querySelectorAll(`#${rightContainerId} .modal-match-right-item`);
+        const leftItems = document.querySelectorAll(`#${leftContainerId} .modal-match-left-item`);
+        
+        if (rightItems.length < 1) {
             isValid = false;
-            errorMsg = 'Soal Menjodohkan minimal harus memiliki 1 pasang pertanyaan-jawaban!';
+            errorMsg = 'Soal Menjodohkan minimal harus memiliki 1 pilihan jawaban (sisi kanan)!';
+        } else if (leftItems.length < 1) {
+            isValid = false;
+            errorMsg = 'Soal Menjodohkan minimal harus memiliki 1 premis / pertanyaan (sisi kiri)!';
         } else {
-            let hasFullPair = false;
-            let incompletePair = false;
+            // Check right items have text or image
+            let anyRightEmpty = false;
+            rightItems.forEach(r => {
+                const text = (r.querySelector('.modal-right-text')?.value || '').trim();
+                const fileInp = r.querySelector('input[type="file"]')?.files.length || 0;
+                const existing = r.querySelector('.modal-existing-img')?.value || '';
+                const preview = r.querySelector('.modal-opsi-preview');
+                const hasPreview = preview && !preview.classList.contains('hidden') && preview.getAttribute('src');
+                if (!text && fileInp === 0 && !existing && !hasPreview) anyRightEmpty = true;
+            });
 
-            for(let item of matchItems) {
-                const leftText = (item.querySelector('input[name*="[left]"]')?.value || '').trim();
-                const rightText = (item.querySelector('input[name*="[right]"]')?.value || '').trim();
-                
-                const leftImg = item.querySelector('input[name*="[gambar_left]"]');
-                const rightImg = item.querySelector('input[name*="[gambar_right]"]');
-                
-                // Cek apalah ada input file atau preview gambar yang terisi
-                const leftImgPreview = item.querySelectorAll('.modal-opsi-preview')[0];
-                const rightImgPreview = item.querySelectorAll('.modal-opsi-preview')[1];
-
-                const leftImgHasContent = (leftImg && leftImg.files.length > 0) || (leftImgPreview && !leftImgPreview.classList.contains('hidden'));
-                const rightImgHasContent = (rightImg && rightImg.files.length > 0) || (rightImgPreview && !rightImgPreview.classList.contains('hidden'));
-
-                const hasLeftContent = leftText || leftImgHasContent;
-                const hasRightContent = rightText || rightImgHasContent;
-
-                if (hasLeftContent !== hasRightContent) {
-                    incompletePair = true;
-                    errorMsg = hasLeftContent 
-                        ? 'Ada pertanyaan (kiri) yang belum memiliki pasangan jawaban (kanan)!' 
-                        : 'Ada jawaban (kanan) yang belum memiliki pasangan pertanyaan (kiri)!';
-                    break;
-                }
-                
-                if(hasLeftContent && hasRightContent) {
-                    hasFullPair = true;
-                }
-            }
-
-            if (incompletePair) {
+            if (anyRightEmpty) {
                 isValid = false;
-            } else if (!hasFullPair) {
-                isValid = false;
-                errorMsg = 'Mohon lengkapi minimal satu pasang pertanyaan dan jawaban valid (bisa teks/gambar)!';
+                errorMsg = 'Semua pilihan jawaban (sisi kanan) harus memiliki teks atau gambar!';
+            } else {
+                // Check left items have text or image
+                let anyLeftEmpty = false;
+                leftItems.forEach(l => {
+                    const text = (l.querySelector('.modal-left-text')?.value || '').trim();
+                    const fileInp = l.querySelector('input[type="file"]')?.files.length || 0;
+                    const existing = l.querySelector('.modal-existing-img')?.value || '';
+                    const preview = l.querySelector('.modal-opsi-preview');
+                    const hasPreview = preview && !preview.classList.contains('hidden') && preview.getAttribute('src');
+                    if (!text && fileInp === 0 && !existing && !hasPreview) anyLeftEmpty = true;
+                });
+
+                if (anyLeftEmpty) {
+                    isValid = false;
+                    errorMsg = 'Semua premis / pertanyaan (sisi kiri) harus memiliki teks atau gambar!';
+                } else {
+                    let pairs = [];
+                    try {
+                        const raw = form.querySelector('input[name="correct_pairs_json"]')?.value || '[]';
+                        pairs = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+                    } catch(e) { pairs = []; }
+
+                    if (!pairs || pairs.length === 0) {
+                        isValid = false;
+                        errorMsg = 'Hubungkan minimal satu pasangan kunci jawaban pada Papan Kunci Pasangan!';
+                    }
+                }
             }
         }
     }
