@@ -287,11 +287,11 @@
                                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
                                                     @foreach($rightItems as $ri => $r)
                                                     @php $rLabel = $alphabet[$ri] ?? ('R'.($ri+1)); @endphp
-                                                    <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                                                        <span class="w-4 h-4 rounded bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0">{{ $rLabel }}</span>
-                                                        <span class="text-slate-700 truncate">{!! format_soal($r['text'] ?? '-') !!}</span>
+                                                    <div class="flex items-start gap-1.5 bg-slate-50 px-2 py-1.5 rounded border border-slate-200 min-w-0">
+                                                        <span class="w-4 h-4 rounded bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">{{ $rLabel }}</span>
+                                                        <span class="text-slate-700 break-words leading-tight flex-1 min-w-0">{!! format_soal($r['text'] ?? '-') !!}</span>
                                                         @if(!empty($r['gambar']))
-                                                            <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-5 w-5 object-cover rounded border ml-auto">
+                                                            <img src="{{ asset('storage/'.$r['gambar']) }}" class="h-5 w-5 object-cover rounded border ml-auto shrink-0">
                                                         @endif
                                                     </div>
                                                     @endforeach
@@ -313,12 +313,12 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-200 text-xs">
-                                                        <div class="flex items-center gap-2 min-w-0">
-                                                            <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px] shrink-0">Item {{ $li+1 }}</span>
-                                                            <span class="text-slate-800 font-medium truncate">{!! format_soal($l['text'] ?? '-') !!}</span>
+                                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-200 text-xs">
+                                                        <div class="flex items-start gap-2 min-w-0 flex-1">
+                                                            <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px] shrink-0 mt-0.5">Item {{ $li+1 }}</span>
+                                                            <span class="text-slate-800 font-medium break-words leading-relaxed flex-1 min-w-0">{!! format_soal($l['text'] ?? '-') !!}</span>
                                                             @if(!empty($l['gambar']))
-                                                                <img src="{{ asset('storage/'.$l['gambar']) }}" class="h-6 w-6 object-cover rounded border">
+                                                                <img src="{{ asset('storage/'.$l['gambar']) }}" class="h-6 w-6 object-cover rounded border shrink-0">
                                                             @endif
                                                         </div>
                                                         <div class="shrink-0 flex items-center gap-1">

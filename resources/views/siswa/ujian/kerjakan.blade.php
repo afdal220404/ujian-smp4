@@ -515,24 +515,24 @@
                                         </button>
                                     </div>
                                     
-                                    <div class="flex flex-col md:flex-row justify-between relative z-20 gap-8 md:gap-12">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 relative z-20 gap-6 md:gap-12 w-full">
                                         {{-- SISI KIRI (PREMIS / PERTANYAAN) --}}
-                                        <div class="flex-1 space-y-4">
+                                        <div class="w-full min-w-0 space-y-4">
                                             <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Premis (Kiri)</div>
                                             @foreach($shuffledLeft as $liIdx => $leftItem)
                                                 @php 
                                                     $lId = $leftItem['id'];
                                                 @endphp
-                                                <div class="relative">
+                                                <div class="relative w-full">
                                                     <button type="button" 
-                                                            class="match-item-left w-full p-3.5 rounded-xl border-2 border-gray-200 bg-white text-left text-sm font-semibold text-gray-800 hover:border-blue-400 hover:shadow-md transition-all active:scale-98 flex items-center justify-between group"
+                                                            class="match-item-left w-full p-3.5 rounded-xl border-2 border-gray-200 bg-white text-left text-sm font-semibold text-gray-800 hover:border-blue-400 hover:shadow-md transition-all active:scale-98 flex items-center justify-between group gap-2"
                                                             data-id="{{ $lId }}" data-soal="{{ $soal->id }}"
                                                             onclick="selectMatchLeft(this, {{ $soal->id }}, {{ $index }})">
-                                                        <div class="flex flex-col gap-1.5 w-full pr-3">
+                                                        <div class="flex flex-col gap-1.5 w-full pr-2 min-w-0">
                                                             @if(!empty($leftItem['gambar']))
                                                                 <img src="{{ asset('storage/' . $leftItem['gambar']) }}" class="max-h-24 object-contain rounded-lg border border-gray-200 bg-white">
                                                             @endif
-                                                            <span>{!! format_soal($leftItem['text']) !!}</span>
+                                                            <span class="break-words leading-relaxed">{!! format_soal($leftItem['text']) !!}</span>
                                                         </div>
                                                         <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors shrink-0" id="dot-{{ $lId }}-{{ $soal->id }}"></div>
                                                     </button>
@@ -541,23 +541,23 @@
                                         </div>
 
                                         {{-- SISI KANAN (PILIHAN JAWABAN) --}}
-                                        <div class="flex-1 space-y-4">
+                                        <div class="w-full min-w-0 space-y-4">
                                             <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pilihan Jawaban (Kanan)</div>
                                             @foreach($shuffledRight as $riIdx => $rightItem)
                                                 @php 
                                                     $rId = $rightItem['id'];
                                                 @endphp
-                                                <div class="relative">
+                                                <div class="relative w-full">
                                                      <button type="button" 
-                                                            class="match-item-right w-full p-3.5 rounded-xl border-2 border-gray-200 bg-white text-left text-sm font-medium text-gray-700 hover:border-purple-400 hover:shadow-md transition-all active:scale-98 flex items-center justify-between group"
+                                                            class="match-item-right w-full p-3.5 rounded-xl border-2 border-gray-200 bg-white text-left text-sm font-medium text-gray-700 hover:border-purple-400 hover:shadow-md transition-all active:scale-98 flex items-center justify-between group gap-2"
                                                             data-id="{{ $rId }}" 
                                                             onclick="selectMatchRight(this, {{ $soal->id }}, {{ $index }})">
                                                         <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-purple-400 transition-colors shrink-0" id="dot-{{ $rId }}-{{ $soal->id }}"></div>
-                                                        <div class="flex flex-col gap-1.5 w-full pl-3 text-right">
+                                                        <div class="flex flex-col gap-1.5 w-full pl-2 text-right min-w-0">
                                                             @if(!empty($rightItem['gambar']))
                                                                 <img src="{{ asset('storage/' . $rightItem['gambar']) }}" class="max-h-24 object-contain rounded-lg border border-gray-200 bg-white ml-auto">
                                                             @endif
-                                                            <span>{!! format_soal($rightItem['text']) !!}</span>
+                                                            <span class="break-words leading-relaxed">{!! format_soal($rightItem['text']) !!}</span>
                                                         </div>
                                                     </button>
                                                 </div>

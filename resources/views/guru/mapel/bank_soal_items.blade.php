@@ -517,6 +517,16 @@
                                     <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
                                         <u>U</u>
                                     </button>
+                                    <div class="h-3 w-px bg-gray-300 mx-0.5"></div>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'superscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Pangkat / Superscript (x²)">
+                                        x<sup>2</sup>
+                                    </button>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'subscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Indeks / Subscript (x₂)">
+                                        x<sub>2</sub>
+                                    </button>
+                                    <button type="button" onclick="openSymbolPicker(this.closest('.pertanyaan-container').querySelector('.soal-editor'), 'Pertanyaan Soal')" class="px-2 py-0.5 rounded hover:bg-blue-600 hover:text-white font-bold bg-blue-50 text-blue-700 transition-all cursor-pointer text-xs flex items-center gap-1" title="Palet Simbol Matematika & Pangkat">
+                                        <i class="bi bi-calculator"></i> Simbol
+                                    </button>
                                 </div>
                             </div>
                             <div contenteditable="true" id="modal-pertanyaan-editor"
@@ -567,7 +577,12 @@
                                 @foreach(['a','b','c','d'] as $opsi)
                                 <div class="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
                                     <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 border border-blue-200 uppercase text-xs">{{ $opsi }}</div>
-                                    <input type="text" name="opsi_{{ $opsi }}" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
+                                    <div class="relative flex-1 flex items-start">
+                                        <textarea rows="1" name="opsi_{{ $opsi }}" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}"></textarea>
+                                        <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan {{ strtoupper($opsi) }}')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                            Ω
+                                        </button>
+                                    </div>
                                     {{-- Tombol Gambar Opsi (gambar menggantikan ikon) --}}
                                     <label class="shrink-0 cursor-pointer w-9 h-9 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
                                         <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
@@ -665,14 +680,14 @@
                                 <div id="modal-teacher-match-canvas" class="relative select-none p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 min-h-[160px]">
                                     <svg id="modal-teacher-match-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
                                     
-                                    <div class="flex flex-col sm:flex-row justify-between relative z-20 gap-6 sm:gap-10">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full relative z-20">
                                         {{-- Sisi Kiri Board --}}
-                                        <div id="modal-teacher-board-left" class="flex-1 space-y-2.5">
+                                        <div id="modal-teacher-board-left" class="w-full min-w-0 space-y-2.5">
                                             {{-- Dynamically populated by JS --}}
                                         </div>
 
                                         {{-- Sisi Kanan Board --}}
-                                        <div id="modal-teacher-board-right" class="flex-1 space-y-2.5">
+                                        <div id="modal-teacher-board-right" class="w-full min-w-0 space-y-2.5">
                                             {{-- Dynamically populated by JS --}}
                                         </div>
                                     </div>
@@ -707,7 +722,12 @@
             A
         </div>
         <input type="hidden" name="right_items[RIDX][id]" value="RUID" class="modal-right-id">
-        <input type="text" name="right_items[RIDX][text]" class="modal-right-text flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none" placeholder="Teks pilihan jawaban...">
+        <div class="relative flex-1 flex items-start">
+            <textarea rows="1" name="right_items[RIDX][text]" class="modal-right-text auto-grow-field w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none" placeholder="Teks pilihan jawaban..."></textarea>
+            <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan Kanan')" class="absolute top-1.5 right-1.5 p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                Ω
+            </button>
+        </div>
         
         <label class="shrink-0 cursor-pointer w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar">
             <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
@@ -729,7 +749,12 @@
             Item 1
         </span>
         <input type="hidden" name="left_items[LIDX][id]" value="LUID" class="modal-left-id">
-        <input type="text" name="left_items[LIDX][text]" class="modal-left-text flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-blue-500 outline-none" placeholder="Teks premis / pertanyaan...">
+        <div class="relative flex-1 flex items-start">
+            <textarea rows="1" name="left_items[LIDX][text]" class="modal-left-text auto-grow-field w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-blue-500 outline-none" placeholder="Teks premis / pertanyaan..."></textarea>
+            <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Premis Kiri')" class="absolute top-1.5 right-1.5 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                Ω
+            </button>
+        </div>
         
         <label class="shrink-0 cursor-pointer w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar">
             <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
@@ -748,7 +773,12 @@
 <template id="modal-tf-template">
     <div class="modal-tf-item flex items-center gap-2">
         <div class="flex-1 flex gap-2">
-            <input type="text" name="pernyataan[TIDX][text]" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 outline-none" placeholder="Tulis Pernyataan...">
+            <div class="relative flex-1 flex items-start">
+                <textarea rows="1" name="pernyataan[TIDX][text]" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 outline-none" placeholder="Tulis Pernyataan..."></textarea>
+                <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pernyataan Benar/Salah')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                    Ω
+                </button>
+            </div>
             <label class="shrink-0 cursor-pointer w-10 h-[38px] rounded border border-gray-200 flex items-center justify-center overflow-hidden bg-white" title="Upload Gambar">
                 <i class="bi bi-image text-gray-400 modal-opsi-icon relative top-px"></i>
                 <img src="" class="modal-opsi-preview hidden w-full h-full object-cover">
@@ -779,7 +809,12 @@
         <div class="modal-jg-label w-8 h-8 rounded-lg bg-gray-100 text-gray-500 font-bold flex items-center justify-center shrink-0 border border-gray-200 uppercase text-xs">
             -
         </div>
-        <input type="text" name="jg_options[JIDX][text]" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Teks Opsi">
+        <div class="relative flex-1 flex items-start">
+            <textarea rows="1" name="jg_options[JIDX][text]" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Teks Opsi"></textarea>
+            <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan Jawaban')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                Ω
+            </button>
+        </div>
         
         <label class="shrink-0 cursor-pointer w-10 h-10 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
             <i class="bi bi-image text-gray-400 modal-opsi-icon"></i>
@@ -854,6 +889,16 @@
                                     <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
                                         <u>U</u>
                                     </button>
+                                    <div class="h-3 w-px bg-gray-300 mx-0.5"></div>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'superscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Pangkat / Superscript (x²)">
+                                        x<sup>2</sup>
+                                    </button>
+                                    <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'subscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Indeks / Subscript (x₂)">
+                                        x<sub>2</sub>
+                                    </button>
+                                    <button type="button" onclick="openSymbolPicker(this.closest('.pertanyaan-container').querySelector('.soal-editor'), 'Pertanyaan Soal')" class="px-2 py-0.5 rounded hover:bg-blue-600 hover:text-white font-bold bg-blue-50 text-blue-700 transition-all cursor-pointer text-xs flex items-center gap-1" title="Palet Simbol Matematika & Pangkat">
+                                        <i class="bi bi-calculator"></i> Simbol
+                                    </button>
                                 </div>
                             </div>
                             <div contenteditable="true" id="edit-pertanyaan-editor"
@@ -898,7 +943,12 @@
                                 @foreach(['a','b','c','d'] as $opsi)
                                 <div class="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
                                     <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 border border-blue-200 uppercase text-xs">{{ $opsi }}</div>
-                                    <input type="text" name="opsi_{{ $opsi }}" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
+                                    <div class="relative flex-1 flex items-start">
+                                        <textarea rows="1" name="opsi_{{ $opsi }}" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}"></textarea>
+                                        <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan {{ strtoupper($opsi) }}')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                            Ω
+                                        </button>
+                                    </div>
                                     <label class="shrink-0 cursor-pointer w-9 h-9 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden transition-colors" title="Upload Gambar Opsi">
                                         <i class="bi bi-image text-gray-400 modal-opsi-icon text-xs"></i>
                                         <img src="" class="modal-opsi-preview hidden w-full h-full object-cover rounded-lg">
@@ -993,14 +1043,14 @@
                                 <div id="edit-teacher-match-canvas" class="relative select-none p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 min-h-[160px]">
                                     <svg id="edit-teacher-match-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
                                     
-                                    <div class="flex flex-col sm:flex-row justify-between relative z-20 gap-6 sm:gap-10">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full relative z-20">
                                         {{-- Sisi Kiri Board --}}
-                                        <div id="edit-teacher-board-left" class="flex-1 space-y-2.5">
+                                        <div id="edit-teacher-board-left" class="w-full min-w-0 space-y-2.5">
                                             {{-- Dynamically populated by JS --}}
                                         </div>
 
                                         {{-- Sisi Kanan Board --}}
-                                        <div id="edit-teacher-board-right" class="flex-1 space-y-2.5">
+                                        <div id="edit-teacher-board-right" class="w-full min-w-0 space-y-2.5">
                                             {{-- Dynamically populated by JS --}}
                                         </div>
                                     </div>
@@ -1171,6 +1221,8 @@ function openTambahSoalModal() {
     modalAddMatchRight(); modalAddMatchRight();
     modalAddMatchLeft(); modalAddMatchLeft();
     modalAddTf();
+
+    window.initAutoGrowFields(document.getElementById('modal-answers-container'));
 }
 
 function closeTambahSoalModal() {
@@ -1190,6 +1242,9 @@ function modalUpdateUI(tipe) {
     if (tipe === 'menjodohkan') {
         setTimeout(() => renderModalTeacherMatchingBoard('modal'), 100);
     }
+
+    // Sesuaikan tinggi kolom jawaban (premis/pilihan) pada section yang aktif
+    window.initAutoGrowFields(document.getElementById('modal-answers-container'));
 }
 
 // ── GAMBAR SOAL PREVIEW ───────────────────────────────────
@@ -1299,6 +1354,14 @@ function renderModalTeacherMatchingBoard(prefix = 'modal') {
     const validLeftIds = new Set();
     const validRightIds = new Set();
 
+    // Helper escape html (harus di scope fungsi, dipakai sisi kiri & kanan)
+    const escapeHtml = str => {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+
     // Render Left Column of Board
     let leftHtml = '';
     if (leftItems.length === 0) {
@@ -1313,12 +1376,12 @@ function renderModalTeacherMatchingBoard(prefix = 'modal') {
 
             leftHtml += `
                 <button type="button" 
-                        class="modal-teacher-node-left w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-semibold text-gray-800 hover:border-blue-400 hover:shadow-xs transition-all flex items-center justify-between group"
+                        class="modal-teacher-node-left w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-semibold text-gray-800 hover:border-blue-400 hover:shadow-xs transition-all flex items-center justify-between group overflow-hidden"
                         data-id="${lId}" onclick="onModalTeacherNodeLeftClick(this, '${prefix}')">
                     <div class="flex items-center gap-2 pr-2 min-w-0 flex-1">
                         <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold text-[10px] shrink-0">Item ${idx+1}</span>
                         ${hasImg ? `<img src="${imgPreview.getAttribute('src')}" class="h-6 w-6 object-cover rounded border shrink-0">` : ''}
-                        <span class="truncate text-gray-700 font-medium">${lText}</span>
+                        <span class="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-gray-700 font-medium text-xs whitespace-normal" title="${escapeHtml(lText)}">${window.safeFormatHtml(lText)}</span>
                     </div>
                     <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors shrink-0 modal-teacher-dot-left" id="${prefix}-tdot-${lId}"></div>
                 </button>
@@ -1342,11 +1405,11 @@ function renderModalTeacherMatchingBoard(prefix = 'modal') {
 
             rightHtml += `
                 <button type="button" 
-                        class="modal-teacher-node-right w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-medium text-gray-700 hover:border-emerald-400 hover:shadow-xs transition-all flex items-center justify-between group"
+                        class="modal-teacher-node-right w-full p-2.5 rounded-xl border-2 border-gray-200 bg-white text-left text-xs font-medium text-gray-700 hover:border-emerald-400 hover:shadow-xs transition-all flex items-center justify-between group overflow-hidden"
                         data-id="${rId}" onclick="onModalTeacherNodeRightClick(this, '${prefix}')">
                     <div class="w-3.5 h-3.5 rounded-full bg-slate-300 group-hover:bg-emerald-400 transition-colors shrink-0 modal-teacher-dot-right" id="${prefix}-tdot-${rId}"></div>
                     <div class="flex items-center gap-2 pl-2 min-w-0 flex-1 justify-end text-right">
-                        <span class="truncate text-gray-700 font-medium">${rText}</span>
+                        <span class="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-gray-700 font-medium text-xs whitespace-normal" title="${escapeHtml(rText)}">${window.safeFormatHtml(rText)}</span>
                         ${hasImg ? `<img src="${imgPreview.getAttribute('src')}" class="h-6 w-6 object-cover rounded border shrink-0">` : ''}
                         <span class="w-5 h-5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px] flex items-center justify-center shrink-0">${rLabel}</span>
                     </div>
@@ -1551,6 +1614,7 @@ function modalAddMatchRight(text = '', gambarUrl = null, relativeGambar = null, 
     }
     container.appendChild(item);
     reindexModalMatchRights('modal');
+    window.initAutoGrowFields(container);
     renderModalTeacherMatchingBoard('modal');
 }
 
@@ -1611,6 +1675,7 @@ function modalAddMatchLeft(text = '', gambarUrl = null, relativeGambar = null, c
     }
     container.appendChild(item);
     reindexModalMatchLefts('modal');
+    window.initAutoGrowFields(container);
     renderModalTeacherMatchingBoard('modal');
 }
 
@@ -1671,6 +1736,7 @@ function editAddMatchRight(text = '', gambarUrl = null, relativeGambar = null, c
     }
     container.appendChild(item);
     reindexModalMatchRights('edit');
+    window.initAutoGrowFields(container);
     renderModalTeacherMatchingBoard('edit');
 }
 
@@ -1705,6 +1771,7 @@ function editAddMatchLeft(text = '', gambarUrl = null, relativeGambar = null, cu
     }
     container.appendChild(item);
     reindexModalMatchLefts('edit');
+    window.initAutoGrowFields(container);
     renderModalTeacherMatchingBoard('edit');
 }
 
@@ -1722,6 +1789,7 @@ function modalAddTf() {
         el.name = el.name.replace(/TIDX/g, idx);
     });
     container.appendChild(clone);
+    window.initAutoGrowFields(container);
 }
 
 // ── ADD JG OPTION ─────────────────────────────────────────
@@ -1737,7 +1805,7 @@ function modalAddJg(text='', correct='0', gambarUrl=null, gambarPath='') {
     
     // Fill values if edit
     if (text) {
-        const textInp = clone.querySelector('input[type="text"]');
+        const textInp = clone.querySelector('input[type="text"], textarea');
         if(textInp) textInp.value = text;
     }
     if (correct && correct != '0') {
@@ -1757,6 +1825,7 @@ function modalAddJg(text='', correct='0', gambarUrl=null, gambarPath='') {
     }
 
     container.appendChild(clone);
+    window.initAutoGrowFields(container);
     reindexJgLabels('modal-jg-container');
 }
 
@@ -1941,7 +2010,7 @@ function openEditModal(soalId) {
     // Fill data berdasarkan tipe
     if (soalData.tipe === 'pilihan_ganda') {
         ['a','b','c','d'].forEach(o => {
-            const inp = form.querySelector(`input[name="opsi_${o}"]`);
+            const inp = form.querySelector(`[name="opsi_${o}"]`);
             if (inp) inp.value = soalData[`opsi_${o}`] || '';
             // Preview gambar opsi jika ada
             const labels = form.querySelectorAll('.edit-type-pilihan_ganda label');
@@ -2034,6 +2103,7 @@ function openEditModal(soalId) {
 
     editUpdateUI(soalData.tipe);
     document.getElementById('modal-edit-soal').classList.remove('hidden');
+    window.initAutoGrowFields(document.getElementById('edit-answers-container'));
 }
 
 function closeEditModal() {
@@ -2068,6 +2138,9 @@ function editUpdateUI(tipe) {
     if (tipe === 'menjodohkan') {
         setTimeout(() => renderModalTeacherMatchingBoard('edit'), 100);
     }
+
+    // Sesuaikan tinggi kolom jawaban (premis/pilihan) pada section yang aktif
+    window.initAutoGrowFields(document.getElementById('edit-answers-container'));
 }
 
 function editPreviewGambar(input) {
@@ -2107,7 +2180,7 @@ function editAddJg(text = '', correct = '0', gambarUrl = null, relativeGambar = 
     
     if (item) {
         if (text) {
-            const textInp = item.querySelector('input[type="text"]');
+            const textInp = item.querySelector('input[type="text"], textarea');
             if(textInp) textInp.value = text;
         }
         if (correct && correct != '0') {
@@ -2129,6 +2202,7 @@ function editAddJg(text = '', correct = '0', gambarUrl = null, relativeGambar = 
             if(label) label.classList.add('border-blue-400', 'p-0');
         }
     }
+    window.initAutoGrowFields(container);
     reindexJgLabels('edit-jg-container');
 }
 
@@ -2145,7 +2219,7 @@ function editAddTf(text = '', correct = '', gambarUrl = null, relativeGambar = n
     container.appendChild(div.firstChild || div);
     const item = container.lastElementChild;
     if (item) {
-        const textInp = item.querySelector(`input[name*="[text]"]`);
+        const textInp = item.querySelector(`[name*="[text]"]`);
         if (textInp && text) textInp.value = text;
         const radio = item.querySelector(`input[value="${correct}"]`);
         if (radio) radio.checked = true;
@@ -2162,6 +2236,7 @@ function editAddTf(text = '', correct = '', gambarUrl = null, relativeGambar = n
             if (hidden) hidden.value = relativeGambar;
             if (label) label.classList.add('border-blue-400', 'p-0');
         }
+        window.initAutoGrowFields(container);
     }
 }
 
@@ -2225,7 +2300,7 @@ function validateSoalForm(form, tipe) {
         } else {
             let allOptionsFilled = true;
             ['a', 'b', 'c', 'd'].forEach(opt => {
-                const textInput = form.querySelector(`input[name="opsi_${opt}"]`);
+                const textInput = form.querySelector(`[name="opsi_${opt}"]`);
                 const imgInput = form.querySelector(`input[name="gambar_${opt}"]`);
                 const imgPreviewContainer = imgInput ? imgInput.closest('label') : null;
                 const imgPreview = imgPreviewContainer ? imgPreviewContainer.querySelector('img') : null;
@@ -2272,7 +2347,7 @@ function validateSoalForm(form, tipe) {
         } else {
             let allOptionsFilled = true;
             ['a', 'b', 'c', 'd'].forEach(opt => {
-                const textInput = form.querySelector(`input[name="opsi_${opt}_jg"]`);
+                const textInput = form.querySelector(`[name="opsi_${opt}_jg"]`);
                 const imgInput = form.querySelector(`input[name="gambar_${opt}_jg"]`);
                 const imgPreviewContainer = imgInput ? imgInput.closest('label') : null;
                 const imgPreview = imgPreviewContainer ? imgPreviewContainer.querySelector('img') : null;

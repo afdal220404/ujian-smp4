@@ -38,6 +38,16 @@
                         <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'underline')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs underline text-gray-700 hover:text-blue-600 transition-all cursor-pointer" title="Garis Bawah (Ctrl+U)">
                             <u>U</u>
                         </button>
+                        <div class="h-3 w-px bg-gray-300 mx-0.5"></div>
+                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'superscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Pangkat / Superscript (x²)">
+                            x<sup>2</sup>
+                        </button>
+                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'subscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Indeks / Subscript (x₂)">
+                            x<sub>2</sub>
+                        </button>
+                        <button type="button" onclick="openSymbolPicker(this.closest('.pertanyaan-container').querySelector('.soal-editor'), 'Pertanyaan Soal')" class="px-2 py-0.5 rounded hover:bg-blue-600 hover:text-white font-bold bg-blue-50 text-blue-700 transition-all cursor-pointer text-xs flex items-center gap-1" title="Palet Simbol Matematika & Pangkat">
+                            <i class="bi bi-calculator"></i> Simbol
+                        </button>
                     </div>
                 </div>
                 <div contenteditable="true" class="soal-editor w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm text-gray-800" data-placeholder="Tulis pertanyaan disini...">{!! $soal['pertanyaan'] ?? '' !!}</div>
@@ -88,14 +98,19 @@
         <div class="answers-container space-y-4 w-full">
             {{-- 1. PILIHAN GANDA (Default) --}}
             <div class="type-section type-pilihan_ganda space-y-3 {{ $tipe != 'pilihan_ganda' ? 'hidden' : '' }}">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
                     @foreach(['a','b','c','d'] as $opsi)
                     @php $imgOpsi = $soal['gambar_'.$opsi] ?? null; @endphp
                     <div class="flex items-center gap-2.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
                         <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 border border-blue-200 uppercase text-xs">
                             {{ $opsi }}
                         </div>
-                        <input type="text" name="soal[{{ $index }}][opsi_{{ $opsi }}]" value="{{ $soal['opsi_'.$opsi] !== '-' ? ($soal['opsi_'.$opsi] ?? '') : '' }}" class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">
+                        <div class="relative flex-1 flex items-start">
+                            <textarea rows="1" name="soal[{{ $index }}][opsi_{{ $opsi }}]" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan {{ strtoupper($opsi) }}">{{ $soal['opsi_'.$opsi] !== '-' ? ($soal['opsi_'.$opsi] ?? '') : '' }}</textarea>
+                            <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan {{ strtoupper($opsi) }}')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                Ω
+                            </button>
+                        </div>
                         {{-- Upload Gambar Opsi --}}
                         <div class="option-image-upload shrink-0 relative w-9 h-9 border border-dashed border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer overflow-hidden group">
                             <img class="opt-preview absolute inset-0 w-full h-full object-cover" src="{{ $imgOpsi ? asset('storage/' . $imgOpsi) : '' }}" style="display: {{ $imgOpsi ? 'block' : 'none' }};">
@@ -128,7 +143,12 @@
                     <div class="bs-item flex items-center gap-3" data-id="{{ $pUid }}">
                         {{-- Text & Image --}}
                         <div class="flex-1 flex items-center gap-2">
-                            <input type="text" name="soal[{{ $index }}][bs_pernyataan][{{ $pUid }}][text]" value="{{ $opt['text'] ?? '' }}" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-green-500 outline-none text-sm" placeholder="Tulis Pernyataan...">
+                            <div class="relative flex-1 flex items-start">
+                                <textarea rows="1" name="soal[{{ $index }}][bs_pernyataan][{{ $pUid }}][text]" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-green-500 outline-none text-sm" placeholder="Tulis Pernyataan...">{{ $opt['text'] ?? '' }}</textarea>
+                                <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pernyataan Benar/Salah')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                    Ω
+                                </button>
+                            </div>
                             
                             {{-- Option Image --}}
                             @php $optImg = $opt['gambar'] ?? null; @endphp
@@ -185,7 +205,12 @@
                         <div class="jg-label w-8 h-8 rounded-lg bg-gray-100 text-gray-500 font-bold flex items-center justify-center shrink-0 border border-gray-200 uppercase text-xs">
                             {{ $alphabet[$oidx] ?? $oUid }}
                         </div>
-                        <input type="text" name="soal[{{ $index }}][jg_options][{{ $oUid }}][text]" value="{{ $opt['text'] ?? '' }}" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan Jawaban">
+                        <div class="relative flex-1 flex items-start">
+                            <textarea rows="1" name="soal[{{ $index }}][jg_options][{{ $oUid }}][text]" class="auto-grow-field w-full pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 outline-none text-sm" placeholder="Pilihan Jawaban">{{ $opt['text'] ?? '' }}</textarea>
+                            <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan Jawaban')" class="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                Ω
+                            </button>
+                        </div>
                         
                         {{-- Option Image --}}
                         @php $optImgJg = $opt['gambar'] ?? null; @endphp
@@ -250,7 +275,7 @@
                 @endphp
 
                 {{-- DUA KOLOM INPUT: PREMIS KIRI & PILIHAN KANAN --}}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {{-- SISI KIRI (PREMIS / PERTANYAAN) --}}
                     <div class="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
                         <div class="flex items-center justify-between">
@@ -272,7 +297,12 @@
                                     {{ $lidx + 1 }}
                                 </span>
                                 <input type="hidden" name="soal[{{ $index }}][left_items][{{ $lidx }}][id]" value="{{ $lUid }}" class="left-id-input">
-                                <input type="text" name="soal[{{ $index }}][left_items][{{ $lidx }}][text]" value="{{ $lItem['text'] ?? '' }}" class="left-text-input flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-blue-500 outline-none" placeholder="Tulis premis...">
+                                <div class="relative flex-1 flex items-start">
+                                    <textarea rows="1" name="soal[{{ $index }}][left_items][{{ $lidx }}][text]" class="left-text-input auto-grow-field w-full pl-2.5 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-blue-500 outline-none" placeholder="Tulis premis...">{{ $lItem['text'] ?? '' }}</textarea>
+                                    <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Premis {{ $lidx + 1 }}')" class="absolute top-1.5 right-1.5 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                        Ω
+                                    </button>
+                                </div>
                                 
                                 {{-- Option Image --}}
                                 <div class="option-image-upload shrink-0 relative w-8 h-8 border border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer overflow-hidden group">
@@ -314,7 +344,12 @@
                                     {{ $rLabel }}
                                 </div>
                                 <input type="hidden" name="soal[{{ $index }}][right_items][{{ $ridx }}][id]" value="{{ $rUid }}" class="right-id-input">
-                                <input type="text" name="soal[{{ $index }}][right_items][{{ $ridx }}][text]" value="{{ $rItem['text'] ?? '' }}" class="right-text-input flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none" placeholder="Tulis pilihan...">
+                                <div class="relative flex-1 flex items-start">
+                                    <textarea rows="1" name="soal[{{ $index }}][right_items][{{ $ridx }}][text]" class="right-text-input auto-grow-field w-full pl-2.5 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none" placeholder="Tulis pilihan...">{{ $rItem['text'] ?? '' }}</textarea>
+                                    <button type="button" onclick="openSymbolPicker(this.previousElementSibling, 'Pilihan {{ $rLabel }}')" class="absolute top-1.5 right-1.5 p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-xs font-bold cursor-pointer" title="Sisipkan Simbol/Pangkat (Ω)">
+                                        Ω
+                                    </button>
+                                </div>
                                 
                                 {{-- Option Image --}}
                                 <div class="option-image-upload shrink-0 relative w-8 h-8 border border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer overflow-hidden group">
@@ -356,14 +391,14 @@
                     <div class="teacher-match-canvas relative select-none p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 min-h-[160px]">
                         <svg class="absolute inset-0 w-full h-full pointer-events-none z-10 teacher-match-svg"></svg>
                         
-                        <div class="flex flex-col sm:flex-row justify-between relative z-20 gap-6 sm:gap-10">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full relative z-20">
                             {{-- Sisi Kiri Board --}}
-                            <div class="teacher-board-left flex-1 space-y-2.5">
+                            <div class="teacher-board-left w-full min-w-0 space-y-2.5">
                                 {{-- Dynamically populated by JS --}}
                             </div>
 
                             {{-- Sisi Kanan Board --}}
-                            <div class="teacher-board-right flex-1 space-y-2.5">
+                            <div class="teacher-board-right w-full min-w-0 space-y-2.5">
                                 {{-- Dynamically populated by JS --}}
                             </div>
                         </div>
@@ -374,4 +409,4 @@
             </div>
         </div>
     </div>
-</div>v>
+</div>

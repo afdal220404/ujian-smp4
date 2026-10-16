@@ -93,6 +93,53 @@
     /* Hide scrollbar for clean horizontal tabs */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Kolom jawaban/premis yang otomatis memanjang menjadi beberapa baris */
+    .auto-grow-field {
+        resize: none;
+        overflow-y: hidden;
+        line-height: 1.45;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    /* Kolom jawaban kaya (WYSIWYG): textarea asli disembunyikan, tampilannya
+       digantikan editor contenteditable agar pangkat/indeks ter-render langsung. */
+    .rich-store {
+        display: none !important;
+    }
+    .rich-editor {
+        min-height: 2.4em;
+        max-height: 240px;
+        overflow-y: auto;
+        line-height: 1.45;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+    .rich-editor:empty::before,
+    .rich-editor.is-empty::before {
+        content: attr(data-placeholder);
+        color: #9ca3af;
+        pointer-events: none;
+    }
+    .rich-editor sup,
+    .rich-editor sub {
+        line-height: 0;
+    }
+
+    /* Header palet simbol: gradient biru -> indigo -> cyan.
+       Ditulis manual karena utility color-stop Tailwind (from / via / to)
+       tidak ter-render di build CDN proyek ini. */
+    .symbol-header-gradient {
+        background-image: linear-gradient(to right, #2563eb 0%, #4f46e5 50%, #0891b2 100%);
+    }
+
+    /* Pratinjau palet simbol yang bisa langsung disunting guru */
+    #symbol-preview:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        font-size: 12px;
+    }
   </style>
 </head>
 
@@ -427,6 +474,8 @@
         });
     </script>
     @endif
+
+    @include('guru.mapel.partials.symbol_picker_modal')
 
     @yield('scripts')
 </body>
