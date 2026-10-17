@@ -39,12 +39,6 @@
                             <u>U</u>
                         </button>
                         <div class="h-3 w-px bg-gray-300 mx-0.5"></div>
-                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'superscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Pangkat / Superscript (x²)">
-                            x<sup>2</sup>
-                        </button>
-                        <button type="button" onmousedown="event.preventDefault(); formatDoc(this, 'subscript')" class="px-2 py-0.5 rounded hover:bg-white hover:shadow-xs font-bold text-gray-700 hover:text-blue-600 transition-all cursor-pointer text-xs" title="Indeks / Subscript (x₂)">
-                            x<sub>2</sub>
-                        </button>
                         <button type="button" onclick="openSymbolPicker(this.closest('.pertanyaan-container').querySelector('.soal-editor'), 'Pertanyaan Soal')" class="px-2 py-0.5 rounded hover:bg-blue-600 hover:text-white font-bold bg-blue-50 text-blue-700 transition-all cursor-pointer text-xs flex items-center gap-1" title="Palet Simbol Matematika & Pangkat">
                             <i class="bi bi-calculator"></i> Simbol
                         </button>

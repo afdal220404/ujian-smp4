@@ -1,9 +1,7 @@
 <?php
-// api_detail_ujian.php
-ini_set('display_errors', 0);
-error_reporting(0);
-
+// api_detail_hasil.php
 require 'db_config.php';
+require 'api_auth.php';
 header('Content-Type: application/json; charset=utf-8');
 ob_clean();
 
@@ -20,6 +18,10 @@ if ($hasil_ujian_id == 0) {
     exit();
 }
 
+// Token wajib sah, dan hasil ujian harus benar-benar milik siswa pemilik token.
+$siswa = apiAuth($conn);
+apiRequireHasilOwner($conn, $hasil_ujian_id, (int) $siswa['id']);
+
 // ==========================================
 // 1. QUERY INFO UJIAN & NILAI
 // ==========================================
@@ -34,7 +36,8 @@ $q_info = "
 $stmt_info = $conn->prepare($q_info);
 
 if (!$stmt_info) {
-    echo json_encode(["status" => "error", "message" => "SQL Info Error: " . $conn->error]);
+    error_log('[API detail_hasil] SQL info: ' . $conn->error);
+    echo json_encode(["status" => "error", "message" => "Terjadi kesalahan saat memuat data."]);
     exit();
 }
 
@@ -69,7 +72,8 @@ $q_detail = "
 $stmt_detail = $conn->prepare($q_detail);
 
 if (!$stmt_detail) {
-    echo json_encode(["status" => "error", "message" => "SQL Detail Error: " . $conn->error]);
+    error_log('[API detail_hasil] SQL detail: ' . $conn->error);
+    echo json_encode(["status" => "error", "message" => "Terjadi kesalahan saat memuat data."]);
     exit();
 }
 
@@ -131,4 +135,3 @@ echo json_encode([
 ], JSON_UNESCAPED_UNICODE);
 
 $conn->close();
-?>

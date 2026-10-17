@@ -1,8 +1,7 @@
 <?php
 // api_bank_soal.php
-ini_set('display_errors', 0);
-error_reporting(0);
 require 'db_config.php';
+require 'api_auth.php';
 header('Content-Type: application/json; charset=utf-8');
 ob_clean();
 
@@ -13,6 +12,9 @@ if ($kelas_id == 0) {
     exit();
 }
 
+// Token wajib sah dan hanya boleh membaca bank soal kelasnya sendiri.
+$siswa = apiAuth($conn);
+apiRequireKelas($siswa, $kelas_id);
 
 $query = "
     SELECT b.id, b.nama as judul_materi, b.file_path, b.created_at,
@@ -34,6 +36,7 @@ $data = [];
 while ($row = $result->fetch_assoc()) {
     $data[] = $row;
 }
+$stmt->close();
 
 $mapelQuery = "SELECT nama_mapel FROM mapels WHERE kelas_id = ?";
 $stmtMapel = $conn->prepare($mapelQuery);
@@ -44,10 +47,11 @@ $mapels = [];
 while ($rowM = $resMapel->fetch_assoc()) {
     $mapels[] = $rowM['nama_mapel'];
 }
+$stmtMapel->close();
+$conn->close();
 
 echo json_encode([
     "status" => "success",
-    "data" => $data,
-    "mapels" => $mapels
+    "data"   => $data,
+    "mapels" => $mapels,
 ]);
-?>

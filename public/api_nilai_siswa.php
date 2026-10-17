@@ -1,12 +1,7 @@
 <?php
 // api_nilai_siswa.php
-
-// 1. MATIKAN DISPLAY ERROR (PENTING!)
-// Agar jika ada warning PHP, tidak merusak struktur JSON
-ini_set('display_errors', 0);
-error_reporting(0);
-
 require 'db_config.php';
+require 'api_auth.php';
 
 // Pastikan Header JSON
 header('Content-Type: application/json; charset=utf-8');
@@ -26,6 +21,10 @@ if ($siswa_id == 0 || $kelas_id == 0) {
     echo json_encode(["status" => "error", "message" => "Parameter kurang."]);
     exit();
 }
+
+// Token wajib sah dan harus milik siswa yang diminta.
+$siswa = apiAuth($conn, $siswa_id);
+apiRequireKelas($siswa, $kelas_id);
 
 // Ambil Mapel
 $query_mapel = "
@@ -47,7 +46,7 @@ $data_final = [];
 while ($mapel = $result_mapel->fetch_assoc()) {
     $mapel_id = $mapel['mapel_id'];
 
-    // Query Nilai (Gunakan try-catch block logic jika perlu, tapi query SQL jarang crash PHP)
+    // Query Nilai
     $query_nilai = "
         SELECT h.id AS hasil_ujian_id, u.nama_ujian, u.jenis_ujian, u.tanggal_ujian, h.nilai
         FROM hasil_ujians h
@@ -64,13 +63,13 @@ while ($mapel = $result_mapel->fetch_assoc()) {
     $riwayat_ujian = [];
     while ($nilai = $result_nilai->fetch_assoc()) {
         $nilai_angka = isset($nilai['nilai']) ? (float)$nilai['nilai'] : 0.0;
-        
+
         $riwayat_ujian[] = [
-            "hasil_ujian_id" => (int)$nilai['hasil_ujian_id'], 
-            "nama_ujian" => $nilai['nama_ujian'] ?? "Ujian Tanpa Nama",
-            "jenis_ujian" => $nilai['jenis_ujian'] ?? "Kuis", // <--- TAMBAHKAN INI
-            "tanggal" => $nilai['tanggal_ujian'] ?? "-",
-            "nilai" => $nilai_angka
+            "hasil_ujian_id" => (int)$nilai['hasil_ujian_id'],
+            "nama_ujian"     => $nilai['nama_ujian'] ?? "Ujian Tanpa Nama",
+            "jenis_ujian"    => $nilai['jenis_ujian'] ?? "Kuis",
+            "tanggal"        => $nilai['tanggal_ujian'] ?? "-",
+            "nilai"          => $nilai_angka,
         ];
     }
 
@@ -84,10 +83,13 @@ while ($mapel = $result_mapel->fetch_assoc()) {
     $stmt_nilai->close();
 }
 
+$stmt->close();
+$conn->close();
+
 // OUTPUT JSON TERAKHIR
 $response = [
     "status" => "success",
-    "data" => $data_final
+    "data"   => $data_final,
 ];
 
 // Cek error JSON Encode (misal karena karakter aneh)
@@ -99,6 +101,3 @@ if ($json_output === false) {
 } else {
     echo $json_output;
 }
-
-$stmt->close();
-$conn->close();

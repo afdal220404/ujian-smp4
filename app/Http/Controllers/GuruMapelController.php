@@ -19,16 +19,8 @@ use App\Models\JawabanSiswa;
 use App\Models\Guru;
 use Carbon\Carbon;
 
-function getTahunAjaran() {
-    $now = Carbon::now('Asia/Jakarta');
-    $month = $now->month;
-    $year = $now->year;
-    if ($month >= 7) {
-        return $year . '/' . ($year + 1);
-    } else {
-        return ($year - 1) . '/' . $year;
-    }
-}
+// Catatan: getTahunAjaran() sekarang didefinisikan sekali di app/Helpers/helpers.php
+// (dimuat lewat AppServiceProvider) agar dipakai bersama oleh controller dan API.
 
 class GuruMapelController extends Controller
 {

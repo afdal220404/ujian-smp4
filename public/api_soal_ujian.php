@@ -1,11 +1,32 @@
 <?php
+// api_soal_ujian.php
 require 'db_config.php';
+require 'api_auth.php';
 header('Content-Type: application/json; charset=utf-8');
-ob_clean(); 
+ob_clean();
 
 $ujian_id = $_GET['ujian_id'] ?? 0;
 if (empty($ujian_id) || !is_numeric($ujian_id)) {
     echo json_encode(["status" => "error", "message" => "ID Ujian tidak valid."]); exit();
+}
+
+// Token wajib sah; soal hanya boleh diambil untuk ujian milik kelas siswa itu.
+$siswa = apiAuth($conn);
+
+$stmt_cek = $conn->prepare("
+    SELECT u.id
+    FROM ujians u
+    JOIN mapels m ON u.mapel_id = m.id
+    WHERE u.id = ? AND m.kelas_id = ?
+    LIMIT 1
+");
+$stmt_cek->bind_param("ii", $ujian_id, $siswa['kelas_id']);
+$stmt_cek->execute();
+$boleh = $stmt_cek->get_result()->fetch_assoc();
+$stmt_cek->close();
+
+if (!$boleh) {
+    sendResponse(["status" => "error", "message" => "Anda tidak berhak mengakses ujian ini."], 403);
 }
 
 try {
@@ -76,8 +97,10 @@ try {
         }
         $daftar_soal[] = $row;
     }
+    $stmt->close();
     echo json_encode(["status" => "success", "data" => $daftar_soal]);
 } catch (Exception $e) {
-    http_response_code(500); echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    error_log('[API soal_ujian] ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Gagal memuat soal ujian."]);
 }
-?>

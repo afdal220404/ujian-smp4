@@ -351,124 +351,18 @@ class GuruWaliKelasController extends Controller
             return redirect()->route('guru.index')->with('error', 'Akses ditolak.');
         }
 
-        // 2. Ambil Data Master & Hitung Jumlah Kuis Per Mapel
-        $mapels = Mapel::where('kelas_id', $kelas->id)->orderBy('nama_mapel')->get();
-        
-        // Siapkan struktur kolom tabel (Dynamic Headers - Hanya Induk)
-        foreach ($mapels as $mapel) {
-            $ujianKuis = \App\Models\Ujian::where('mapel_id', $mapel->id)
-                            ->where('jenis_ujian', 'Kuis')
-                            ->where('is_susulan', false)
-                            ->orderBy('created_at', 'asc')
-                            ->get();
-            $mapel->jumlah_kuis = $ujianKuis->count() > 0 ? $ujianKuis->count() : 1;
-            $mapel->ujian_kuis_ids = $ujianKuis->pluck('id')->toArray();
+        // 2. Bangun matriks nilai lewat service bersama.
+        //    Service yang sama dipakai oleh ekspor Excel (RekapNilaiExport)
+        //    supaya angka dan struktur kolom tidak pernah berbeda lagi.
+        $rekap = app(\App\Services\RekapNilaiService::class)->build($kelas);
 
-            $ujianUts = \App\Models\Ujian::where('mapel_id', $mapel->id)
-                            ->where('jenis_ujian', 'UTS')
-                            ->where('is_susulan', false)
-                            ->orderBy('created_at', 'asc')
-                            ->get();
-            $mapel->jumlah_uts = $ujianUts->count() > 0 ? $ujianUts->count() : 1;
-            $mapel->ujian_uts_ids = $ujianUts->pluck('id')->toArray();
-
-            $ujianUas = \App\Models\Ujian::where('mapel_id', $mapel->id)
-                            ->where('jenis_ujian', 'UAS')
-                            ->where('is_susulan', false)
-                            ->orderBy('created_at', 'asc')
-                            ->get();
-            $mapel->jumlah_uas = $ujianUas->count() > 0 ? $ujianUas->count() : 1;
-            $mapel->ujian_uas_ids = $ujianUas->pluck('id')->toArray();
-        }
-
-        $siswas = Siswa::where('kelas_id', $kelas->id)->orderBy('nama_lengkap')->get();
-        
-        // 3. Ambil Semua Nilai (Eager Loading)
-        $siswaIds = $siswas->pluck('id');
-        $allHasil = HasilUjian::whereIn('siswa_id', $siswaIds)
-                        ->where('kelas_id', $kelas->id)
-                        ->with('ujian') 
-                        ->get();
-
-        // 4. Susun Matriks Nilai
-        $rekapNilai = [];
-
-        foreach ($siswas as $siswa) {
-            $hasilSiswa = $allHasil->where('siswa_id', $siswa->id);
-            
-            $totalNilaiAkhirSemuaMapel = 0;
-            $jumlahMapelDiambil = 0;
-
-            foreach ($mapels as $mapel) {
-                // Filter nilai mapel ini
-                $hasilMapel = $hasilSiswa->filter(fn($h) => $h->ujian->mapel_id == $mapel->id);
-
-                // A. KUMPULKAN NILAI KUIS (Ambil dari Induk atau Susulannya)
-                $nilaiKuisArr = [];
-                if (!empty($mapel->ujian_kuis_ids)) {
-                    foreach ($mapel->ujian_kuis_ids as $ujianId) {
-                        $score = $hasilMapel->filter(fn($h) => $h->ujian_id == $ujianId || $h->ujian->ujian_induk_id == $ujianId)->first();
-                        $nilaiKuisArr[] = $score ? $score->nilai : '-';
-                    }
-                } else {
-                    $nilaiKuisArr[] = '-'; // Placeholder jika belum ada kuis
-                }
-
-                // Hitung Rata Kuis (Untuk Rumus Akhir)
-                $nilaiKuisValid = array_filter($nilaiKuisArr, fn($v) => is_numeric($v));
-                $rataKuis = count($nilaiKuisValid) > 0 ? array_sum($nilaiKuisValid) / count($nilaiKuisValid) : null;
-
-                // C. UTS & UAS
-                $nilaiUtsArr = [];
-                if (!empty($mapel->ujian_uts_ids)) {
-                    foreach ($mapel->ujian_uts_ids as $ujianId) {
-                        $score = $hasilMapel->filter(fn($h) => $h->ujian_id == $ujianId || $h->ujian->ujian_induk_id == $ujianId)->first();
-                        $nilaiUtsArr[] = $score ? $score->nilai : '-';
-                    }
-                } else {
-                    $nilaiUtsArr[] = '-'; // Placeholder
-                }
-                $nilaiUtsValid = array_filter($nilaiUtsArr, fn($v) => is_numeric($v));
-                $utsVal = count($nilaiUtsValid) > 0 ? array_sum($nilaiUtsValid) / count($nilaiUtsValid) : null;
-
-                $nilaiUasArr = [];
-                if (!empty($mapel->ujian_uas_ids)) {
-                    foreach ($mapel->ujian_uas_ids as $ujianId) {
-                        $score = $hasilMapel->filter(fn($h) => $h->ujian_id == $ujianId || $h->ujian->ujian_induk_id == $ujianId)->first();
-                        $nilaiUasArr[] = $score ? $score->nilai : '-';
-                    }
-                } else {
-                    $nilaiUasArr[] = '-'; // Placeholder
-                }
-                $nilaiUasValid = array_filter($nilaiUasArr, fn($v) => is_numeric($v));
-                $uasVal = count($nilaiUasValid) > 0 ? array_sum($nilaiUasValid) / count($nilaiUasValid) : null;
-
-                // D. Hitung Nilai Akhir Mapel (Hanya untuk perhitungan rata-rata siswa)
-                $komponen = array_filter([$rataKuis, $utsVal, $uasVal], fn($v) => $v !== null);
-                $akhirMapel = count($komponen) > 0 ? array_sum($komponen) / count($komponen) : null;
-
-                // Akumulasi
-                if ($akhirMapel !== null) {
-                    $totalNilaiAkhirSemuaMapel += $akhirMapel;
-                    $jumlahMapelDiambil++;
-                }
-
-                // Simpan Data Tampilan
-                $rekapNilai[$siswa->id]['mapel'][$mapel->id] = [
-                    'detail_kuis' => $nilaiKuisArr,
-                    'detail_uts'  => $nilaiUtsArr,
-                    'detail_uas'  => $nilaiUasArr,
-                ];
-            }
-
-            // 5. Rata-Rata Akhir Siswa (Total Mapel / Jumlah Mapel)
-            $rataRataSiswa = $jumlahMapelDiambil > 0 ? ($totalNilaiAkhirSemuaMapel / $jumlahMapelDiambil) : 0;
-            
-            $rekapNilai[$siswa->id]['rata_akhir'] = number_format($rataRataSiswa, 1);
-            $rekapNilai[$siswa->id]['grade_akhir'] = $rataRataSiswa;
-        }
-
-        return view('guru.walikelas.rekap_nilai', compact('guru', 'kelas', 'mapels', 'siswas', 'rekapNilai'));
+        return view('guru.walikelas.rekap_nilai', [
+            'guru'       => $guru,
+            'kelas'      => $rekap['kelas'],
+            'mapels'     => $rekap['mapels'],
+            'siswas'     => $rekap['siswas'],
+            'rekapNilai' => $rekap['rekapNilai'],
+        ]);
     }
 
     public function exportRekapNilai(Kelas $kelas)
