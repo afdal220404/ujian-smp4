@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth; // Tambahkan ini
 use Illuminate\Support\Facades\Session;
 use App\Models\Akun;
 
-class Authcontroller extends Controller
+class AuthController extends Controller
 {
     public function showLoginForm()
     {
