@@ -23,6 +23,35 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        /* Pecahan Bertingkat (Atas-Bawah) */
+        .math-frac {
+            display: inline-flex !important;
+            flex-direction: column !important;
+            vertical-align: middle !important;
+            text-align: center !important;
+            padding: 0 0.15em !important;
+            font-size: 0.92em !important;
+            line-height: 1 !important;
+            font-weight: inherit !important;
+            margin: 0 0.15em !important;
+            user-select: text;
+        }
+        .math-frac .frac-top {
+            display: block !important;
+            padding: 0 0.25em 0.1em 0.25em !important;
+            border-bottom: 1.5px solid currentColor !important;
+            font-size: 0.82em !important;
+            line-height: 1.15 !important;
+            text-align: center !important;
+        }
+        .math-frac .frac-bottom {
+            display: block !important;
+            padding: 0.1em 0.25em 0 0.25em !important;
+            font-size: 0.82em !important;
+            line-height: 1.15 !important;
+            text-align: center !important;
+        }
     </style>
 </head>
 <body class="bg-slate-200 h-screen flex flex-col overflow-hidden" oncontextmenu="return false;">

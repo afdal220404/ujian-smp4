@@ -52,9 +52,33 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 2px solid rgba(255, 255, 255, 0.3); /* Border lebih tegas */
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-<<<<<<< HEAD
 }
-=======
+
+/* --- 5. Mathematical Fractions (Pecahan Atas-Bawah) --- */
+.math-frac {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    padding: 0 0.15em !important;
+    font-size: 0.92em !important;
+    line-height: 1 !important;
+    font-weight: inherit !important;
+    margin: 0 0.15em !important;
+    user-select: text;
 }
->>>>>>> f098f906facc644bca81280f748722c58238876b
+.math-frac .frac-top {
+    display: block !important;
+    padding: 0 0.25em 0.1em 0.25em !important;
+    border-bottom: 1.5px solid currentColor !important;
+    font-size: 0.82em !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+}
+.math-frac .frac-bottom {
+    display: block !important;
+    padding: 0.1em 0.25em 0 0.25em !important;
+    font-size: 0.82em !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+}

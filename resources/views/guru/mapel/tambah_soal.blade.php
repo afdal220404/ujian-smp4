@@ -50,6 +50,33 @@
 .soal-editor u {
     text-decoration: underline !important;
 }
+.math-frac {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    padding: 0 0.15em !important;
+    font-size: 0.92em !important;
+    line-height: 1 !important;
+    font-weight: inherit !important;
+    margin: 0 0.15em !important;
+    user-select: text;
+}
+.math-frac .frac-top {
+    display: block !important;
+    padding: 0 0.25em 0.1em 0.25em !important;
+    border-bottom: 1.5px solid currentColor !important;
+    font-size: 0.82em !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+}
+.math-frac .frac-bottom {
+    display: block !important;
+    padding: 0.1em 0.25em 0 0.25em !important;
+    font-size: 0.82em !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+}
 </style>
 
 {{-- STEPPER --}}
