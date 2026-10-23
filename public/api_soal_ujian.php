@@ -72,6 +72,14 @@ try {
         $row['gambar_c'] = $formatImageUrl($row['gambar_c']);
         $row['gambar_d'] = $formatImageUrl($row['gambar_d']);
         
+        // Pecahan: aplikasi Android tidak memuat CSS .math-frac, jadi kirim dalam
+        // bentuk aman (unicode ½ bila ada padanannya, selain itu a/b).
+        foreach (['pertanyaan', 'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d'] as $kolomTeks) {
+            if (isset($row[$kolomTeks])) {
+                $row[$kolomTeks] = \App\Helpers\TextHelper::fractionsForMobile($row[$kolomTeks]);
+            }
+        }
+
         // Sanitasi JSON & Tambah URL Gambar di dalam JSON Kompleks
         if (!empty($row['data_soal'])) {
             $json_data = json_decode($row['data_soal'], true);
@@ -92,13 +100,15 @@ try {
                         $item['gambar'] = $formatImageUrl($item['gambar'] ?? '');
                     }
                 }
-                $row['data_soal'] = json_encode($json_data);
+                // Pecahan di dalam data_soal (pernyataan, menjodohkan, opsi kompleks)
+                $json_data = \App\Helpers\TextHelper::convertFractionsDeep($json_data);
+                $row['data_soal'] = json_encode($json_data, JSON_UNESCAPED_UNICODE);
             }
         }
         $daftar_soal[] = $row;
     }
     $stmt->close();
-    echo json_encode(["status" => "success", "data" => $daftar_soal]);
+    echo json_encode(["status" => "success", "data" => $daftar_soal], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
     error_log('[API soal_ujian] ' . $e->getMessage());
     http_response_code(500);

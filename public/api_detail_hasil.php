@@ -95,21 +95,40 @@ while ($row = $res_detail->fetch_assoc()) {
     if (!empty($row['gambar_b'])) $row['gambar_b'] = $base_url . ltrim($row['gambar_b'], '/');
     if (!empty($row['gambar_c'])) $row['gambar_c'] = $base_url . ltrim($row['gambar_c'], '/');
     if (!empty($row['gambar_d'])) $row['gambar_d'] = $base_url . ltrim($row['gambar_d'], '/');
-    
+
+    // Pecahan: aplikasi Android tidak memuat CSS .math-frac, jadi kirim dalam
+    // bentuk aman (unicode ½ bila ada padanannya, selain itu a/b).
+    $pertanyaan = \App\Helpers\TextHelper::fractionsForMobile($row['pertanyaan'] ?? '');
+    $opsi = [];
+    foreach (['a', 'b', 'c', 'd'] as $huruf) {
+        $kolom = 'opsi_' . $huruf;
+        $opsi[$huruf] = isset($row[$kolom]) ? \App\Helpers\TextHelper::fractionsForMobile($row[$kolom]) : null;
+    }
+
+    $dataSoal = $row['data_soal'];
+    if (!empty($dataSoal)) {
+        $decoded = json_decode($dataSoal, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $dataSoal = json_encode(\App\Helpers\TextHelper::convertFractionsDeep($decoded), JSON_UNESCAPED_UNICODE);
+        } else {
+            $dataSoal = \App\Helpers\TextHelper::fractionsForMobile($dataSoal);
+        }
+    }
+
     // Mapping Data
     $detail_soal[] = [
         "soal_id" => (int)$row['soal_id'],
-        "pertanyaan" => $row['pertanyaan'] ?? "",
+        "pertanyaan" => $pertanyaan,
         "gambar" => $row['gambar'],
         "tipe" => $row['tipe'] ?? "pilihan_ganda",
-        "data_soal" => $row['data_soal'],
+        "data_soal" => $dataSoal,
         "kunci_jawaban" => $row['kunci_jawaban'],
         "jawaban_siswa" => $row['jawaban_siswa'],
         "is_correct" => (int)$row['is_correct'],
-        "opsi_a" => $row['opsi_a'],
-        "opsi_b" => $row['opsi_b'],
-        "opsi_c" => $row['opsi_c'],
-        "opsi_d" => $row['opsi_d'],
+        "opsi_a" => $opsi['a'],
+        "opsi_b" => $opsi['b'],
+        "opsi_c" => $opsi['c'],
+        "opsi_d" => $opsi['d'],
         "gambar_a" => $row['gambar_a'],
         "gambar_b" => $row['gambar_b'],
         "gambar_c" => $row['gambar_c'],
