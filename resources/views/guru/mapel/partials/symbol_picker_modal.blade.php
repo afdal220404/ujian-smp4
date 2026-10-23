@@ -27,6 +27,40 @@
     line-height: 1.15 !important;
     text-align: center !important;
 }
+
+/* --- Akar / Radikal (garis atas memanjang mengikuti isinya) --- */
+.math-sqrt {
+    display: inline-flex !important;
+    align-items: flex-start !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    margin: 0 0.05em !important;
+}
+.math-sqrt .sqrt-sign {
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
+    font-size: 1.25em !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    flex: 0 0 auto !important;
+}
+.math-sqrt .sqrt-radicand {
+    border-top: 0.085em solid currentColor !important;
+    margin-top: 0.16em !important;
+    margin-left: -0.14em !important;
+    padding: 0 0.22em 0 0.06em !important;
+    line-height: 1.15 !important;
+    min-width: 0.7em !important;
+}
+.math-sqrt .sqrt-index {
+    align-self: flex-start !important;
+    font-size: 0.5em !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+    margin-right: -0.08em !important;
+    user-select: none !important;
+    pointer-events: none !important;
+}
 </style>
 <div id="math-symbol-modal" class="fixed inset-0 z-[9999] hidden select-none overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     {{-- Backdrop --}}
@@ -223,7 +257,6 @@
                                 ['s' => '>', 'n' => 'Lebih Dari'],
                                 ['s' => '√', 'n' => 'Akar Kuadrat'],
                                 ['s' => '∛', 'n' => 'Akar Pangkat Tiga'],
-                                ['s' => '∜', 'n' => 'Akar Pangkat Empat'],
                                 ['s' => '∞', 'n' => 'Tak Hingga'],
                                 ['s' => '%', 'n' => 'Persen'],
                                 ['s' => '‰', 'n' => 'Permil'],
@@ -466,6 +499,13 @@
             return '<' + tag + cleanAttrs + '>';
         });
 
+        // 4. Normalkan markup akar (.math-sqrt) menjadi sintaks bersih \sqrt[3]{...}
+        s = s.replace(/<span\s+class=["']?math-sqrt["']?>\s*(?:<span\s+class=["']?sqrt-index["']?>\s*([^<]*)<\/span>\s*)?<span\s+class=["']?sqrt-sign["']?>\s*(?:\u221A|&radic;|&#0*8730;|&#x0*221a;)\s*<\/span>\s*<span\s+class=["']?sqrt-radicand["']?>([\s\S]*?)<\/span>\s*<\/span>/gi, function(_, index, inner) {
+            const isi = String(inner).replace(/<\/?(?:span|sup|sub|b|strong|i|em|u|s|strike|mark|small|br)\b[^>]*>/gi, '');
+            const pangkat = String(index || '').replace(/[^0-9]/g, '').slice(0, 2);
+            return '\\sqrt' + (pangkat ? '[' + pangkat + ']' : '') + '{' + isi.replace(/\u200B/g, '').trim() + '}';
+        });
+
         return s;
     };
 
@@ -503,23 +543,96 @@
     };
 
     /**
+     * Markup tampilan satu akar. uid dipakai sementara agar kursor bisa
+     * ditempatkan tepat di dalam radikal setelah penyisipan.
+     * index diisi '3' untuk akar pangkat tiga (angka kecil di kiri atas).
+     */
+    window.buildSqrtHtml = function(uid, isi, index) {
+        const attr = uid ? ' data-sqrt-id="' + uid + '"' : '';
+        const content = (isi === undefined || isi === null) ? '\u200B' : isi;
+        const idx = index ? '<span class="sqrt-index">' + index + '</span>' : '';
+        return '<span class="math-sqrt">' + idx + '<span class="sqrt-sign">\u221A</span>'
+            + '<span class="sqrt-radicand"' + attr + '>' + content + '</span></span>';
+    };
+
+    /**
+     * Konversi sintaks akar \sqrt{isi} menjadi tampilan akar bergaris atas.
+     * Kurung kurawal boleh bersarang (mis. \sqrt{\frac{1}{2}}), dan akar
+     * tunggal yang diketik langsung (√12, √x) juga dirapikan.
+     */
+    window.formatRadicals = function(text) {
+        if (!text) return '';
+        let s = String(text);
+
+        // 1. \sqrt[n]{...} / \sqrt{...} -> HTML (kurung kurawal berimbang)
+        let out = '', i = 0;
+        while (i < s.length) {
+            const pos = s.indexOf('\\sqrt', i);
+            if (pos === -1) { out += s.slice(i); break; }
+
+            let j = pos + 5;
+            while (j < s.length && (s[j] === ' ' || s[j] === '\t')) j++;
+
+            // Pangkat akar opsional, mis. \sqrt[3]{8}
+            let index = '';
+            if (s[j] === '[') {
+                const tutup = s.indexOf(']', j);
+                if (tutup !== -1) {
+                    const calon = s.slice(j + 1, tutup).trim();
+                    if (/^\d{1,2}$/.test(calon)) {
+                        index = calon;
+                        j = tutup + 1;
+                        while (j < s.length && (s[j] === ' ' || s[j] === '\t')) j++;
+                    }
+                }
+            }
+
+            if (s[j] !== '{') { out += s.slice(i, pos + 5); i = pos + 5; continue; }
+
+            let depth = 0, end = -1;
+            for (let k = j; k < s.length; k++) {
+                if (s[k] === '{') depth++;
+                else if (s[k] === '}') { depth--; if (depth === 0) { end = k; break; } }
+            }
+            if (end === -1) { out += s.slice(i); break; }
+
+            out += s.slice(i, pos) + window.buildSqrtHtml(null, s.slice(j + 1, end), index);
+            i = end + 1;
+        }
+        s = out;
+
+        // 2. Akar yang diketik langsung: √12, √2,5, √2x, ∛8. Huruf hanya dianggap
+        //    isi akar bila menempel langsung (√x), supaya "5√ dan" tidak jadi "√d".
+        s = s.replace(/(\u221A|\u221B)(?:\s*([0-9]+(?:[.,][0-9]+)?[a-zA-Z]?)|([a-zA-Z]))/g, function(_, tanda, angka, huruf) {
+            return window.buildSqrtHtml(null, (angka || huruf), tanda === '\u221B' ? '3' : '');
+        });
+
+        return s;
+    };
+
+    /**
      * Format dan sanitasi HTML menggunakan DOMParser:
      * Ubah pecahan \frac{a}{b} atau unicode menjadi tampilan bertingkat
-     * dan izinkan tag format aman (b, i, u, sup, sub, span.math-frac).
+     * dan izinkan tag format aman (b, i, u, sup, sub, span.math-frac / .math-sqrt).
      */
     window.safeFormatHtml = function(str) {
         if (str === null || str === undefined) return '';
         let text = window.cleanCorruptedFractions(String(str));
 
         // Format pecahan unicode & kustom menjadi pecahan bertingkat (atas-bawah)
-        text = window.formatFractions(text);
+        // lalu akar \sqrt{...} menjadi radikal bergaris atas. Dua putaran supaya
+        // pecahan yang isinya akar (\frac{\sqrt{5}}{3}) juga ikut rapi.
+        for (let putaran = 0; putaran < 2; putaran++) {
+            text = window.formatFractions(text);
+            text = window.formatRadicals(text);
+        }
 
         // Parsing dan sanitasi aman menggunakan DOMParser
         try {
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
             const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SUB', 'SUP', 'MARK', 'SMALL', 'BR', 'P', 'SPAN']);
-            const allowedClasses = new Set(['math-frac', 'frac-top', 'frac-bottom']);
+            const allowedClasses = new Set(['math-frac', 'frac-top', 'frac-bottom', 'math-sqrt', 'sqrt-sign', 'sqrt-radicand', 'sqrt-index']);
 
             function sanitizeTree(node) {
                 Array.from(node.childNodes).forEach(child => {
@@ -616,6 +729,15 @@
                 const topText = topEl ? window.serializePreview(topEl).trim() : '';
                 const botText = botEl ? window.serializePreview(botEl).trim() : '';
                 out += '\\frac{' + topText + '}{' + botText + '}';
+                return;
+            }
+            // Tangani akar: kembalikan ke format \sqrt{a} / \sqrt[3]{a} yang bersih
+            if (n.classList && n.classList.contains('math-sqrt')) {
+                const rad = n.querySelector('.sqrt-radicand');
+                const idxEl = n.querySelector('.sqrt-index');
+                const pangkat = idxEl ? String(idxEl.textContent || '').replace(/[^0-9]/g, '').slice(0, 2) : '';
+                const isi = rad ? window.serializePreview(rad).replace(/\u200B/g, '').trim() : '';
+                out += '\\sqrt' + (pangkat ? '[' + pangkat + ']' : '') + '{' + isi + '}';
                 return;
             }
             if (allowed.indexOf(tag) !== -1) {
@@ -813,24 +935,29 @@
 
         const node = rg.startContainer;
         const el = node.nodeType === 1 ? node : node.parentElement;
-        const frac = el ? el.closest('.math-frac') : null;
-        if (!frac) return;
+        const box = el ? el.closest('.math-frac, .math-sqrt') : null;
+        if (!box) return;
 
         // Pastikan berada di dalam elemen yang editable
-        const editor = frac.closest('[contenteditable="true"]');
+        const editor = box.closest('[contenteditable="true"]');
         if (!editor) return;
 
-        const isTop = !!el.closest('.frac-top');
-        const isBot = !!el.closest('.frac-bottom');
+        const isFrac = box.classList.contains('math-frac');
+        const isTop = isFrac && !!el.closest('.frac-top');
+        const isBot = isFrac && !!el.closest('.frac-bottom');
+        const hanyaSpasiKosong = node.nodeType === 3 && node.nodeValue.replace(/\u200B/g, '') === '';
 
         if (e.key === 'ArrowRight') {
             const isTextAtEnd = (node.nodeType === 3 && rg.startOffset >= node.nodeValue.length);
-            // Keluar dari pecahan jika kursor di akhir teks, atau sedang berada di penyebut / kontainer pecahan
-            if (isTextAtEnd || isBot || node === frac) {
-                let next = frac.nextSibling;
+            // Keluar dari blok bila kursor di akhir teks, di penyebut, atau di akar
+            const keluar = isFrac
+                ? (isTextAtEnd || isBot || node === box)
+                : (isTextAtEnd || node === box || hanyaSpasiKosong);
+            if (keluar) {
+                let next = box.nextSibling;
                 if (!next || next.nodeType !== 3) {
                     next = document.createTextNode('\u200B');
-                    frac.parentNode.insertBefore(next, frac.nextSibling);
+                    box.parentNode.insertBefore(next, box.nextSibling);
                 } else if (!next.nodeValue.startsWith('\u200B')) {
                     next.nodeValue = '\u200B' + next.nodeValue;
                 }
@@ -843,12 +970,15 @@
             }
         } else if (e.key === 'ArrowLeft') {
             const isTextAtStart = (node.nodeType === 3 && rg.startOffset === 0);
-            // Keluar dari pecahan jika kursor di awal teks, atau sedang berada di pembilang / kontainer pecahan
-            if (isTextAtStart || isTop || node === frac) {
-                let prev = frac.previousSibling;
+            // Keluar dari blok bila kursor di awal teks, di pembilang, atau di akar
+            const keluar = isFrac
+                ? (isTextAtStart || isTop || node === box)
+                : (isTextAtStart || node === box || hanyaSpasiKosong);
+            if (keluar) {
+                let prev = box.previousSibling;
                 if (!prev || prev.nodeType !== 3) {
                     prev = document.createTextNode('\u200B');
-                    frac.parentNode.insertBefore(prev, frac);
+                    box.parentNode.insertBefore(prev, box);
                 } else if (!prev.nodeValue.endsWith('\u200B')) {
                     prev.nodeValue = prev.nodeValue + '\u200B';
                 }
@@ -861,7 +991,7 @@
             }
         } else if (e.key === 'ArrowDown' && isTop) {
             // Pindah dari pembilang (atas) ke penyebut (bawah)
-            const botEl = frac.querySelector('.frac-bottom');
+            const botEl = box.querySelector('.frac-bottom');
             if (botEl) {
                 const newRg = document.createRange();
                 newRg.selectNodeContents(botEl);
@@ -872,7 +1002,7 @@
             }
         } else if (e.key === 'ArrowUp' && isBot) {
             // Pindah dari penyebut (bawah) ke pembilang (atas)
-            const topEl = frac.querySelector('.frac-top');
+            const topEl = box.querySelector('.frac-top');
             if (topEl) {
                 const newRg = document.createRange();
                 newRg.selectNodeContents(topEl);
@@ -1277,6 +1407,12 @@
      * Sisipkan Simbol ke Input atau Editor Aktif
      */
     window.insertSymbol = function(symbol) {
+        // Tombol akar (√ / ∛): sisipkan radikal bergaris atas, kursor siap di dalamnya
+        if (symbol === '\u221A' || symbol === '\u221B') {
+            window.insertRoot(symbol === '\u221B' ? 3 : 2);
+            return;
+        }
+
         // Jika guru sedang mengetik di Pratinjau, sisipkan simbol di situ
         if (window.previewIsEditing()) {
             const preview = document.getElementById('symbol-preview');
@@ -1536,6 +1672,116 @@
                 box.innerHTML = '<span class="text-xs text-slate-300 font-normal italic">Pecahan akan tampil di sini</span>';
             }
         }
+    };
+
+    /**
+     * Sisipkan akar yang garis atasnya memanjang mengikuti angka/ekspresi
+     * yang diketik di bawahnya.
+     *
+     * index = 2 untuk akar kuadrat (√), 3 untuk akar pangkat tiga (³√).
+     * Keduanya memakai glyph √ yang sama, hanya beda angka kecil di kiri atas,
+     * sehingga fontnya selalu seragam.
+     *
+     * - Di editor kaya (contenteditable): yang disisipkan adalah markup radikal
+     *   dan kursor langsung berada di dalamnya, jadi garis atas ikut memanjang
+     *   saat guru mengetik.
+     * - Di input/textarea biasa: yang disisipkan sintaks \sqrt{} / \sqrt[3]{}
+     *   dengan kursor di antara kurung kurawal.
+     */
+    window.insertRoot = function(index) {
+        const pangkat = (index && Number(index) > 2) ? String(index) : '';
+        const kode = '\\sqrt' + (pangkat ? '[' + pangkat + ']' : '') + '{}';
+        const uid = 'sq' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+        // Tempatkan kursor di dalam radikal yang baru disisipkan
+        const taruhKursor = function(scope) {
+            const rad = scope ? scope.querySelector('[data-sqrt-id="' + uid + '"]') : null;
+            if (!rad) return false;
+            rad.removeAttribute('data-sqrt-id');
+            rad.normalize();
+
+            const rg = document.createRange();
+            rg.selectNodeContents(rad);
+            rg.collapse(false);
+            const sel = window.getSelection();
+            if (!sel) return false;
+            sel.removeAllRanges();
+            sel.addRange(rg);
+            window.lastSavedSelection = rg.cloneRange();
+            return true;
+        };
+
+        // A. Guru sedang mengetik di Pratinjau
+        if (window.previewIsEditing()) {
+            const preview = document.getElementById('symbol-preview');
+            if (!preview) return;
+            preview.focus();
+            restorePreviewSelection(preview);
+
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || !preview.contains(sel.anchorNode)) {
+                const rg = document.createRange();
+                rg.selectNodeContents(preview);
+                rg.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(rg);
+            }
+
+            document.execCommand('insertHTML', false, window.buildSqrtHtml(uid, null, pangkat));
+            taruhKursor(preview);
+
+            const selAfter = window.getSelection();
+            if (selAfter && selAfter.rangeCount > 0) {
+                window.lastSavedSelection = selAfter.getRangeAt(0).cloneRange();
+            }
+
+            window.syncPreviewToTarget();
+            return;
+        }
+
+        const target = window.currentSymbolTarget;
+        if (!target) return;
+
+        // B. Input / Textarea biasa -> sintaks \sqrt{} + kursor di dalam kurung
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            const start = target.selectionStart ?? target.value.length;
+            const end = target.selectionEnd ?? target.value.length;
+
+            target.value = target.value.substring(0, start) + kode + target.value.substring(end);
+
+            const pos = start + kode.length - 1;
+            target.setSelectionRange(pos, pos);
+            target.focus();
+
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+
+            showSymbolFeedback(target);
+            window.updateSymbolPreview(true);
+            return;
+        }
+
+        // C. Editor kaya (Soal Editor)
+        if (target.isContentEditable) {
+            target.focus();
+            restoreSavedSelection(target);
+            document.execCommand('insertHTML', false, window.buildSqrtHtml(uid, null, pangkat));
+            taruhKursor(target);
+
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+                window.lastSavedSelection = sel.getRangeAt(0).cloneRange();
+            }
+
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            showSymbolFeedback(target);
+            window.updateSymbolPreview(true);
+        }
+    };
+
+    // Nama lama (kompatibilitas): akar kuadrat
+    window.insertSquareRoot = function() {
+        window.insertRoot(2);
     };
 
     /**

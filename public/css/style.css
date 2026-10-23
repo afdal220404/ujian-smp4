@@ -83,3 +83,37 @@ body {
     line-height: 1.15 !important;
     text-align: center !important;
 }
+
+/* --- 5b. Akar / Radikal (garis atas memanjang mengikuti isinya) --- */
+.math-sqrt {
+    display: inline-flex !important;
+    align-items: flex-start !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    margin: 0 0.05em !important;
+}
+.math-sqrt .sqrt-sign {
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
+    font-size: 1.25em !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    flex: 0 0 auto !important;
+}
+.math-sqrt .sqrt-radicand {
+    border-top: 0.085em solid currentColor !important;
+    margin-top: 0.16em !important;
+    margin-left: -0.14em !important;
+    padding: 0 0.22em 0 0.06em !important;
+    line-height: 1.15 !important;
+    min-width: 0.7em !important;
+}
+.math-sqrt .sqrt-index {
+    align-self: flex-start !important;
+    font-size: 0.5em !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+    margin-right: -0.08em !important;
+    user-select: none !important;
+    pointer-events: none !important;
+}
