@@ -29,6 +29,13 @@
 
 <div class="max-w-4xl mx-auto md:p-4">
 
+    @if(session('warning_restarted'))
+        <div class="mx-4 sm:mx-6 md:mx-0 mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs sm:text-sm text-amber-800">
+            <i class="bi bi-arrow-counterclockwise text-base leading-none mt-0.5"></i>
+            <span>{{ session('warning_restarted') }}</span>
+        </div>
+    @endif
+
     {{-- 1. LUXURIOUS HERO APP BAR WITH SCHOOL PHOTO & BLUE GRADIENT OVERLAY --}}
     <div style="background: linear-gradient(135deg, #00415a 0%, #002b3d 100%);" class="rounded-b-[2.5rem] md:rounded-3xl px-6 sm:px-8 pt-8 pb-16 text-white shadow-[0_15px_35px_-5px_rgba(0,65,90,0.3)] relative overflow-hidden">
         {{-- Background School Image --}}

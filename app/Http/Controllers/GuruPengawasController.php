@@ -106,7 +106,10 @@ class GuruPengawasController extends Controller
                 'is_paused' => $isPaused,
                 'waktu_mulai' => ($hasil && $hasil->waktu_mulai) ? Carbon::parse($hasil->waktu_mulai)->format('H:i:s') : '-',
                 'waktu_selesai' => ($hasil && $hasil->waktu_selesai) ? Carbon::parse($hasil->waktu_selesai)->format('H:i:s') : '-',
-                'can_restart' => ($hasil !== null && $hasil->waktu_mulai !== null),
+                // Bisa diulang bila siswa sudah pernah mulai ATAU sudah punya hasil.
+                // Kasus pelanggaran dari aplikasi bisa tercatat tanpa waktu_mulai,
+                // jadi tombol "Ulangi Ujian" tetap harus tersedia bagi pengawas.
+                'can_restart' => ($hasil !== null && ($hasil->waktu_mulai !== null || $hasil->waktu_selesai !== null)),
                 'allow_web' => $ujian->isSiswaAllowedWeb($siswa->id),
             ];
         });
@@ -209,7 +212,9 @@ class GuruPengawasController extends Controller
                 'is_paused' => $isPaused,
                 'waktu_mulai' => ($hasil && $hasil->waktu_mulai) ? Carbon::parse($hasil->waktu_mulai)->format('H:i:s') . ' WIB' : '-',
                 'waktu_selesai' => ($hasil && $hasil->waktu_selesai) ? Carbon::parse($hasil->waktu_selesai)->format('H:i:s') . ' WIB' : '-',
-                'can_restart' => ($hasil !== null && $hasil->waktu_mulai !== null),
+                // Sama seperti halaman utama: hasil pelanggaran tanpa waktu_mulai
+                // tetap harus bisa diulang oleh pengawas.
+                'can_restart' => ($hasil !== null && ($hasil->waktu_mulai !== null || $hasil->waktu_selesai !== null)),
                 'allow_web' => $ujian->isSiswaAllowedWeb($siswa->id),
             ];
         });

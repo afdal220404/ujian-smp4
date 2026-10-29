@@ -581,6 +581,12 @@ class SiswaDashboardController extends Controller
             ]
         );
 
+        // Sudah pernah dikumpulkan: jangan mulai lagi. Siswa harus meminta
+        // pengawas menekan "Ulangi Ujian" lebih dulu.
+        if ($hasilUjian->waktu_selesai) {
+            return redirect()->route('siswa.ujian.detail', $id);
+        }
+
         // Jika ujian sebelumnya di-restart oleh pengawas, waktu_mulai bernilai null.
         // Set waktu_mulai menjadi now() saat siswa mengklik Mulai Ujian.
         if ($hasilUjian->waktu_mulai === null) {
@@ -756,6 +762,19 @@ class SiswaDashboardController extends Controller
         $ujian = Ujian::with('soals.bankSoal')->findOrFail($id);
         $statusPenyelesaian = $request->input('status_penyelesaian', 'normal');
         $keteranganPelanggaran = $request->input('keterangan_pelanggaran', null);
+
+        // Sudah pernah dikumpulkan: jangan diproses dua kali, langsung ke hasil.
+        if ($hasilUjian->waktu_selesai) {
+            return redirect()->route('siswa.ujian.hasil', $id);
+        }
+
+        // Sesi yang diulang oleh pengawas punya waktu_mulai kosong. Halaman ujian
+        // yang masih terbuka tidak boleh menutup sesi baru ini — kalau dibiarkan,
+        // hasil tercatat tanpa waktu mulai dan pengawas kehilangan tombol Ulangi.
+        if ($hasilUjian->waktu_mulai === null) {
+            return redirect()->route('siswa.ujian.konfirmasi', $id)
+                ->with('warning_restarted', 'Sesi ujian Anda telah diulang oleh pengawas. Silakan mulai ujian kembali dari halaman ini.');
+        }
 
         // Validasi Khusus Pengumpulan Normal oleh Siswa (bukan waktu habis / pelanggaran)
         if ($statusPenyelesaian === 'normal') {
