@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use App\Models\Mapel;
 use App\Models\Ujian;
 use App\Models\HasilUjian;
@@ -781,12 +782,17 @@ class SiswaDashboardController extends Controller
             // 1. Validasi Batas Minimal Waktu Pengumpulan (50% dari Total Waktu Ujian)
             $durasiTotalDetik = ($ujian->durasi_menit ?? 60) * 60;
             $minimalDetik = $durasiTotalDetik * 0.5;
-            $waktuMulai = $hasilUjian->waktu_mulai ?? $ujian->waktu_mulai;
-            $waktuBerjalanDetik = now()->diffInSeconds($waktuMulai);
+
+            // Carbon 3 mengembalikan selisih bertanda (bisa negatif) untuk
+            // diffInSeconds(), jadi lama waktu dihitung dari timestamp agar
+            // hasilnya selalu positif.
+            $waktuBerjalanDetik = now()->timestamp - Carbon::parse($hasilUjian->waktu_mulai)->timestamp;
 
             if ($waktuBerjalanDetik < $minimalDetik) {
+                $sisaMenit = max(1, (int) ceil(($minimalDetik - $waktuBerjalanDetik) / 60));
+
                 return redirect()->route('siswa.ujian.kerjakan', $id)
-                    ->with('warning_time', 'Ujian belum dapat dikumpulkan. Waktu pengerjaan masih berjalan (belum mencapai minimal 50% dari total durasi ujian). Silakan periksa kembali jawaban Anda.');
+                    ->with('warning_time', "Ujian belum dapat dikumpulkan. Waktu pengerjaan belum mencapai minimal 50% dari total durasi ujian (kurang lebih {$sisaMenit} menit lagi). Silakan periksa kembali jawaban Anda.");
             }
 
             // 2. Validasi Seluruh Soal Wajib Dijawab
